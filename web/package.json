@@ -1,0 +1,18 @@
+{
+  "name": "starfall-knights-prelude",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "星陨骑士·序章 — 原创像素刷宝割草 ARPG(Web 主线)",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
