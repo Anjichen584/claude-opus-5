@@ -11,8 +11,8 @@ export class Input {
     window.addEventListener('keydown', (e) => {
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);
-      // 防止空格滚动页面
-      if (e.code === 'Space') e.preventDefault();
+      // 防止空格滚动页面 / Tab 切走焦点
+      if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
     });
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
     window.addEventListener('blur', () => {

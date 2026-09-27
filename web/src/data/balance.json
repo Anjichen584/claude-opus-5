@@ -34,6 +34,38 @@
       "hp": 45, "atk": 8, "def": 2, "speed": 2.0, "bodyRadius": 0.28,
       "aggroRange": 6.0, "touchCooldown": 0.8, "wanderSpeed": 0.7,
       "spore": { "radiusM": 1.2, "lifeS": 2.0, "intervalS": 0.5, "mult": 0.5 }
+    },
+    "windbee": {
+      "hp": 18, "atk": 6, "def": 0, "speed": 5.5, "bodyRadius": 0.18,
+      "orbitRadiusM": 2.5, "diveSpeed": 7.0, "diveDur": 0.5,
+      "diveIntervalMin": 2.0, "diveIntervalMax": 3.5, "telegraphS": 0.4, "touchCooldown": 0.6
+    },
+    "blightwolf": {
+      "hp": 90, "atk": 14, "def": 4, "speed": 4.8, "bodyRadius": 0.34,
+      "circleRadiusM": 3.5, "circleTimeMin": 2.0, "circleTimeMax": 4.0,
+      "growlS": 0.5, "pounceSpeed": 9.0, "pounceDur": 0.4, "recoverS": 0.8, "touchCooldown": 1.2
+    }
+  },
+  "loot": {
+    "rarityWeights": { "common": 55, "fine": 30, "rare": 12, "epic": 2.7, "legendary": 0.3 },
+    "affixCount": { "common": 0, "fine": 1, "rare": 2, "epic": 3, "legendary": 3 },
+    "dropEquip": 0.18,
+    "dropPotion": 0.06,
+    "stardustMin": 8,
+    "stardustMax": 15,
+    "pity": 200,
+    "invSize": 24,
+    "pickupBaseM": 0.8,
+    "potionHealPct": 0.4,
+    "potionMax": 3,
+    "salvage": { "common": 5, "fine": 12, "rare": 30, "epic": 80, "legendary": 200 },
+    "baseValues": {
+      "weapon": [[8,10],[10,13],[13,17],[17,22],[22,28]],
+      "helmet": [[10,14],[14,20],[20,28],[28,38],[38,50]],
+      "chest": [[12,16],[16,24],[24,32],[32,44],[44,60]],
+      "boots": [[2,3],[3,4],[4,6],[6,8],[8,10]],
+      "ring": [[1,2],[2,3],[3,4],[4,6],[6,8]],
+      "amulet": [[3,4],[4,6],[6,8],[8,11],[11,15]]
     }
   },
   "reactions": {
@@ -49,6 +81,6 @@
   },
   "arena": {
     "widthM": 28, "heightM": 16,
-    "dummyCount": 3, "shroomTarget": 10, "spawnInterval": 1.2
+    "dummyCount": 3, "shroomTarget": 8, "beeTarget": 5, "wolfTarget": 2, "spawnInterval": 1.2
   }
 }

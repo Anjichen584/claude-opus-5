@@ -7,18 +7,24 @@ import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { FOREST, M, UI } from '@game/constants';
 import {
-  Body, Buffs, Dummy, Element, ElementMarks, Faction, Health, Player, Shroomling, Stats,
-  Transform, Velocity, Zone,
+  BlightWolf, Body, Buffs, Dummy, Element, ElementMarks, Equipment, Faction, Health,
+  Inventory, Pickup, Player, Shroomling, Stats, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
-import { drawDummy, drawKnight, drawShadow, drawShroomling } from '@game/gfx/draw';
+import {
+  drawBlightWolf, drawDummy, drawKnight, drawPickup, drawShadow, drawShroomling, drawWindBee,
+} from '@game/gfx/draw';
+import { RARITY_COLORS } from '@game/constants';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem } from '@game/skills/SkillSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { PhysicsSystem } from '@game/systems/PhysicsSystem';
 import { CombatSystem } from '@game/systems/CombatSystem';
 import { ZoneSystem } from '@game/systems/ZoneSystem';
+import { LootSystem } from '@game/loot/LootSystem';
 import { FeedbackSystem } from '@game/systems/FeedbackSystem';
+import { InventoryUI } from '@game/ui/InventoryUI';
+import { recompute } from '@game/loot/Equip';
 
 /**
  * 训练场场景(Phase 1 里程碑):翠语林地风格竞技场 + 木桩 + 菇灵怪群。
@@ -29,6 +35,7 @@ export class GameScene {
   private systems: System[] = [];
   private feedback: FeedbackSystem;
   private skills: SkillSystem;
+  private inventoryUI: InventoryUI;
   private playerE = 0;
   private spawnT = 0;
   private bg: HTMLCanvasElement;
@@ -41,6 +48,7 @@ export class GameScene {
   ) {
     this.feedback = new FeedbackSystem(loop, renderer.camera);
     this.skills = new SkillSystem(input);
+    this.inventoryUI = new InventoryUI(input);
     this.systems = [
       new PlayerSystem(input, renderer),
       this.skills,
@@ -48,6 +56,7 @@ export class GameScene {
       new PhysicsSystem(),
       new CombatSystem(),
       new ZoneSystem(),
+      new LootSystem(),
       this.feedback,
     ];
     this.bg = this.bakeBackground();
@@ -71,6 +80,9 @@ export class GameScene {
     w.add(this.playerE, new Stats(B.atk, B.moveSpeed, B.critRate, B.critDmg, B.def));
     w.add(this.playerE, new Faction('player'));
     w.add(this.playerE, new Player());
+    w.add(this.playerE, new Inventory());
+    w.add(this.playerE, new Equipment());
+    recompute(w, this.playerE);
     this.renderer.camera.snap(cx, cy);
 
     // 训练木桩(左侧训练角)
@@ -112,16 +124,50 @@ export class GameScene {
 
   private spawnRng = new Rng(777);
 
+  /** 通用出怪(风蜂/蚀化狼) */
+  private spawnEnemy(kind: 'windbee' | 'blightwolf'): void {
+    const w = this.world;
+    const cfg = balance.enemies[kind];
+    const ptr = w.mustGet(this.playerE, Transform);
+    let x = 0;
+    let y = 0;
+    for (let tries = 0; tries < 20; tries++) {
+      x = this.spawnRng.range(1.5, balance.arena.widthM - 1.5) * M;
+      y = this.spawnRng.range(1.5, balance.arena.heightM - 1.5) * M;
+      if (Math.hypot(x - ptr.x, y - ptr.y) > 7 * M) break;
+    }
+    const e = w.create();
+    w.add(e, new Transform(x, y));
+    w.add(e, new Velocity());
+    w.add(e, new Body(cfg.bodyRadius));
+    w.add(e, new Health(cfg.hp));
+    w.add(e, new Stats(cfg.atk, cfg.speed, 0, 1, cfg.def));
+    w.add(e, new Faction('enemy'));
+    w.add(e, new ElementMarks());
+    w.add(e, new Buffs());
+    if (kind === 'windbee') w.add(e, new WindBee());
+    else w.add(e, new BlightWolf());
+  }
+
   // ---------- 更新 ----------
 
   update(dt: number): void {
+    // 背包打开时暂停世界(输入仍处理)
+    const uiConsumed = this.inventoryUI.handleInput(this.world, this.playerE);
+    if (uiConsumed) {
+      this.input.endFrame();
+      return;
+    }
+
     for (const s of this.systems) s.update(this.world, dt);
 
-    // 补怪
+    // 补怪(三种怪各自维持目标数量)
     this.spawnT -= dt;
-    if (this.spawnT <= 0 && this.world.count(Shroomling) < balance.arena.shroomTarget) {
+    if (this.spawnT <= 0) {
       this.spawnT = balance.arena.spawnInterval;
-      this.spawnShroom(this.spawnRng);
+      if (this.world.count(Shroomling) < balance.arena.shroomTarget) this.spawnShroom(this.spawnRng);
+      else if (this.world.count(WindBee) < balance.arena.beeTarget) this.spawnEnemy('windbee');
+      else if (this.world.count(BlightWolf) < balance.arena.wolfTarget) this.spawnEnemy('blightwolf');
     }
 
     // 木桩状态推进
@@ -212,6 +258,37 @@ export class GameScene {
         const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
         list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 11); drawShroomling(ctx, ix, iy, s.animT, h.flash, s.state === 'chase'); } });
       }
+      for (const e of w.query(WindBee, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const b = w.mustGet(e, WindBee);
+        const h = w.mustGet(e, Health);
+        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
+        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
+        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 7); drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph'); } });
+      }
+      for (const e of w.query(BlightWolf, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const wf = w.mustGet(e, BlightWolf);
+        const h = w.mustGet(e, Health);
+        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
+        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
+        list.push({
+          y: iy,
+          draw: () => {
+            drawShadow(ctx, ix, iy, 16);
+            drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, Math.cos(tr.face) < 0, wf.state === 'growl', wf.state === 'pounce');
+          },
+        });
+      }
+      for (const e of w.query(Pickup, Transform)) {
+        const tr = w.mustGet(e, Transform);
+        const pk = w.mustGet(e, Pickup);
+        const color = pk.kind === 'item' && pk.item ? RARITY_COLORS[pk.item.rarity] : '#f2d98c';
+        list.push({
+          y: tr.y - 1, // 掉落物压在怪脚下之下一点
+          draw: () => drawPickup(ctx, tr.x, tr.y, pk.kind, color, pk.bobPhase, pk.item?.glyph),
+        });
+      }
       {
         const e = this.playerE;
         const tr = w.mustGet(e, Transform);
@@ -278,6 +355,7 @@ export class GameScene {
 
     this.renderHud();
     this.feedback.renderScreen(r.ctx, r.width, r.height);
+    this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
   }
 
   private renderHud(): void {
@@ -372,19 +450,23 @@ export class GameScene {
       ctx.fillText(`怒气 ${Math.round(p.rage)}`, rageX + slotW / 2, baseY - 16);
     }
 
-    // 右上:击杀/死亡/FPS
+    // 右上:击杀/死亡/FPS + 资源
     ctx.textAlign = 'right';
     ctx.fillStyle = UI.panel;
-    ctx.fillRect(width - 190, 14, 176, 30);
+    ctx.fillRect(width - 210, 14, 196, 48);
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
-    ctx.fillText(`击杀 ${this.feedback.kills}  阵亡 ${p.deaths}  FPS ${Math.round(this.fps)}`, width - 24, 34);
+    ctx.fillText(`击杀 ${this.feedback.kills}  阵亡 ${p.deaths}  FPS ${Math.round(this.fps)}`, width - 24, 32);
+    ctx.fillStyle = UI.gold;
+    ctx.fillText(`✦ ${p.stardust}`, width - 110, 52);
+    ctx.fillStyle = p.potionCharges > 0 ? UI.hpLow : UI.dim;
+    ctx.fillText(`药剂[1] ×${p.potionCharges}`, width - 24, 52);
 
     // 底部操作提示
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(232,232,232,0.55)';
     ctx.font = '12px monospace';
-    ctx.fillText('WASD 移动 · 左键 连斩 · 空格 翻滚 · Q 裂空斩🔥 · E 潮涌步❄ · R 万剑归宗⚡(先攒怒气) · 不同元素二连击触发连锁!', width / 2, height - 12);
+    ctx.fillText('WASD 移动 · 左键连斩 · 空格翻滚 · Q🔥/E❄/R⚡技能(异元素连锁!) · [Tab]背包 · [1]药剂 · 怪掉装备,捡了就穿!', width / 2, height - 12);
 
     // 阵亡遮罩
     if (p.respawnT > 0) {

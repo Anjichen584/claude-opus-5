@@ -168,6 +168,136 @@ export function drawDummy(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.restore();
 }
 
+/** 原创飞行杂兵「风蜂」:青绿绒球身 + 双翼快闪 + 蓄力时发红 */
+export function drawWindBee(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  flash: number,
+  telegraphing: boolean,
+): void {
+  const f = flash > 0;
+  const c = (n: string): string => (f ? '#ffffff' : n);
+  const hover = Math.sin(t * 6) * 3;
+  const wingFlap = Math.sin(t * 40) > 0;
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y - 22 + hover));
+  if (telegraphing) ctx.translate((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+
+  // 双翼(快闪)
+  ctx.globalAlpha = 0.7;
+  px(ctx, c('#cfe8ef'), -3.4 * P, wingFlap ? -2.4 * P : -1.8 * P, 2 * P, 1.2 * P);
+  px(ctx, c('#cfe8ef'), 1.4 * P, wingFlap ? -2.4 * P : -1.8 * P, 2 * P, 1.2 * P);
+  ctx.globalAlpha = 1;
+  // 身体(青绿绒球 + 深条纹)
+  px(ctx, c(telegraphing ? '#d97b5f' : '#68c2a8'), -1.8 * P, -1.6 * P, 3.6 * P, 3 * P);
+  px(ctx, c('#3f8a74'), -1.8 * P, -0.4 * P, 3.6 * P, 0.7 * P);
+  // 眼
+  px(ctx, c('#1d2430'), -1 * P, -1 * P, 0.7 * P, 0.7 * P);
+  px(ctx, c('#1d2430'), 0.4 * P, -1 * P, 0.7 * P, 0.7 * P);
+  // 尾刺
+  px(ctx, c('#e8dcc0'), -0.4 * P, 1.4 * P, 0.8 * P, 1 * P);
+  ctx.restore();
+}
+
+/** 原创精英「蚀化狼」:紫灰长躯 + 蚀纹 + 低吼时橙眼 */
+export function drawBlightWolf(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  flash: number,
+  faceLeft: boolean,
+  growling: boolean,
+  pouncing: boolean,
+): void {
+  const f = flash > 0;
+  const c = (n: string): string => (f ? '#ffffff' : n);
+  const run = Math.sin(t * 16) * 2;
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  if (faceLeft) ctx.scale(-1, 1);
+  if (pouncing) ctx.rotate(-0.12);
+
+  // 腿(奔跑摆动)
+  px(ctx, c('#4a4060'), -4 * P + run, -2.5 * P, 1.2 * P, 2.5 * P);
+  px(ctx, c('#4a4060'), -1.5 * P - run, -2.5 * P, 1.2 * P, 2.5 * P);
+  px(ctx, c('#4a4060'), 1 * P + run, -2.5 * P, 1.2 * P, 2.5 * P);
+  px(ctx, c('#4a4060'), 3 * P - run, -2.5 * P, 1.2 * P, 2.5 * P);
+  // 躯干(紫灰 + 背脊蚀纹)
+  px(ctx, c('#6b5b8f'), -5 * P, -6 * P, 9.6 * P, 3.6 * P);
+  px(ctx, c('#584a78'), -5 * P, -3.4 * P, 9.6 * P, 1 * P);
+  px(ctx, c('#8f7bb8'), -3.5 * P, -6.6 * P, 1.4 * P, 0.8 * P);
+  px(ctx, c('#8f7bb8'), -1 * P, -6.8 * P, 1.4 * P, 1 * P);
+  px(ctx, c('#8f7bb8'), 1.5 * P, -6.6 * P, 1.4 * P, 0.8 * P);
+  // 尾
+  px(ctx, c('#584a78'), -6.6 * P, -5.8 * P, 1.8 * P, 1.2 * P);
+  // 头
+  px(ctx, c('#6b5b8f'), 3.6 * P, -7.2 * P, 3.4 * P, 3 * P);
+  px(ctx, c('#584a78'), 6 * P, -6 * P, 1.6 * P, 1.4 * P); // 吻部
+  px(ctx, c('#4a4060'), 3.8 * P, -8 * P, 1 * P, 1 * P); // 耳
+  px(ctx, c('#4a4060'), 5.2 * P, -8 * P, 1 * P, 1 * P);
+  // 眼(低吼时橙色发亮)
+  px(ctx, c(growling ? '#f2a33c' : '#7fd8e8'), 4.6 * P, -6.6 * P, 1 * P, 0.7 * P);
+
+  ctx.restore();
+}
+
+/** 掉落物:装备箱(稀有度光柱)/ 星尘 / 药剂 */
+export function drawPickup(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  kind: 'item' | 'stardust' | 'potion',
+  color: string,
+  bobPhase: number,
+  glyph?: string,
+): void {
+  const bob = Math.sin(bobPhase) * 3;
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y - 8 + bob));
+
+  if (kind === 'stardust') {
+    const tw = 0.6 + 0.4 * Math.sin(bobPhase * 2);
+    ctx.globalAlpha = tw;
+    px(ctx, '#f2d98c', -2, -2, 4, 4);
+    px(ctx, '#ffffff', -1, -1, 2, 2);
+    ctx.restore();
+    return;
+  }
+
+  if (kind === 'potion') {
+    px(ctx, '#c94f4f', -3, -7, 6, 7);
+    px(ctx, '#e07a7a', -3, -7, 2, 5);
+    px(ctx, '#8a6b1f', -1.5, -10, 3, 3);
+    ctx.restore();
+    return;
+  }
+
+  // 装备:光柱 + 色块箱
+  ctx.globalAlpha = 0.35 + 0.15 * Math.sin(bobPhase * 1.5);
+  const grad = ctx.createLinearGradient(0, -34, 0, 0);
+  grad.addColorStop(0, color + '00');
+  grad.addColorStop(1, color);
+  ctx.fillStyle = grad;
+  ctx.fillRect(-5, -34, 10, 34);
+  ctx.globalAlpha = 1;
+  px(ctx, '#1a1f30', -7, -8, 14, 12);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-7, -8, 14, 12);
+  if (glyph) {
+    ctx.fillStyle = color;
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(glyph, 0, 1);
+  }
+  ctx.restore();
+}
+
 /** 挥砍弧光(扇形楔 + 锐利前缘) */
 export function drawSlashArc(
   ctx: CanvasRenderingContext2D,

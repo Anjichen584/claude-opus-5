@@ -2,8 +2,8 @@ import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  BeamFxEvent, Buffs, Dummy, Element, ElementMarks, Faction, Health, HitEvent,
-  KillEvent, Player, ReactionEvent, RingFxEvent, Shroomling, Stats, Transform, Zone,
+  BeamFxEvent, BlightWolf, Buffs, Dummy, Element, ElementMarks, Faction, Health, HitEvent,
+  KillEvent, Player, ReactionEvent, RingFxEvent, Shroomling, Stats, Transform, WindBee, Zone,
 } from '@game/components';
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
@@ -49,7 +49,11 @@ export function dealDamage(world: World, o: DealOpts): void {
   const tBuffs = world.get(o.target, Buffs);
   const vuln = tBuffs && tBuffs.vulnT > 0 ? 1 + RX.brittle.pct : 1;
 
-  const amount = finalDamage(atk, o.mult * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
+  // 元素伤害词条加成(仅元素攻击享受)
+  const srcPlayer = o.source !== null ? world.get(o.source, Player) : undefined;
+  const elemBonus = o.element && srcPlayer ? 1 + srcPlayer.elemDmg : 1;
+
+  const amount = finalDamage(atk, o.mult * elemBonus * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
 
   // ---- 玩家目标走受伤入口(尊重无敌帧/翻滚) ----
   if (world.has(o.target, Player)) {
@@ -87,18 +91,29 @@ export function dealDamage(world: World, o: DealOpts): void {
   const kill = tHp.hp <= 0;
   gainRage(world, o.source, crit);
 
-  // 击退
+  // 击退(所有可击退怪种通用)
   const shroom = world.get(o.target, Shroomling);
   const kb = (o.knockbackM ?? 0) + (kill ? 2 : 0);
-  if (shroom && kb > 0) {
-    shroom.kx += Math.cos(o.hitAngle) * kb * M;
-    shroom.ky += Math.sin(o.hitAngle) * kb * M;
+  if (kb > 0) {
+    const kx = Math.cos(o.hitAngle) * kb * M;
+    const ky = Math.sin(o.hitAngle) * kb * M;
+    const knockable = shroom ?? world.get(o.target, WindBee) ?? world.get(o.target, BlightWolf);
+    if (knockable) {
+      knockable.kx += kx;
+      knockable.ky += ky;
+    }
   }
 
   world.emit(new HitEvent(tTr.x, tTr.y - 14, amount, crit, kill, o.hitAngle, o.element));
 
   if (kill) {
-    world.emit(new KillEvent(tTr.x, tTr.y, shroom ? 'shroomling' : ''));
+    // 橙装「噬魂坠」:击杀回复 3 点生命
+    if (srcPlayer && o.source !== null && srcPlayer.specials.includes('soulfeast')) {
+      const srcHp = world.get(o.source, Health);
+      if (srcHp && srcHp.hp > 0) srcHp.hp = Math.min(srcHp.max, srcHp.hp + 3);
+    }
+    const kind = shroom ? 'shroomling' : world.has(o.target, WindBee) ? 'windbee' : world.has(o.target, BlightWolf) ? 'blightwolf' : 'monster';
+    world.emit(new KillEvent(tTr.x, tTr.y, kind));
     // 菇灵死亡孢子雾(毒,伤玩家)——教学元素机制(docs/01 §8)
     if (shroom) {
       const sp = balance.enemies.shroomling.spore;

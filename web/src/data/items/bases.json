@@ -1,0 +1,17 @@
+{
+  "$doc": "基础装备定义(全原创命名)。名称 = 稀有度前缀·基名;橙装有专属特效(special)。",
+  "rarityPrefix": { "common": "凡铁", "fine": "精工", "rare": "秘银", "epic": "星辉", "legendary": "陨核" },
+  "bases": {
+    "weapon": { "name": "长剑",   "glyph": "武", "baseStat": "atk",      "statName": "攻击" },
+    "helmet": { "name": "苔纹盔", "glyph": "盔", "baseStat": "hp",       "statName": "生命" },
+    "chest":  { "name": "游侠甲", "glyph": "甲", "baseStat": "hp",       "statName": "生命" },
+    "boots":  { "name": "疾风靴", "glyph": "靴", "baseStat": "movePct",  "statName": "移速%" },
+    "ring":   { "name": "星屑戒", "glyph": "戒", "baseStat": "critRate", "statName": "暴击%" },
+    "amulet": { "name": "林语坠", "glyph": "坠", "baseStat": "atk",      "statName": "攻击" }
+  },
+  "legendarySpecials": {
+    "boots":  { "id": "emberstride", "itemName": "焰行者之靴", "desc": "翻滚沿途留下火焰轨迹" },
+    "amulet": { "id": "soulfeast",   "itemName": "噬魂坠",     "desc": "击杀回复 3 点生命" },
+    "weapon": { "id": "tempest",     "itemName": "怒涛之刃",   "desc": "第三段连击范围 +40%" }
+  }
+}

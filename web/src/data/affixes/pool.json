@@ -1,0 +1,13 @@
+{
+  "$doc": "词条池(docs/03-NUMBERS.md §5)。lo=绿蓝档范围, hi=紫橙档范围;value 为整数随机。",
+  "affixes": [
+    { "id": "atk_pct",    "name": "攻击",     "stat": "atkPct",    "suffix": "%", "slots": ["weapon", "ring", "amulet"],  "lo": [4, 8],   "hi": [8, 15] },
+    { "id": "hp_pct",     "name": "生命",     "stat": "hpPct",     "suffix": "%", "slots": ["helmet", "chest", "boots"],  "lo": [5, 10],  "hi": [10, 18] },
+    { "id": "crit_rate",  "name": "暴击率",   "stat": "critRate",  "suffix": "%", "slots": ["weapon", "ring"],            "lo": [3, 5],   "hi": [5, 9] },
+    { "id": "crit_dmg",   "name": "暴击伤害", "stat": "critDmg",   "suffix": "%", "slots": ["weapon", "amulet"],          "lo": [8, 15],  "hi": [15, 30] },
+    { "id": "cdr",        "name": "冷却缩减", "stat": "cdr",       "suffix": "%", "slots": ["helmet", "amulet"],          "lo": [3, 6],   "hi": [6, 10] },
+    { "id": "move_pct",   "name": "移动速度", "stat": "movePct",   "suffix": "%", "slots": ["boots"],                     "lo": [3, 5],   "hi": [5, 8] },
+    { "id": "elem_dmg",   "name": "元素伤害", "stat": "elemDmg",   "suffix": "%", "slots": ["weapon", "ring", "amulet"],  "lo": [6, 12],  "hi": [12, 20] },
+    { "id": "pickup_pct", "name": "拾取半径", "stat": "pickupPct", "suffix": "%", "slots": ["boots", "amulet"],           "lo": [10, 20], "hi": [20, 40] }
+  ]
+}

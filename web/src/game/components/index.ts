@@ -78,6 +78,15 @@ export class Player {
   cdE = 0;
   cdR = 0;
   rage = 0; // 0..100,命中积攒
+  // 装备派生属性(Phase 3,由 loot/Equip.ts recompute 写入)
+  cdr = 0; // 冷却缩减 0..0.4
+  elemDmg = 0; // 元素伤害加成(小数)
+  pickupRadiusM = 0.8;
+  specials: string[] = []; // 橙装特效 id 列表
+  fireTrailAccum = 0;
+  // 资源(Phase 3)
+  stardust = 0;
+  potionCharges = 1;
   // 恢复与死亡
   regenDelay = 0;
   deaths = 0;
@@ -136,7 +145,66 @@ export class Shroomling {
   ky = 0;
 }
 
+/** 地上掉落物 */
+export class Pickup {
+  vx = 0;
+  vy = 0;
+  restT = 0.35; // 弹出落地时间,期间不可拾取
+  bobPhase = Math.random() * Math.PI * 2;
+  magnet = false;
+
+  constructor(
+    public kind: 'item' | 'stardust' | 'potion',
+    public item: import('@game/loot/Items').Item | null = null,
+    public value = 0,
+  ) {}
+}
+
+/** 背包(玩家) */
+export class Inventory {
+  items: Array<import('@game/loot/Items').Item> = [];
+}
+
+/** 已穿戴装备(玩家) */
+export class Equipment {
+  slots: Partial<Record<import('@game/loot/Items').Slot, import('@game/loot/Items').Item>> = {};
+}
+
+/** 风蜂:环绕 → 预警 → 俯冲 */
+export class WindBee {
+  state: 'orbit' | 'telegraph' | 'dive' = 'orbit';
+  t = 0;
+  angle = Math.random() * Math.PI * 2;
+  orbitDir = Math.random() < 0.5 ? 1 : -1;
+  nextDiveT = 2 + Math.random() * 1.5;
+  diveVx = 0;
+  diveVy = 0;
+  touchCd = 0;
+  animT = Math.random() * 10;
+  kx = 0;
+  ky = 0;
+}
+
+/** 蚀化狼:游走绕圈 → 低吼预警 → 扑击 → 硬直 */
+export class BlightWolf {
+  state: 'circle' | 'growl' | 'pounce' | 'recover' = 'circle';
+  t = 0;
+  circleT = 2 + Math.random() * 2;
+  dir = Math.random() < 0.5 ? 1 : -1;
+  pounceVx = 0;
+  pounceVy = 0;
+  touchCd = 0;
+  animT = Math.random() * 10;
+  kx = 0;
+  ky = 0;
+}
+
 // ---------- 帧内事件 ----------
+
+/** 通用提示飘字(拾取/治疗/保底等) */
+export class ToastEvent {
+  constructor(public text: string, public color: string) {}
+}
 
 /** 玩家挥砍判定请求(由 CombatSystem 消费) */
 export class MeleeSweep {

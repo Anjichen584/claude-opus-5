@@ -6,7 +6,7 @@ import balance from '@data/balance.json';
 import { UI } from '@game/constants';
 import {
   BeamFxEvent, DashGhostEvent, HitEvent, KillEvent, PlayerHurtEvent, ReactionEvent,
-  RingFxEvent, SfxEvent, SlashFxEvent,
+  RingFxEvent, SfxEvent, SlashFxEvent, ToastEvent,
 } from '@game/components';
 import { drawSlashArc } from '@game/gfx/draw';
 
@@ -127,6 +127,14 @@ export class FeedbackSystem implements System {
     }
 
     for (const s of world.read(SfxEvent)) sfx.play(s.kind);
+
+    // 通用提示(拾取/治疗/保底):飘在玩家头顶上方
+    for (const t of world.read(ToastEvent)) {
+      this.floaters.push({
+        x: this.camera.x, y: this.camera.y - 60, vy: -30, t: 0, life: 1.1,
+        text: t.text, color: t.color, scale: 1.1,
+      });
+    }
 
     for (const hurt of world.read(PlayerHurtEvent)) {
       this.hurtVignette = feel.hurtVignetteSec;

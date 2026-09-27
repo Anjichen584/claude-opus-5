@@ -72,7 +72,7 @@ export class SkillSystem implements System {
     const ph = def.phases[0] as { count: number; intervalS: number; arcDeg: number; rangeM: number; mult: number };
     const rune = this.runes.get(def.id);
     const element = (rune?.element ?? null) as Element | null;
-    p.cdQ = def.cooldown;
+    p.cdQ = def.cooldown * (1 - p.cdr);
     world.emit(new SfxEvent('skill'));
 
     for (let i = 0; i < ph.count; i++) {
@@ -114,7 +114,7 @@ export class SkillSystem implements System {
     const blastPh = def.phases[1] as { delayS: number; radiusM: number; mult: number };
     const rune = this.runes.get(def.id);
     const element = (rune?.element ?? null) as Element | null;
-    p.cdE = def.cooldown;
+    p.cdE = def.cooldown * (1 - p.cdr);
     world.emit(new SfxEvent('dash'));
 
     // 突进(复用翻滚位移机制,方向=瞄准)

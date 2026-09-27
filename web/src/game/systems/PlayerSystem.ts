@@ -2,9 +2,10 @@ import type { System, World } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import type { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
-import { M } from '@game/constants';
+import { M, UI } from '@game/constants';
 import {
-  DashGhostEvent, Health, MeleeSweep, Player, PlayerHurtEvent, SlashFxEvent, Stats, Transform, Velocity,
+  DashGhostEvent, Health, MeleeSweep, Player, PlayerHurtEvent, SfxEvent, SlashFxEvent,
+  Stats, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
 
 const B = balance.player;
@@ -73,6 +74,17 @@ export class PlayerSystem implements System {
           p.ghostAccum = 0;
           world.emit(new DashGhostEvent(tr.x, tr.y, tr.face));
         }
+        // 橙装「焰行者之靴」:翻滚沿途留火焰轨迹
+        if (p.specials.includes('emberstride')) {
+          p.fireTrailAccum += dt;
+          if (p.fireTrailAccum >= 0.06) {
+            p.fireTrailAccum = 0;
+            const stats2 = world.mustGet(e, Stats);
+            const z = world.create();
+            world.add(z, new Transform(tr.x, tr.y));
+            world.add(z, new Zone(0.6 * M, 1.5, 0.5, stats2.atk, 0.6, 'fire', 'player', '#ff7a45'));
+          }
+        }
       } else {
         if (this.input.wasPressed('Space') && p.dashCd <= 0) {
           // 翻滚方向:优先移动输入,否则朝向
@@ -107,13 +119,24 @@ export class PlayerSystem implements System {
           p.comboTimer = B.combo.window + p.attackDur;
 
           const arcRad = (B.combo.arcDeg * Math.PI) / 180;
-          const rangePx = B.combo.range * M;
+          // 橙装「怒涛之刃」:第三段范围 +40%
+          const tempest = p.comboStage === 3 && p.specials.includes('tempest') ? 1.4 : 1;
+          const rangePx = B.combo.range * M * tempest;
           world.emit(new MeleeSweep(
             e, tr.x, tr.y, tr.face, rangePx, arcRad, B.combo.mults[idx], p.comboStage,
             null, p.comboStage === 3 ? B.combo.knockback3 : 0,
           ));
           world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
         }
+      }
+
+      // ---- 药剂([1] 键,恢复 40% 最大生命) ----
+      if (this.input.wasPressed('Digit1') && p.potionCharges > 0 && hp.hp < hp.max && hp.hp > 0) {
+        p.potionCharges--;
+        const heal = Math.round(hp.max * balance.loot.potionHealPct);
+        hp.hp = Math.min(hp.max, hp.hp + heal);
+        world.emit(new ToastEvent(`+${heal}`, UI.hp));
+        world.emit(new SfxEvent('skill'));
       }
 
       p.moving = Math.hypot(vel.vx, vel.vy) > 20;

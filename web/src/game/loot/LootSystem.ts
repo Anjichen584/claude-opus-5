@@ -1,0 +1,130 @@
+import type { System, World } from '@engine/ecs/World';
+import { Rng } from '@engine/core/Rng';
+import balance from '@data/balance.json';
+import { M, RARITY_COLORS, UI } from '@game/constants';
+import {
+  Inventory, KillEvent, Pickup, Player, SfxEvent, ToastEvent, Transform, Velocity,
+} from '@game/components';
+import { ItemFactory } from './Items';
+import { salvage } from './Equip';
+
+const L = balance.loot;
+
+/**
+ * 掉落与拾取:击杀 → 掉落判定(装备/药剂/星尘) → 弹出物理 → 磁吸 → 入包。
+ * 背包满时自动分解为星尘。保底:200 次装备掉落无橙必橙(docs/03 §6)。
+ */
+export class LootSystem implements System {
+  private rng = new Rng(4202611);
+  readonly factory = new ItemFactory(this.rng);
+
+  update(world: World, dt: number): void {
+    // ---- 击杀掉落 ----
+    for (const kill of world.read(KillEvent)) {
+      if (kill.kind === '') continue; // 非怪物死亡(保险)
+      // 星尘(必掉,拆成 2~4 颗弹出)
+      const dust = this.rng.int(L.stardustMin, L.stardustMax);
+      const motes = this.rng.int(2, 4);
+      for (let i = 0; i < motes; i++) {
+        this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, Math.ceil(dust / motes)));
+      }
+      // 装备
+      if (this.rng.chance(L.dropEquip)) {
+        const wasPity = this.factory.pityCount >= L.pity;
+        const item = this.factory.roll(0);
+        if (wasPity) world.emit(new ToastEvent('保底触发!陨核装备!', RARITY_COLORS.legendary));
+        this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
+      }
+      // 药剂
+      if (this.rng.chance(L.dropPotion)) {
+        this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
+      }
+    }
+
+    // ---- 拾取物理与磁吸 ----
+    const players = world.query(Player, Transform, Inventory);
+    if (players.length === 0) return;
+    const pe = players[0];
+    const ptr = world.mustGet(pe, Transform);
+    const p = world.mustGet(pe, Player);
+    const inv = world.mustGet(pe, Inventory);
+
+    for (const e of world.query(Pickup, Transform)) {
+      const pk = world.mustGet(e, Pickup);
+      const tr = world.mustGet(e, Transform);
+      pk.bobPhase += dt * 4;
+
+      if (pk.restT > 0) {
+        // 弹出阶段
+        pk.restT -= dt;
+        tr.x += pk.vx * dt;
+        tr.y += pk.vy * dt;
+        pk.vx *= 1 - 4 * dt;
+        pk.vy *= 1 - 4 * dt;
+        continue;
+      }
+
+      const dx = ptr.x - tr.x;
+      const dy = ptr.y - tr.y;
+      const dist = Math.hypot(dx, dy);
+      // 星尘磁吸半径更大;装备用拾取半径
+      const magnetR = (pk.kind === 'stardust' ? p.pickupRadiusM * 2.5 : p.pickupRadiusM) * M;
+
+      if (pk.magnet || dist < magnetR) {
+        pk.magnet = true;
+        const sp = 9 * M;
+        tr.x += (dx / (dist || 1)) * sp * dt;
+        tr.y += (dy / (dist || 1)) * sp * dt;
+      }
+
+      if (dist < 0.4 * M) {
+        this.collect(world, pe, pk, inv, p);
+        world.destroy(e);
+      }
+    }
+  }
+
+  private collect(world: World, _pe: number, pk: Pickup, inv: Inventory, p: Player): void {
+    switch (pk.kind) {
+      case 'stardust':
+        p.stardust += pk.value;
+        break;
+      case 'potion':
+        if (p.potionCharges < L.potionMax) {
+          p.potionCharges++;
+          world.emit(new ToastEvent('药剂 +1', UI.hpLow));
+        } else {
+          p.stardust += 10;
+          world.emit(new ToastEvent('药剂已满 → 星尘 +10', UI.dim));
+        }
+        world.emit(new SfxEvent('skill'));
+        break;
+      case 'item': {
+        const item = pk.item!;
+        if (inv.items.length >= L.invSize) {
+          const dust = salvage(item);
+          p.stardust += dust;
+          world.emit(new ToastEvent(`背包已满 → 分解 ${item.name} (+${dust}✦)`, UI.dim));
+        } else {
+          inv.items.push(item);
+          world.emit(new ToastEvent(`获得 ${item.name}`, RARITY_COLORS[item.rarity]));
+          world.emit(new SfxEvent(item.rarity === 'legendary' || item.rarity === 'epic' ? 'ult' : 'skill'));
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private spawnPickup(world: World, x: number, y: number, pk: Pickup): void {
+    const e = world.create();
+    const a = this.rng.range(0, Math.PI * 2);
+    const sp = this.rng.range(1.5, 3.5) * M;
+    pk.vx = Math.cos(a) * sp;
+    pk.vy = Math.sin(a) * sp;
+    world.add(e, new Transform(x, y));
+    world.add(e, new Velocity());
+    world.add(e, pk);
+  }
+}
