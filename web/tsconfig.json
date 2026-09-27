@@ -11,6 +11,7 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "baseUrl": "src",
     "paths": {
       "@engine/*": ["engine/*"],

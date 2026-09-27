@@ -1,0 +1,41 @@
+{
+  "$doc": "全局数值杠杆。任何改动必须同步 docs/03-NUMBERS.md(同一 commit)。",
+  "player": {
+    "hp": 120,
+    "atk": 14,
+    "moveSpeed": 4.2,
+    "critRate": 0.05,
+    "critDmg": 1.5,
+    "accelTime": 0.08,
+    "decelTime": 0.05,
+    "bodyRadius": 0.32,
+    "dash": { "duration": 0.22, "distance": 2.8, "iframes": 0.35, "cooldown": 1.2 },
+    "combo": {
+      "mults": [1.0, 1.0, 1.6],
+      "window": 0.6,
+      "attackTime": [0.2, 0.2, 0.28],
+      "range": 2.2,
+      "arcDeg": 110,
+      "knockback3": 6.0,
+      "moveSlow": 0.35
+    },
+    "regen": { "delay": 4.0, "ratePct": 0.06 },
+    "respawn": { "delay": 1.5, "invuln": 2.0 }
+  },
+  "feel": {
+    "hitstopMs": { "normal": 40, "crit": 70, "kill": 90 },
+    "shake": { "crit": { "amp": 2, "dur": 0.08 }, "kill": { "amp": 3, "dur": 0.1 }, "hurt": { "amp": 4, "dur": 0.15 } },
+    "flashSec": 0.09,
+    "hurtVignetteSec": 0.25
+  },
+  "enemies": {
+    "shroomling": {
+      "hp": 45, "atk": 8, "speed": 2.0, "bodyRadius": 0.28,
+      "aggroRange": 6.0, "touchCooldown": 0.8, "wanderSpeed": 0.7
+    }
+  },
+  "arena": {
+    "widthM": 28, "heightM": 16,
+    "dummyCount": 3, "shroomTarget": 10, "spawnInterval": 1.2
+  }
+}
