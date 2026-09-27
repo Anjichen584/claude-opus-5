@@ -1,5 +1,8 @@
 /** 组件 = 纯数据。所有逻辑在 systems/ 中。 */
 
+/** 四系元素(docs/01-GDD.md §6) */
+export type Element = 'fire' | 'ice' | 'bolt' | 'toxin';
+
 export class Transform {
   prevX: number;
   prevY: number;
@@ -40,6 +43,7 @@ export class Stats {
     public moveSpeed: number,
     public critRate: number,
     public critDmg: number,
+    public def = 0,
   ) {}
 }
 
@@ -62,12 +66,18 @@ export class Player {
   dashCd = 0;
   dashDirX = 1;
   dashDirY = 0;
+  dashSpeedPx = 0; // 本次位移速度(翻滚/技能突进各不同)
   ghostAccum = 0;
   // 无敌帧
   iframes = 0;
   // 瞄准(世界坐标方向)
   aimX = 1;
   aimY = 0;
+  // 技能冷却与怒气(Phase 2)
+  cdQ = 0;
+  cdE = 0;
+  cdR = 0;
+  rage = 0; // 0..100,命中积攒
   // 恢复与死亡
   regenDelay = 0;
   deaths = 0;
@@ -75,6 +85,35 @@ export class Player {
   // 动画钟
   animT = 0;
   moving = false;
+}
+
+/** 元素印记(挂在可受击目标上,4s 过期;不同元素二次命中触发连锁) */
+export class ElementMarks {
+  marks: Partial<Record<Element, number>> = {};
+}
+
+/** 简易 Buff/Debuff 计时器(Phase 2 精简版,Phase 3 泛化为词条化 Buff 表) */
+export class Buffs {
+  stunT = 0;
+  slowT = 0;
+  slowPct = 0;
+  /** 脆蚀:受到伤害 +25% */
+  vulnT = 0;
+}
+
+/** 地面区域(火焰地带/毒云/孢子雾…):按间隔对敌对阵营跳伤害 */
+export class Zone {
+  tickT = 0;
+  constructor(
+    public radiusPx: number,
+    public life: number,
+    public interval: number,
+    public atk: number,
+    public mult: number,
+    public element: Element | null,
+    public team: Team,
+    public color: string,
+  ) {}
 }
 
 /** 训练木桩:不死,统计 DPS */
@@ -110,6 +149,8 @@ export class MeleeSweep {
     public arcRad: number,
     public mult: number,
     public stage: number,
+    public element: Element | null = null,
+    public knockbackM = 0,
   ) {}
 }
 
@@ -122,11 +163,37 @@ export class HitEvent {
     public crit: boolean,
     public kill: boolean,
     public angle: number,
+    public element: Element | null = null,
   ) {}
 }
 
 export class KillEvent {
-  constructor(public x: number, public y: number) {}
+  constructor(public x: number, public y: number, public kind = '') {}
+}
+
+/** 元素连锁反应触发(反馈:大字/爆光/音效) */
+export class ReactionEvent {
+  constructor(
+    public x: number,
+    public y: number,
+    public name: string,
+    public color: string,
+  ) {}
+}
+
+/** 天降剑/落雷类柱状特效 */
+export class BeamFxEvent {
+  constructor(public x: number, public y: number, public color: string) {}
+}
+
+/** 扩散环特效(爆炸/残影引爆) */
+export class RingFxEvent {
+  constructor(public x: number, public y: number, public radiusPx: number, public color: string) {}
+}
+
+/** 程序化音效请求 */
+export class SfxEvent {
+  constructor(public kind: string) {}
 }
 
 export class PlayerHurtEvent {

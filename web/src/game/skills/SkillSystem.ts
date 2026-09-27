@@ -1,0 +1,211 @@
+import type { System, World, Entity } from '@engine/ecs/World';
+import type { Input } from '@engine/input/Input';
+import { M } from '@game/constants';
+import skillsData from '@data/skills/blade.json';
+import runesData from '@data/runes/starter.json';
+import {
+  BeamFxEvent, Element, Faction, Health, MeleeSweep, Player, RingFxEvent,
+  SfxEvent, SlashFxEvent, Stats, Transform, Zone,
+} from '@game/components';
+import { elementColor } from '@game/combat/Elements';
+import { dealDamage } from '@game/combat/DamagePipeline';
+
+interface RuneDef {
+  id: string;
+  name: string;
+  element?: string;
+  groundZone?: { radiusM: number; lifeS: number; intervalS: number; mult: number };
+}
+
+interface Scheduled { t: number; run: (world: World) => void }
+
+/**
+ * 技能系统:数据驱动(data/skills)+ 符文修饰(data/runes)。
+ * phase 类型:multiSweep / dash / echoBlast / swordRain(新增类型在此登记并写执行器)。
+ */
+export class SkillSystem implements System {
+  private queue: Scheduled[] = [];
+  private defs = new Map<string, (typeof skillsData.skills)[number]>();
+  private runes = new Map<string, RuneDef>();
+
+  constructor(private readonly input: Input) {
+    for (const s of skillsData.skills) this.defs.set(s.slot, s);
+    const eq = runesData.equipped as Record<string, RuneDef>;
+    for (const [skillId, rune] of Object.entries(eq)) this.runes.set(skillId, rune);
+  }
+
+  runeFor(slot: string): RuneDef | undefined {
+    const def = this.defs.get(slot);
+    return def ? this.runes.get(def.id) : undefined;
+  }
+
+  skillName(slot: string): string {
+    return this.defs.get(slot)?.name ?? '';
+  }
+
+  update(world: World, dt: number): void {
+    // 调度队列推进
+    for (const q of this.queue) q.t -= dt;
+    const due = this.queue.filter((q) => q.t <= 0);
+    this.queue = this.queue.filter((q) => q.t > 0);
+    for (const q of due) q.run(world);
+
+    const players = world.query(Player, Transform, Stats);
+    if (players.length === 0) return;
+    const pe = players[0];
+    const p = world.mustGet(pe, Player);
+    const tr = world.mustGet(pe, Transform);
+
+    if (p.cdQ > 0) p.cdQ -= dt;
+    if (p.cdE > 0) p.cdE -= dt;
+    if (p.cdR > 0) p.cdR -= dt;
+    if (p.respawnT > 0 || p.dashT > 0) return;
+
+    if (this.input.wasPressed('KeyQ') && p.cdQ <= 0) this.castQ(world, pe, p, tr);
+    if (this.input.wasPressed('KeyE') && p.cdE <= 0) this.castE(world, pe, p, tr);
+    if (this.input.wasPressed('KeyR') && p.cdR <= 0) this.castR(world, pe, p, tr);
+  }
+
+  // ---- Q 裂空斩:三连扇形斩(符文:焚风之种 → 火印记+火焰地带) ----
+  private castQ(world: World, pe: Entity, p: Player, _tr: Transform): void {
+    const def = this.defs.get('Q')!;
+    const ph = def.phases[0] as { count: number; intervalS: number; arcDeg: number; rangeM: number; mult: number };
+    const rune = this.runes.get(def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdQ = def.cooldown;
+    world.emit(new SfxEvent('skill'));
+
+    for (let i = 0; i < ph.count; i++) {
+      this.queue.push({
+        t: i * ph.intervalS,
+        run: (w) => {
+          const ptr = w.get(pe, Transform);
+          const pp = w.get(pe, Player);
+          if (!ptr || !pp || pp.respawnT > 0) return;
+          const arcRad = (ph.arcDeg * Math.PI) / 180;
+          w.emit(new MeleeSweep(pe, ptr.x, ptr.y, ptr.face, ph.rangeM * M, arcRad, ph.mult, i + 1, element, i === ph.count - 1 ? 1 : 0));
+          w.emit(new SlashFxEvent(ptr.x, ptr.y, ptr.face, i + 1, ph.rangeM * M, arcRad));
+        },
+      });
+    }
+    // 符文:火焰地带(末段后在身前生成)
+    if (rune?.groundZone) {
+      const gz = rune.groundZone;
+      this.queue.push({
+        t: ph.count * ph.intervalS,
+        run: (w) => {
+          const ptr = w.get(pe, Transform);
+          const stats = w.get(pe, Stats);
+          if (!ptr || !stats) return;
+          const zx = ptr.x + Math.cos(ptr.face) * 1.2 * M;
+          const zy = ptr.y + Math.sin(ptr.face) * 1.2 * M;
+          const z = w.create();
+          w.add(z, new Transform(zx, zy));
+          w.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', element ? elementColor(element) : '#ffffff'));
+        },
+      });
+    }
+  }
+
+  // ---- E 潮涌步:突进 + 残影延迟爆炸(符文:霜核 → 冰印记) ----
+  private castE(world: World, pe: Entity, p: Player, tr: Transform): void {
+    const def = this.defs.get('E')!;
+    const dashPh = def.phases[0] as { distM: number; durS: number; iframesS: number };
+    const blastPh = def.phases[1] as { delayS: number; radiusM: number; mult: number };
+    const rune = this.runes.get(def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdE = def.cooldown;
+    world.emit(new SfxEvent('dash'));
+
+    // 突进(复用翻滚位移机制,方向=瞄准)
+    p.dashDirX = p.aimX;
+    p.dashDirY = p.aimY;
+    p.dashT = dashPh.durS;
+    p.dashDur = dashPh.durS;
+    p.dashSpeedPx = (dashPh.distM / dashPh.durS) * M;
+    p.iframes = Math.max(p.iframes, dashPh.iframesS);
+    p.attackT = 0;
+
+    // 残影(在起点,延迟引爆)
+    const ex = tr.x;
+    const ey = tr.y;
+    this.queue.push({
+      t: blastPh.delayS,
+      run: (w) => {
+        const stats = w.get(pe, Stats);
+        if (!stats) return;
+        const color = element ? elementColor(element) : '#dfe8f2';
+        w.emit(new RingFxEvent(ex, ey, blastPh.radiusM * M, color));
+        w.emit(new SfxEvent('reaction'));
+        for (const e of w.query(Health, Transform, Faction)) {
+          const f = w.mustGet(e, Faction);
+          if (f.team === 'player') continue;
+          const ttr = w.mustGet(e, Transform);
+          const d = Math.hypot(ttr.x - ex, ttr.y - ey);
+          if (d <= blastPh.radiusM * M) {
+            dealDamage(w, {
+              source: pe, target: e, mult: blastPh.mult, element,
+              hitAngle: Math.atan2(ttr.y - ey, ttr.x - ex),
+            });
+          }
+        }
+      },
+    });
+  }
+
+  // ---- R 星陨·万剑归宗:按怒气召唤光剑坠落(符文:引雷矢 → 雷印记) ----
+  private castR(world: World, pe: Entity, p: Player, _tr: Transform): void {
+    const def = this.defs.get('R')!;
+    const ph = def.phases[0] as { minCount: number; maxCount: number; mult: number; ringM: number; durS: number; aoeM: number; seekM: number };
+    const minRage = def.minRage ?? 40;
+    if (p.rage < minRage) return;
+    const rune = this.runes.get(def.id);
+    const element = (rune?.element ?? null) as Element | null;
+
+    const ratio = (p.rage - minRage) / (100 - minRage);
+    const count = Math.round(ph.minCount + ratio * (ph.maxCount - ph.minCount));
+    p.rage = 0;
+    p.cdR = def.cooldown;
+    world.emit(new SfxEvent('ult'));
+
+    for (let i = 0; i < count; i++) {
+      this.queue.push({
+        t: (i / count) * ph.durS,
+        run: (w) => {
+          const ptr = w.get(pe, Transform);
+          if (!ptr) return;
+          // 优先砸向附近敌人,否则环形随机落点
+          let x: number;
+          let y: number;
+          const foes = w.query(Health, Transform, Faction).filter((e) => {
+            const f = w.mustGet(e, Faction);
+            if (f.team === 'player') return false;
+            const ttr = w.mustGet(e, Transform);
+            return Math.hypot(ttr.x - ptr.x, ttr.y - ptr.y) <= ph.seekM * M;
+          });
+          if (foes.length > 0 && Math.random() < 0.75) {
+            const pick = w.mustGet(foes[Math.floor(Math.random() * foes.length)], Transform);
+            x = pick.x + (Math.random() - 0.5) * 30;
+            y = pick.y + (Math.random() - 0.5) * 30;
+          } else {
+            const a = Math.random() * Math.PI * 2;
+            const r = (0.5 + Math.random() * (ph.ringM - 0.5)) * M;
+            x = ptr.x + Math.cos(a) * r;
+            y = ptr.y + Math.sin(a) * r;
+          }
+          const color = element ? elementColor(element) : '#ffd94f';
+          w.emit(new BeamFxEvent(x, y, color));
+          for (const e of foes) {
+            const ttr = w.mustGet(e, Transform);
+            if (Math.hypot(ttr.x - x, ttr.y - y) <= ph.aoeM * M) {
+              dealDamage(w, {
+                source: pe, target: e, mult: ph.mult, element,
+                hitAngle: Math.atan2(ttr.y - y, ttr.x - x),
+              });
+            }
+          }
+        },
+      });
+    }
+  }
+}

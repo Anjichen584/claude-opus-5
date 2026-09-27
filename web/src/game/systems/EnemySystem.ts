@@ -2,7 +2,7 @@ import type { System, World } from '@engine/ecs/World';
 import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
-import { Body, Health, Player, Shroomling, Transform, Velocity } from '@game/components';
+import { Body, Buffs, Health, Player, Shroomling, Transform, Velocity } from '@game/components';
 import { PlayerSystem } from './PlayerSystem';
 
 const E = balance.enemies.shroomling;
@@ -23,9 +23,22 @@ export class EnemySystem implements System {
       const tr = world.mustGet(e, Transform);
       const vel = world.mustGet(e, Velocity);
       const body = world.mustGet(e, Body);
+      const buffs = world.get(e, Buffs);
 
       s.animT += dt;
       if (s.touchCd > 0) s.touchCd -= dt;
+
+      // 麻痹眩晕:只保留击退惯性,跳过 AI
+      if (buffs && buffs.stunT > 0) {
+        const dk = Math.exp(-8 * dt);
+        s.kx *= dk;
+        s.ky *= dk;
+        vel.vx = s.kx;
+        vel.vy = s.ky;
+        continue;
+      }
+      // 冻链减速
+      const slowMult = buffs && buffs.slowT > 0 ? 1 - buffs.slowPct : 1;
 
       const dx = ptr.x - tr.x;
       const dy = ptr.y - tr.y;
@@ -39,8 +52,8 @@ export class EnemySystem implements System {
       let aiVy = 0;
       if (s.state === 'chase' && pAlive) {
         const inv = 1 / (dist || 1);
-        aiVx = dx * inv * E.speed * M;
-        aiVy = dy * inv * E.speed * M;
+        aiVx = dx * inv * E.speed * M * slowMult;
+        aiVy = dy * inv * E.speed * M * slowMult;
         tr.face = Math.atan2(dy, dx);
 
         // 接触伤害
@@ -56,8 +69,8 @@ export class EnemySystem implements System {
           s.wanderT = this.rng.range(1.2, 2.8);
           s.wanderAngle = this.rng.range(0, Math.PI * 2);
         }
-        aiVx = Math.cos(s.wanderAngle) * E.wanderSpeed * M;
-        aiVy = Math.sin(s.wanderAngle) * E.wanderSpeed * M;
+        aiVx = Math.cos(s.wanderAngle) * E.wanderSpeed * M * slowMult;
+        aiVy = Math.sin(s.wanderAngle) * E.wanderSpeed * M * slowMult;
       }
 
       // 击退冲量衰减叠加

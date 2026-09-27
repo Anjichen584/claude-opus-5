@@ -3,6 +3,7 @@
   "player": {
     "hp": 120,
     "atk": 14,
+    "def": 6,
     "moveSpeed": 4.2,
     "critRate": 0.05,
     "critDmg": 1.5,
@@ -30,9 +31,21 @@
   },
   "enemies": {
     "shroomling": {
-      "hp": 45, "atk": 8, "speed": 2.0, "bodyRadius": 0.28,
-      "aggroRange": 6.0, "touchCooldown": 0.8, "wanderSpeed": 0.7
+      "hp": 45, "atk": 8, "def": 2, "speed": 2.0, "bodyRadius": 0.28,
+      "aggroRange": 6.0, "touchCooldown": 0.8, "wanderSpeed": 0.7,
+      "spore": { "radiusM": 1.2, "lifeS": 2.0, "intervalS": 0.5, "mult": 0.5 }
     }
+  },
+  "reactions": {
+    "markDurS": 4.0,
+    "chainDecay": 0.8,
+    "maxDepth": 4,
+    "steam": { "radiusM": 2.0, "mult": 1.8 },
+    "overload": { "mult": 2.2, "knockM": 2.0 },
+    "miasma": { "radiusM": 1.5, "lifeS": 3.0, "intervalS": 0.5, "mult": 0.4 },
+    "chain": { "targets": 4, "rangeM": 4.0, "mult": 0.8, "slowPct": 0.4, "slowS": 2.0 },
+    "brittle": { "vulnS": 4.0, "pct": 0.25 },
+    "numb": { "stunS": 1.2 }
   },
   "arena": {
     "widthM": 28, "heightM": 16,

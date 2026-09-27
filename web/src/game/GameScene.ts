@@ -7,13 +7,17 @@ import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { FOREST, M, UI } from '@game/constants';
 import {
-  Body, Dummy, Faction, Health, Player, Shroomling, Stats, Transform, Velocity,
+  Body, Buffs, Dummy, Element, ElementMarks, Faction, Health, Player, Shroomling, Stats,
+  Transform, Velocity, Zone,
 } from '@game/components';
+import { elementColor } from '@game/combat/Elements';
 import { drawDummy, drawKnight, drawShadow, drawShroomling } from '@game/gfx/draw';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
+import { SkillSystem } from '@game/skills/SkillSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { PhysicsSystem } from '@game/systems/PhysicsSystem';
 import { CombatSystem } from '@game/systems/CombatSystem';
+import { ZoneSystem } from '@game/systems/ZoneSystem';
 import { FeedbackSystem } from '@game/systems/FeedbackSystem';
 
 /**
@@ -24,6 +28,7 @@ export class GameScene {
   private world = new World();
   private systems: System[] = [];
   private feedback: FeedbackSystem;
+  private skills: SkillSystem;
   private playerE = 0;
   private spawnT = 0;
   private bg: HTMLCanvasElement;
@@ -35,11 +40,14 @@ export class GameScene {
     loop: GameLoop,
   ) {
     this.feedback = new FeedbackSystem(loop, renderer.camera);
+    this.skills = new SkillSystem(input);
     this.systems = [
       new PlayerSystem(input, renderer),
+      this.skills,
       new EnemySystem(),
       new PhysicsSystem(),
       new CombatSystem(),
+      new ZoneSystem(),
       this.feedback,
     ];
     this.bg = this.bakeBackground();
@@ -60,7 +68,7 @@ export class GameScene {
     w.add(this.playerE, new Velocity());
     w.add(this.playerE, new Body(B.bodyRadius));
     w.add(this.playerE, new Health(B.hp));
-    w.add(this.playerE, new Stats(B.atk, B.moveSpeed, B.critRate, B.critDmg));
+    w.add(this.playerE, new Stats(B.atk, B.moveSpeed, B.critRate, B.critDmg, B.def));
     w.add(this.playerE, new Faction('player'));
     w.add(this.playerE, new Player());
     this.renderer.camera.snap(cx, cy);
@@ -74,6 +82,8 @@ export class GameScene {
       w.add(e, new Health(99999));
       w.add(e, new Faction('neutral'));
       w.add(e, new Dummy());
+      w.add(e, new ElementMarks()); // 木桩可挂印记,方便测试连锁反应
+      w.add(e, new Buffs());
     }
   }
 
@@ -93,8 +103,11 @@ export class GameScene {
     w.add(e, new Velocity());
     w.add(e, new Body(E.bodyRadius));
     w.add(e, new Health(E.hp));
+    w.add(e, new Stats(E.atk, E.speed, 0, 1, E.def));
     w.add(e, new Faction('enemy'));
     w.add(e, new Shroomling());
+    w.add(e, new ElementMarks());
+    w.add(e, new Buffs());
   }
 
   private spawnRng = new Rng(777);
@@ -126,6 +139,23 @@ export class GameScene {
       if (h.flash > 0) h.flash -= dt;
     }
 
+    // 元素印记过期
+    for (const e of this.world.query(ElementMarks)) {
+      const m = this.world.mustGet(e, ElementMarks);
+      for (const el of Object.keys(m.marks) as Element[]) {
+        const left = (m.marks[el] ?? 0) - dt;
+        if (left <= 0) delete m.marks[el];
+        else m.marks[el] = left;
+      }
+    }
+    // Buff 计时衰减
+    for (const e of this.world.query(Buffs)) {
+      const b = this.world.mustGet(e, Buffs);
+      if (b.stunT > 0) b.stunT -= dt;
+      if (b.slowT > 0) b.slowT -= dt;
+      if (b.vulnT > 0) b.vulnT -= dt;
+    }
+
     // 相机跟随
     const ptr = this.world.mustGet(this.playerE, Transform);
     this.renderer.camera.follow(ptr.x, ptr.y, dt);
@@ -145,6 +175,24 @@ export class GameScene {
 
     r.inWorld((ctx) => {
       ctx.drawImage(this.bg, 0, 0);
+
+      // 地面区域(火焰地带/毒云/孢子雾),画在实体之下
+      for (const e of this.world.query(Zone, Transform)) {
+        const z = this.world.mustGet(e, Zone);
+        const tr = this.world.mustGet(e, Transform);
+        const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 120);
+        ctx.save();
+        ctx.globalAlpha = 0.16 * pulse * Math.min(z.life * 2, 1);
+        ctx.fillStyle = z.color;
+        ctx.beginPath();
+        ctx.ellipse(tr.x, tr.y, z.radiusPx, z.radiusPx * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.45 * pulse;
+        ctx.strokeStyle = z.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // 收集可绘制体并按 Y 排序(伪 3D 遮挡)
       interface D { y: number; draw: () => void }
@@ -193,6 +241,24 @@ export class GameScene {
 
       list.sort((a, b) => a.y - b.y);
       for (const d of list) d.draw();
+
+      // 元素印记标示(头顶色点)
+      for (const e of this.world.query(ElementMarks, Transform)) {
+        const m = this.world.mustGet(e, ElementMarks);
+        const els = Object.keys(m.marks) as Element[];
+        if (els.length === 0) continue;
+        const tr = this.world.mustGet(e, Transform);
+        const isDummy = this.world.has(e, Dummy);
+        const baseY = tr.y - (isDummy ? 48 : 30);
+        els.forEach((el, i) => {
+          const x = tr.x + (i - (els.length - 1) / 2) * 10;
+          ctx.fillStyle = elementColor(el);
+          ctx.fillRect(x - 3, baseY - 3, 6, 6);
+          ctx.strokeStyle = '#0d0f1a';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x - 3, baseY - 3, 6, 6);
+        });
+      }
 
       // 木桩 DPS 牌
       ctx.font = 'bold 12px monospace';
@@ -254,6 +320,58 @@ export class GameScene {
       ctx.fillText(`${p.comboStage} 段`, 160, height - 36);
     }
 
+    // ---- 技能栏(底部中央):Q/E/R + 怒气条 ----
+    const slotW = 64;
+    const slotH = 56;
+    const gap = 10;
+    const baseX = width / 2 - (slotW * 3 + gap * 2) / 2;
+    const baseY = height - slotH - 34;
+    const slots: Array<{ key: string; cd: number; cdMax: number; locked: boolean }> = [
+      { key: 'Q', cd: p.cdQ, cdMax: 4, locked: false },
+      { key: 'E', cd: p.cdE, cdMax: 6, locked: false },
+      { key: 'R', cd: p.cdR, cdMax: 1.5, locked: p.rage < 40 },
+    ];
+    ctx.textAlign = 'center';
+    slots.forEach((s, i) => {
+      const x = baseX + i * (slotW + gap);
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(x, baseY, slotW, slotH);
+      const ready = s.cd <= 0 && !s.locked;
+      ctx.strokeStyle = ready ? UI.gold : '#3a4154';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, baseY + 1, slotW - 2, slotH - 2);
+      ctx.fillStyle = ready ? UI.gold : UI.dim;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(s.key, x + slotW / 2, baseY + 22);
+      ctx.font = '10px monospace';
+      ctx.fillStyle = UI.dim;
+      ctx.fillText(this.skills.skillName(s.key), x + slotW / 2, baseY + 38);
+      // 冷却遮罩
+      if (s.cd > 0) {
+        const ratio = s.cd / s.cdMax;
+        ctx.fillStyle = 'rgba(13,15,26,0.65)';
+        ctx.fillRect(x, baseY, slotW, slotH * ratio);
+        ctx.fillStyle = UI.text;
+        ctx.font = 'bold 13px monospace';
+        ctx.fillText(s.cd.toFixed(1), x + slotW / 2, baseY + slotH / 2 + 4);
+      } else if (s.locked) {
+        ctx.fillStyle = 'rgba(13,15,26,0.5)';
+        ctx.fillRect(x, baseY, slotW, slotH);
+      }
+    });
+    // 怒气条(R 槽上方)
+    const rageX = baseX + 2 * (slotW + gap);
+    const rageRatio = p.rage / 100;
+    ctx.fillStyle = '#232838';
+    ctx.fillRect(rageX, baseY - 12, slotW, 7);
+    ctx.fillStyle = p.rage >= 40 ? UI.gold : '#8a6b1f';
+    ctx.fillRect(rageX, baseY - 12, slotW * rageRatio, 7);
+    if (p.rage >= 40) {
+      ctx.fillStyle = UI.gold;
+      ctx.font = '9px monospace';
+      ctx.fillText(`怒气 ${Math.round(p.rage)}`, rageX + slotW / 2, baseY - 16);
+    }
+
     // 右上:击杀/死亡/FPS
     ctx.textAlign = 'right';
     ctx.fillStyle = UI.panel;
@@ -266,7 +384,7 @@ export class GameScene {
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(232,232,232,0.55)';
     ctx.font = '12px monospace';
-    ctx.fillText('WASD 移动 · 鼠标左键 三段连斩 · 空格 翻滚(无敌帧) · 木桩可测 DPS', width / 2, height - 12);
+    ctx.fillText('WASD 移动 · 左键 连斩 · 空格 翻滚 · Q 裂空斩🔥 · E 潮涌步❄ · R 万剑归宗⚡(先攒怒气) · 不同元素二连击触发连锁!', width / 2, height - 12);
 
     // 阵亡遮罩
     if (p.respawnT > 0) {

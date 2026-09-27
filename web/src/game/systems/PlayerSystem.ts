@@ -65,9 +65,8 @@ export class PlayerSystem implements System {
       const axis = this.input.axis();
       if (p.dashT > 0) {
         p.dashT -= dt;
-        const speed = (B.dash.distance / B.dash.duration) * M;
-        vel.vx = p.dashDirX * speed;
-        vel.vy = p.dashDirY * speed;
+        vel.vx = p.dashDirX * p.dashSpeedPx;
+        vel.vy = p.dashDirY * p.dashSpeedPx;
         // 残影
         p.ghostAccum += dt;
         if (p.ghostAccum >= 0.03) {
@@ -82,6 +81,7 @@ export class PlayerSystem implements System {
           p.dashDirY = hasMove ? axis.y : p.aimY;
           p.dashT = B.dash.duration;
           p.dashDur = B.dash.duration;
+          p.dashSpeedPx = (B.dash.distance / B.dash.duration) * M;
           p.dashCd = B.dash.cooldown;
           p.iframes = Math.max(p.iframes, B.dash.iframes);
           p.attackT = 0; // 翻滚取消攻击后摇
@@ -110,6 +110,7 @@ export class PlayerSystem implements System {
           const rangePx = B.combo.range * M;
           world.emit(new MeleeSweep(
             e, tr.x, tr.y, tr.face, rangePx, arcRad, B.combo.mults[idx], p.comboStage,
+            null, p.comboStage === 3 ? B.combo.knockback3 : 0,
           ));
           world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
         }
