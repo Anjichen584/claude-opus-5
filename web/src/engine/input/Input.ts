@@ -70,6 +70,8 @@ export class Input {
   private touchStarted: number[] = [];
   /** 虚拟按住键(触屏按钮注入,每帧由 TouchControls 重设) */
   private virtualDown = new Set<string>();
+  /** 本帧最后按下的物理键码(改绑捕获用,endFrame 清空) */
+  lastKey: string | null = null;
 
   /** 触点快照(TouchControls 读取) */
   touches(): Array<{ id: number; x: number; y: number; sx: number; sy: number; claimed: string | null; started: boolean }> {
@@ -142,6 +144,7 @@ export class Input {
     window.addEventListener('keydown', (e) => {
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);
+      this.lastKey = e.code; // 设置面板改绑捕获用
       // 防止空格滚动页面 / Tab 切走焦点
       if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
     });
@@ -230,5 +233,6 @@ export class Input {
     this.pressed.clear();
     this.mousePressed = false;
     this.touchStarted.length = 0;
+    this.lastKey = null;
   }
 }

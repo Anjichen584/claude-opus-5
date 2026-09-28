@@ -1,9 +1,16 @@
 import type { Input } from '@engine/input/Input';
 import { UI } from '@game/constants';
+import { bindOf } from '@game/meta/Bindings';
+
+/** 触屏按钮 id → 绑定动作(pause 例外,固定 Escape) */
+const BTN_ACTION: Record<string, string> = {
+  atk: 'attack', dash: 'dash', q: 'q', e: 'e', rr: 'r',
+  potion: 'potion', interact: 'interact', lantern: 'lantern', bag: 'bag',
+};
 
 interface TouchBtn {
   id: string;
-  /** 注入的键码 */
+  /** 注入的键码(每帧由绑定表解析) */
   code: string;
   label: string;
   sub?: string;
@@ -42,8 +49,13 @@ export class TouchControls {
   /** 每帧(run 状态)调用:布局 → 命中 → 注入 */
   update(w: number, h: number, opts: { interact: boolean; night: boolean }): void {
     if (!this.input.touchActive) {
-      this.input.setVirtualDown('KeyJ', false);
+      this.input.setVirtualDown(this.byId('atk').code, false);
       return;
+    }
+    // 按钮键码跟随当前绑定(设置里改键后触屏同步)
+    for (const b of this.btns) {
+      const act = BTN_ACTION[b.id];
+      if (act) b.code = bindOf(act);
     }
     this.layout(w, h);
     this.byId('interact').visible = opts.interact;
@@ -65,7 +77,7 @@ export class TouchControls {
         if (t.claimed === b.id && b.mode === 'hold' && overNow) b.held = true;
       }
     }
-    this.input.setVirtualDown('KeyJ', this.byId('atk').held);
+    this.input.setVirtualDown(this.byId('atk').code, this.byId('atk').held);
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {

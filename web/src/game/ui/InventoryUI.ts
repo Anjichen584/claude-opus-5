@@ -8,6 +8,7 @@ import type { Item, Slot } from '@game/loot/Items';
 import { SLOTS } from '@game/loot/Items';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { elementColor } from '@game/combat/Elements';
+import { bindOf } from '@game/meta/Bindings';
 import type { Element } from '@game/components';
 
 /** 技能 id → 快捷键标签 */
@@ -41,7 +42,7 @@ export class InventoryUI {
 
   /** 每帧调用(即使暂停)。返回 true 表示本帧消费了输入。 */
   handleInput(world: World, pe: Entity): boolean {
-    if (this.input.wasPressed('Tab') || this.input.wasPressed('KeyB') || this.input.wasPressed('PadBack')) {
+    if (this.input.wasPressed(bindOf('bag')) || this.input.wasPressed('KeyB') || this.input.wasPressed('PadBack')) {
       this.open = !this.open;
     }
     if (!this.open) return false;

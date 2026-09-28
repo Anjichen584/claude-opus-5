@@ -6,6 +6,7 @@ import {
   Inventory, Player, SfxEvent, ShopStand, ToastEvent, Transform,
 } from '@game/components';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
+import { bindOf } from '@game/meta/Bindings';
 
 /**
  * 商店交互:走近摊位(<1m)按 F 购买。
@@ -40,7 +41,7 @@ export class ShopSystem implements System {
       }
     }
     this.nearbyStand = best;
-    if (best === null || !(this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) return;
+    if (best === null || !(this.input.wasPressed(bindOf('interact')) || this.input.wasPressed('PadB'))) return;
 
     const stand = world.mustGet(best, ShopStand);
     if (p.stardust < stand.price) {

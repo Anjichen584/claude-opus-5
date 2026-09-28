@@ -2,6 +2,15 @@
  * 局外存档(docs/02-ARCHITECTURE.md §9):localStorage + 版本号。
  * 存:星尘钱包、祭坛等级、保底计数、统计。局内进度不存(roguelite)。
  */
+export interface Settings {
+  /** 音乐音量 0~1 */
+  musicVol: number;
+  /** 音效音量 0~1 */
+  sfxVol: number;
+  /** 动作 → 键码(KeyboardEvent.code) */
+  binds: Record<string, string>;
+}
+
 export interface SaveData {
   v: 1;
   stardust: number;
@@ -11,10 +20,24 @@ export interface SaveData {
   blueprintShards: number;
   /** 已预订铸造:下局开局自带随机橙装 */
   craftQueued: boolean;
+  settings: Settings;
   stats: { runs: number; clears: number; totalKills: number; bestTimeS: number };
 }
 
 const KEY = 'sk_save_v1';
+
+/** 默认键位(动作定义见 meta/Bindings.ts) */
+export const DEFAULT_BINDS: Record<string, string> = {
+  attack: 'KeyJ',
+  dash: 'Space',
+  q: 'KeyQ',
+  e: 'KeyE',
+  r: 'KeyR',
+  potion: 'Digit1',
+  interact: 'KeyF',
+  lantern: 'KeyL',
+  bag: 'Tab',
+};
 
 function defaults(): SaveData {
   return {
@@ -24,6 +47,7 @@ function defaults(): SaveData {
     pity: 0,
     blueprintShards: 0,
     craftQueued: false,
+    settings: { musicVol: 0.8, sfxVol: 0.35, binds: { ...DEFAULT_BINDS } },
     stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0 },
   };
 }
@@ -36,7 +60,20 @@ class MetaStore {
       const raw = localStorage.getItem(KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as SaveData;
-      if (parsed.v === 1) this.data = { ...defaults(), ...parsed, altar: { ...defaults().altar, ...parsed.altar } };
+      if (parsed.v === 1) {
+        const d = defaults();
+        this.data = {
+          ...d,
+          ...parsed,
+          altar: { ...d.altar, ...parsed.altar },
+          // 旧档无 settings / 新增动作缺绑定 → 逐层兜底合并
+          settings: {
+            ...d.settings,
+            ...(parsed.settings ?? {}),
+            binds: { ...d.settings.binds, ...(parsed.settings?.binds ?? {}) },
+          },
+        };
+      }
     } catch {
       this.data = defaults();
     }

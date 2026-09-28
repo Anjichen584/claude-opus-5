@@ -8,6 +8,8 @@ import {
   SfxEvent, SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
 
+import { bindOf } from '@game/meta/Bindings';
+
 const B = balance.player;
 
 /**
@@ -119,7 +121,7 @@ export class PlayerSystem implements System {
           }
         }
       } else {
-        if ((this.input.wasPressed('Space') || this.input.wasPressed('PadA')) && p.dashCd <= 0) {
+        if ((this.input.wasPressed(bindOf('dash')) || this.input.wasPressed('PadA')) && p.dashCd <= 0) {
           // 翻滚方向:优先移动输入,否则朝向
           const hasMove = axis.x !== 0 || axis.y !== 0;
           p.dashDirX = hasMove ? axis.x : p.aimX;
@@ -148,7 +150,7 @@ export class PlayerSystem implements System {
         vel.vy += (targetVy - vel.vy) * k;
 
         // ---- 普攻:近战连击(剑士/守卫) / 连射(猎手箭·秘术师法球) ----
-        if ((this.input.mouseDown || this.input.isDown('KeyJ') || this.input.isDown('PadX') || this.input.isDown('PadRT')) && p.attackT <= 0) {
+        if ((this.input.mouseDown || this.input.isDown(bindOf('attack')) || this.input.isDown('PadX') || this.input.isDown('PadRT')) && p.attackT <= 0) {
           if (p.klass === 'ranger' || p.klass === 'arcanist') {
             const bow = p.klass === 'ranger' ? balance.classes.ranger.bow : balance.classes.arcanist.bow;
             p.comboStage = (p.comboStage % bow.heavyEvery) + 1;
@@ -194,7 +196,7 @@ export class PlayerSystem implements System {
       }
 
       // ---- 药剂([1] 键,恢复 40% 最大生命) ----
-      if ((this.input.wasPressed('Digit1') || this.input.wasPressed('PadUp')) && p.potionCharges > 0 && hp.hp < hp.max && hp.hp > 0) {
+      if ((this.input.wasPressed(bindOf('potion')) || this.input.wasPressed('PadUp')) && p.potionCharges > 0 && hp.hp < hp.max && hp.hp > 0) {
         p.potionCharges--;
         const heal = Math.round(hp.max * balance.loot.potionHealPct);
         hp.hp = Math.min(hp.max, hp.hp + heal);

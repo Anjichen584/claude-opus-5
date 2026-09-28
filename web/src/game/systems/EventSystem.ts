@@ -8,6 +8,7 @@ import {
 import { recompute } from '@game/loot/Equip';
 import type { ItemFactory } from '@game/loot/Items';
 import { Rng } from '@engine/core/Rng';
+import { bindOf } from '@game/meta/Bindings';
 
 const EV = balance.events;
 
@@ -45,7 +46,7 @@ export class EventSystem implements System {
       if (d < bestD) { bestD = d; best = e; }
     }
     this.nearbyTotem = best;
-    if (best === null || !(this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) return;
+    if (best === null || !(this.input.wasPressed(bindOf('interact')) || this.input.wasPressed('PadB'))) return;
 
     const totem = world.mustGet(best, EventTotem);
     const tr = world.mustGet(best, Transform);

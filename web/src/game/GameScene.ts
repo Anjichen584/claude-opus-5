@@ -44,6 +44,8 @@ import { InventoryUI } from '@game/ui/InventoryUI';
 import { MenuUI, RunStats } from '@game/ui/MenuUI';
 import { TouchControls } from '@game/ui/TouchControls';
 import { CampUI } from '@game/ui/CampUI';
+import { SettingsUI } from '@game/ui/SettingsUI';
+import { bindOf, keyLabel } from '@game/meta/Bindings';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
@@ -93,6 +95,8 @@ export class GameScene {
   private menuUI: MenuUI;
   private touch: TouchControls;
   private campUI: CampUI;
+  private settingsUI: SettingsUI;
+  private settingsRect = { x: 0, y: 0, w: 0, h: 0 };
   private campNearE: number | null = null;
   private quitRect = { x: 0, y: 0, w: 0, h: 0 };
   private playerE = 0;
@@ -113,6 +117,10 @@ export class GameScene {
     this.menuUI = new MenuUI(input);
     this.touch = new TouchControls(input);
     this.campUI = new CampUI(input);
+    this.settingsUI = new SettingsUI(input);
+    // 应用已存音量(unlock 前设置也会在 unlock 时生效)
+    sfx.setVolume(meta.data.settings.sfxVol);
+    music.setVolume(meta.data.settings.musicVol);
     // 营地渲染依赖 run.chapter/loot 存在,先建默认实例(startRun 会重建)
     this.loot = new LootSystem();
     this.run = new RunManager(this.loot.factory);
@@ -340,7 +348,7 @@ export class GameScene {
     }
 
     // F 交互
-    if (this.campNearE !== null && (this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) {
+    if (this.campNearE !== null && (this.input.wasPressed(bindOf('interact')) || this.input.wasPressed('PadB'))) {
       const st = this.world.mustGet(this.campNearE, CampStation);
       if (st.kind === 'forge') this.forgeInteract();
       else this.campUI.open(st.kind);
@@ -484,26 +492,38 @@ export class GameScene {
       return;
     }
 
-    // ---- 暂停菜单(Esc/手柄Start;背包打开时 Esc 优先关背包) ----
-    if (this.input.wasPressed('Escape') || this.input.wasPressed('PadStart')) this.paused = !this.paused;
+    // ---- 暂停菜单(Esc/手柄Start;背包打开时 Esc 优先关背包;设置面板打开时 Esc 归它) ----
+    if (!this.settingsUI.open && (this.input.wasPressed('Escape') || this.input.wasPressed('PadStart'))) {
+      this.paused = !this.paused;
+    }
     if (this.paused) {
+      // 设置面板独占输入
+      if (this.settingsUI.open) {
+        this.settingsUI.update();
+        this.input.endFrame();
+        return;
+      }
       if (this.input.wasPressed('KeyM')) {
         this.muted = !this.muted;
-        sfx.setVolume(this.muted ? 0 : 0.35);
-        music.setVolume(this.muted ? 0 : 0.8);
+        sfx.setVolume(this.muted ? 0 : meta.data.settings.sfxVol);
+        music.setVolume(this.muted ? 0 : meta.data.settings.musicVol);
       }
+      if (this.input.wasPressed('KeyO')) this.settingsUI.open = true;
       if (this.input.wasPressed('Backspace')) {
         this.paused = false;
         this.endRun(false);
         this.input.endFrame();
         return;
       }
-      // 触屏:点"放弃"按钮退出,点其他任意处继续
+      // 点击:设置按钮 / 放弃按钮 / 其他任意处继续
       if (this.input.mousePressed) {
         const mx = this.input.mouseX;
         const my = this.input.mouseY;
+        const sR = this.settingsRect;
         const q = this.quitRect;
-        if (mx >= q.x && mx <= q.x + q.w && my >= q.y && my <= q.y + q.h) {
+        if (mx >= sR.x && mx <= sR.x + sR.w && my >= sR.y && my <= sR.y + sR.h) {
+          this.settingsUI.open = true;
+        } else if (mx >= q.x && mx <= q.x + q.w && my >= q.y && my <= q.y + q.h) {
           this.paused = false;
           this.endRun(false);
         } else {
@@ -521,7 +541,7 @@ export class GameScene {
       this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!([L] 星灯买断)' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
     }
     // 星灯:花星尘立即天亮(vs 冒险赚双倍掉落——风险决策)
-    if (night && (this.input.wasPressed('KeyL') || this.input.wasPressed('PadDown'))) {
+    if (night && (this.input.wasPressed(bindOf('lantern')) || this.input.wasPressed('PadDown'))) {
       const p0 = this.world.mustGet(this.playerE, Player);
       const cost = this.run.chapterCfg.lanternCost;
       if (p0.stardust >= cost) {
@@ -625,8 +645,12 @@ export class GameScene {
     this.feedback.renderScreen(r.ctx, r.width, r.height);
     this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
 
-    // ---- 暂停遮罩 ----
+    // ---- 暂停遮罩 / 设置面板 ----
     if (this.paused) {
+      if (this.settingsUI.open) {
+        this.settingsUI.render(r.ctx, r.width, r.height);
+        return;
+      }
       const ctx = r.ctx;
       ctx.save();
       ctx.fillStyle = 'rgba(13,15,26,0.78)';
@@ -634,22 +658,36 @@ export class GameScene {
       ctx.textAlign = 'center';
       ctx.fillStyle = UI.gold;
       ctx.font = 'bold 30px monospace';
-      ctx.fillText('⏸ 暂停', r.width / 2, r.height * 0.36);
+      ctx.fillText('⏸ 暂停', r.width / 2, r.height * 0.34);
       ctx.fillStyle = UI.text;
       ctx.font = '14px monospace';
+      const kl = (a: string): string => keyLabel(bindOf(a));
       const lines = this.input.touchActive
-        ? ['点击屏幕任意处继续', `[M键] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`, '', '左半屏拖动=移动(自动瞄准)', '右下按钮=普攻/翻滚/技能']
+        ? ['点击屏幕任意处继续', '', '左半屏拖动=移动(自动瞄准)', '右下按钮=普攻/翻滚/技能']
         : [
             '[Esc] 继续战斗',
-            `[M] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
+            `[M] 静音开关:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
             '[Backspace] 放弃本局(结算)',
             '',
-            'WASD移动 · 左键普攻 · 空格翻滚 · Q/E/R技能',
-            'Tab背包/符文 · 1药剂 · F交互 · L星灯(夜)',
+            `WASD移动 · 左键普攻 · ${kl('dash')}翻滚 · ${kl('q')}/${kl('e')}/${kl('r')}技能`,
+            `${kl('bag')}背包/符文 · ${kl('potion')}药剂 · ${kl('interact')}交互 · ${kl('lantern')}星灯(夜)`,
           ];
-      lines.forEach((l, i) => ctx.fillText(l, r.width / 2, r.height * 0.46 + i * 26));
+      lines.forEach((l, i) => ctx.fillText(l, r.width / 2, r.height * 0.43 + i * 26));
+
+      // 设置按钮
+      const by = r.height * 0.43 + lines.length * 26 + 14;
+      this.settingsRect = { x: r.width / 2 - 90, y: by, w: 180, h: 38 };
+      ctx.fillStyle = '#1f2537';
+      ctx.fillRect(this.settingsRect.x, this.settingsRect.y, 180, 38);
+      ctx.strokeStyle = UI.gold;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(this.settingsRect.x, this.settingsRect.y, 180, 38);
+      ctx.fillStyle = UI.gold;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('⚙ 设置 [O]', r.width / 2, by + 25);
+
       // 放弃按钮(触屏/鼠标可点)
-      this.quitRect = { x: r.width / 2 - 90, y: r.height * 0.46 + lines.length * 26 + 18, w: 180, h: 38 };
+      this.quitRect = { x: r.width / 2 - 90, y: by + 50, w: 180, h: 38 };
       ctx.fillStyle = '#2a1a1f';
       ctx.fillRect(this.quitRect.x, this.quitRect.y, this.quitRect.w, this.quitRect.h);
       ctx.strokeStyle = UI.hpLow;
