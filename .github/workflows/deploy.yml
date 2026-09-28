@@ -18,12 +18,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
+      # enablement: true → 若仓库尚未开启 Pages,则自动创建站点(需要 pages:write)
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Install & Test & Build
         working-directory: web
         run: |
