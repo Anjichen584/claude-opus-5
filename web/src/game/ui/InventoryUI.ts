@@ -14,6 +14,8 @@ import type { Element } from '@game/components';
 const SKILL_KEY: Record<string, string> = {
   blade_q_cleave: 'Q', blade_e_tidestep: 'E', blade_r_starfall: 'R',
   ranger_q_fan: 'Q', ranger_e_nova: 'E', ranger_r_storm: 'R',
+  arcanist_q_seeker: 'Q', arcanist_e_blink: 'E', arcanist_r_tempest: 'R',
+  warden_q_quake: 'Q', warden_e_charge: 'E', warden_r_roar: 'R',
 };
 
 interface Rect { x: number; y: number; w: number; h: number }

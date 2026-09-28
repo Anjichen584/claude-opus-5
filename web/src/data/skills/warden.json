@@ -1,0 +1,33 @@
+{
+  "$doc": "岩铠守卫「磐」技能定义。普攻(重锤连击)参数在 balance.json classes.warden.combo。",
+  "skills": [
+    {
+      "id": "warden_q_quake",
+      "slot": "Q",
+      "name": "岩震击",
+      "cooldown": 5.0,
+      "phases": [
+        { "type": "quakeSmash", "arcDeg": 100, "rangeM": 2.4, "mult": 1.8, "stunS": 0.8 }
+      ]
+    },
+    {
+      "id": "warden_e_charge",
+      "slot": "E",
+      "name": "壁垒冲锋",
+      "cooldown": 8.0,
+      "phases": [
+        { "type": "shieldCharge", "distM": 3.0, "durS": 0.22, "iframesS": 0.25, "arcDeg": 90, "rangeM": 1.8, "mult": 1.5, "knockbackM": 2.0 }
+      ]
+    },
+    {
+      "id": "warden_r_roar",
+      "slot": "R",
+      "name": "大地怒吼",
+      "cooldown": 1.5,
+      "minRage": 40,
+      "phases": [
+        { "type": "earthRoar", "radiusM": 3.6, "mult": 1.2, "knockbackM": 2.5, "slowS": 2.0, "slowPct": 0.4 }
+      ]
+    }
+  ]
+}

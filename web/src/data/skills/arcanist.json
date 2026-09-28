@@ -1,0 +1,33 @@
+{
+  "$doc": "元素秘术师「珀」技能定义。普攻(星辉弹)参数在 balance.json classes.arcanist.bow。",
+  "skills": [
+    {
+      "id": "arcanist_q_seeker",
+      "slot": "Q",
+      "name": "追星术",
+      "cooldown": 5.0,
+      "phases": [
+        { "type": "homingOrbs", "count": 3, "spreadDeg": 25, "mult": 1.2, "speedM": 7, "lifeS": 2.0, "radiusM": 0.2, "homingRad": 3.5 }
+      ]
+    },
+    {
+      "id": "arcanist_e_blink",
+      "slot": "E",
+      "name": "星幕闪现",
+      "cooldown": 6.0,
+      "phases": [
+        { "type": "blink", "rangeM": 3.5, "iframesS": 0.25, "blastRadiusM": 1.6, "mult": 1.6 }
+      ]
+    },
+    {
+      "id": "arcanist_r_tempest",
+      "slot": "R",
+      "name": "元素风暴",
+      "cooldown": 1.5,
+      "minRage": 40,
+      "phases": [
+        { "type": "elementStorm", "radiusM": 3.0, "lifeS": 3.0, "tickS": 0.4, "mult": 0.5 }
+      ]
+    }
+  ]
+}

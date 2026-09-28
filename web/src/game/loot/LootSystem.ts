@@ -73,7 +73,7 @@ export class LootSystem implements System {
       if (isBoss || (isElite && this.rng.chance(L.runeDropElite))) {
         const info = this.playerRuneInfo(world);
         const owned = new Set(info.bag);
-        const prefix = info.klass === 'ranger' ? 'ranger_' : 'blade_';
+        const prefix = `${info.klass}_`;
         const candidates = [...RUNE_POOL.values()]
           .filter((r) => r.skill.startsWith(prefix) && !owned.has(r.id))
           .map((r) => r.id);
@@ -175,7 +175,7 @@ export class LootSystem implements System {
   }
 
   /** 玩家符文持有与职业(去重+职业过滤掉落用) */
-  private playerRuneInfo(world: World): { bag: string[]; klass: 'blade' | 'ranger' } {
+  private playerRuneInfo(world: World): { bag: string[]; klass: string } {
     for (const e of world.query(Player)) {
       const p = world.mustGet(e, Player);
       return { bag: p.runeBag, klass: p.klass };

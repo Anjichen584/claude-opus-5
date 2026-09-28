@@ -35,6 +35,28 @@ describe('balance.json 完整性', () => {
     expect(balance.props.bush.bodyRadius).toBe(0);
   });
 
+  it('四职业配置齐全且乘区合理', () => {
+    const ks = Object.keys(balance.classes);
+    expect(ks.sort()).toEqual(['arcanist', 'blade', 'ranger', 'warden']);
+    for (const k of ks) {
+      const c = (balance.classes as Record<string, { hpMult: number; atkMult: number; speedMult: number }>)[k];
+      expect(c.hpMult).toBeGreaterThan(0.5);
+      expect(c.hpMult).toBeLessThan(1.6);
+      expect(c.atkMult).toBeGreaterThan(0.7);
+      expect(c.speedMult).toBeGreaterThan(0.7);
+    }
+    // 远程职业有连射配置,守卫有连击配置
+    expect(balance.classes.ranger.bow.rateS).toBeGreaterThan(0);
+    expect(balance.classes.arcanist.bow.rateS).toBeGreaterThan(0);
+    expect(balance.classes.warden.combo.mults.length).toBe(3);
+  });
+
+  it('秘境事件参数合法', () => {
+    expect(balance.events.bloodHpMult).toBeGreaterThan(0.5);
+    expect(balance.events.bloodHpMult).toBeLessThan(1);
+    expect(balance.events.fountainMax).toBeGreaterThan(balance.events.fountainMin);
+  });
+
   it('波次预算与彩蛋概率在合理范围', () => {
     expect(balance.rooms.spriteChance).toBeGreaterThan(0);
     expect(balance.rooms.spriteChance).toBeLessThanOrEqual(0.5);

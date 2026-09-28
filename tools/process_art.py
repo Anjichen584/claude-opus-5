@@ -17,6 +17,8 @@ OUT = ROOT / "web" / "public" / "sprites"
 TARGETS = {
     "knight": 46,
     "ranger": 46,
+    "arcanist": 46,
+    "warden": 48,
     "shroomling": 30,
     "windbee": 24,
     "blightwolf": 36,

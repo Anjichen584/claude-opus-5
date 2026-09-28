@@ -88,7 +88,11 @@ export class Player {
   stardust = 0;
   potionCharges = 1;
   /** 职业(影响普攻形态/技能表/基础属性乘区) */
-  klass: 'blade' | 'ranger' = 'blade';
+  klass: 'blade' | 'ranger' | 'arcanist' | 'warden' = 'blade';
+  /** 局内事件加成(秘境房):recompute 时应用 */
+  runBuffAtk = 0;
+  runBuffSpeed = 0;
+  runHpMult = 1;
   /** 符文背包(符文 id 列表)与镶嵌表(技能id → 符文id) */
   runeBag: string[] = [];
   equippedRunes: Record<string, string> = {};
@@ -234,7 +238,7 @@ export class BossNanmir {
 /** 房间出口传送门 */
 export class Portal {
   animT = Math.random() * 10;
-  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss' | 'shop') {}
+  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event') {}
 }
 
 /** 预警打击:地面警示圈倒计时 → 一次性爆发伤害(Boss/藤妖/傀儡通用) */
@@ -322,6 +326,9 @@ export class Projectile {
     /** 渲染形态:光球 / 箭矢(沿速度方向) */
     public shape: 'orb' | 'arrow' = 'orb',
   ) {}
+
+  /** >0 时追踪最近敌人(弧度/秒转向速率) */
+  homing = 0;
 }
 
 /** 场景物件:树/岩石可碰撞,灌木纯装饰 */
@@ -340,6 +347,14 @@ export class ShopStand {
     public item: import('@game/loot/Items').Item | null = null,
     public runeId: string | null = null,
   ) {}
+}
+
+/** 秘境房图腾:三选一事件(选中一个后全部失效) */
+export class EventTotem {
+  used = false;
+  animT = Math.random() * 10;
+
+  constructor(public kind: 'blood' | 'blessing' | 'fountain') {}
 }
 
 export class ToastEvent {

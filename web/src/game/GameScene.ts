@@ -8,7 +8,7 @@ import balance from '@data/balance.json';
 import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
-  FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
+  EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
   ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
   ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
@@ -20,6 +20,7 @@ import {
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
 import { ShopSystem } from '@game/systems/ShopSystem';
+import { EventSystem } from '@game/systems/EventSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
 import { CritterSystem } from '@game/systems/CritterSystem';
@@ -46,6 +47,18 @@ const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   elite: { color: '#B067E8', label: '精英' },
   boss: { color: '#e05f5f', label: '首领' },
   shop: { color: '#8fd4c8', label: '商店' },
+  event: { color: '#e8c07a', label: '秘境' },
+};
+
+/** 职业 → 精灵图名 */
+const KLASS_SPRITE: Record<string, string> = {
+  blade: 'knight', ranger: 'ranger', arcanist: 'arcanist', warden: 'warden',
+};
+
+const TOTEM_INFO: Record<string, { icon: string; name: string; desc: string; color: string }> = {
+  blood: { icon: '🩸', name: '血之契约', desc: '生命上限-25% → 紫装', color: '#e05f5f' },
+  blessing: { icon: '✨', name: '星辰祝福', desc: '攻击+10% 移速+10%', color: '#ffd94f' },
+  fountain: { icon: '⛲', name: '星尘涌泉', desc: '+80~150 星尘', color: '#8fd4c8' },
 };
 
 type GameState = 'menu' | 'run' | 'results';
@@ -62,6 +75,7 @@ export class GameScene {
   private skills!: SkillSystem;
   private loot!: LootSystem;
   private shop!: ShopSystem;
+  private events!: EventSystem;
   private run!: RunManager;
   private inventoryUI: InventoryUI;
   private menuUI: MenuUI;
@@ -78,7 +92,7 @@ export class GameScene {
     private readonly input: Input,
     private readonly loop: GameLoop,
   ) {
-    for (const n of SPRITE_NAMES) sprites.load(n, `/sprites/${n}.png`);
+    for (const n of SPRITE_NAMES) sprites.load(n, `${import.meta.env.BASE_URL}sprites/${n}.png`);
     this.inventoryUI = new InventoryUI(input);
     this.menuUI = new MenuUI(input);
     this.bg = this.bakeBackground();
@@ -96,6 +110,7 @@ export class GameScene {
     this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
     this.loot.factory.pityCount = meta.data.pity;
     this.shop = new ShopSystem(this.input);
+    this.events = new EventSystem(this.input, this.loot.factory);
     this.run = new RunManager(this.loot.factory);
     this.systems = [
       new PlayerSystem(this.input, this.renderer),
@@ -110,6 +125,7 @@ export class GameScene {
       new ZoneSystem(),
       new TelegraphSystem(),
       this.shop,
+      this.events,
       this.loot,
       this.feedback,
     ];
@@ -274,7 +290,7 @@ export class GameScene {
         ctx.globalAlpha = 1;
       });
       // 主角立绘(呼吸摇摆,跟随所选职业)
-      drawSprite(r.ctx, this.menuUI.selectedClass === 'ranger' ? 'ranger' : 'knight', r.width / 2 - 240, r.height * 0.30, {
+      drawSprite(r.ctx, KLASS_SPRITE[this.menuUI.selectedClass], r.width / 2 - 240, r.height * 0.30, {
         scale: 3.2, rot: Math.sin(this.menuT * 1.6) * 0.03, sy: 1 + Math.sin(this.menuT * 3.2) * 0.015,
       });
       drawSprite(r.ctx, 'boss_nanmir', r.width / 2 + 265, r.height * 0.33, {
@@ -543,6 +559,47 @@ export class GameScene {
         } });
       }
 
+      // ---- 秘境图腾 ----
+      for (const e of w.query(EventTotem, Transform)) {
+        const totem = w.mustGet(e, EventTotem);
+        const tr = w.mustGet(e, Transform);
+        const near = this.events.nearbyTotem === e;
+        const info = TOTEM_INFO[totem.kind];
+        list.push({ y: tr.y, draw: () => {
+          const alpha = totem.used ? 0.35 : 1;
+          ctx.globalAlpha = alpha;
+          // 石碑
+          drawShadow(ctx, tr.x, tr.y, 14);
+          ctx.fillStyle = '#7a8494';
+          ctx.fillRect(tr.x - 14, tr.y - 46, 28, 46);
+          ctx.fillStyle = '#9aa3ad';
+          ctx.fillRect(tr.x - 14, tr.y - 46, 28, 8);
+          ctx.fillStyle = '#5d6673';
+          ctx.fillRect(tr.x - 18, tr.y - 6, 36, 6);
+          // 符号(未用时脉动发光)
+          const pulse = totem.used ? 0.6 : 0.7 + 0.3 * Math.sin(totem.animT * 3);
+          ctx.globalAlpha = alpha * pulse;
+          ctx.fillStyle = info.color;
+          ctx.font = 'bold 18px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(info.icon, tr.x, tr.y - 20);
+          ctx.globalAlpha = alpha;
+          ctx.font = 'bold 11px monospace';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#0d0f1a';
+          ctx.strokeText(info.name, tr.x, tr.y - 54);
+          ctx.fillStyle = info.color;
+          ctx.fillText(info.name, tr.x, tr.y - 54);
+          ctx.globalAlpha = 1;
+          if (near && !totem.used) {
+            ctx.fillStyle = UI.text;
+            ctx.font = '11px monospace';
+            ctx.strokeText(`${info.desc} · [F] 选择`, tr.x, tr.y + 22);
+            ctx.fillText(`${info.desc} · [F] 选择`, tr.x, tr.y + 22);
+          }
+        } });
+      }
+
       // ---- 商店摊位 ----
       for (const e of w.query(ShopStand, Transform)) {
         const stand = w.mustGet(e, ShopStand);
@@ -682,7 +739,7 @@ export class GameScene {
                 rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
                 sx = 1 + punch * 0.08;
               }
-              const ok = drawSprite(ctx, p.klass === 'ranger' ? 'ranger' : 'knight', ix, iy, {
+              const ok = drawSprite(ctx, KLASS_SPRITE[p.klass], ix, iy, {
                 flash: h.flash, faceLeft, rot, sx, sy,
                 alpha: p.dashT > 0 ? 0.7 : p.iframes > 0 ? 0.85 : 1,
               });
@@ -806,9 +863,9 @@ export class GameScene {
     const baseX = width / 2 - (slotW * 3 + gap * 2) / 2;
     const baseY = height - slotH - 34;
     const slots: Array<{ key: string; cd: number; cdMax: number; locked: boolean }> = [
-      { key: 'Q', cd: p.cdQ, cdMax: 4, locked: false },
-      { key: 'E', cd: p.cdE, cdMax: 6, locked: false },
-      { key: 'R', cd: p.cdR, cdMax: 1.5, locked: p.rage < 40 },
+      { key: 'Q', cd: p.cdQ, cdMax: this.skills.cooldownOf('Q'), locked: false },
+      { key: 'E', cd: p.cdE, cdMax: this.skills.cooldownOf('E'), locked: false },
+      { key: 'R', cd: p.cdR, cdMax: this.skills.cooldownOf('R'), locked: p.rage < 40 },
     ];
     ctx.textAlign = 'center';
     slots.forEach((s, i) => {

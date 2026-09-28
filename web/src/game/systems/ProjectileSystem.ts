@@ -23,6 +23,30 @@ export class ProjectileSystem implements System {
 
       tr.prevX = tr.x;
       tr.prevY = tr.y;
+
+      // 追踪转向(秘术师追星术等)
+      if (pr.homing > 0) {
+        let nearest: { x: number; y: number } | null = null;
+        let nd = 6 * M;
+        for (const t of world.query(Faction, Transform, Health)) {
+          if (world.mustGet(t, Faction).team === pr.team) continue;
+          const ttr = world.mustGet(t, Transform);
+          const d = Math.hypot(ttr.x - tr.x, ttr.y - tr.y);
+          if (d < nd) { nd = d; nearest = ttr; }
+        }
+        if (nearest) {
+          const cur = Math.atan2(vel.vy, vel.vx);
+          const want = Math.atan2(nearest.y - tr.y, nearest.x - tr.x);
+          let diff = want - cur;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          const turn = Math.max(-pr.homing * dt, Math.min(pr.homing * dt, diff));
+          const speed = Math.hypot(vel.vx, vel.vy);
+          vel.vx = Math.cos(cur + turn) * speed;
+          vel.vy = Math.sin(cur + turn) * speed;
+        }
+      }
+
       tr.x += vel.vx * dt;
       tr.y += vel.vy * dt;
       pr.lifeS -= dt;

@@ -3,7 +3,7 @@ import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import { M, RARITY_COLORS } from '@game/constants';
 import {
-  BlightWolf, Body, BossNanmir, Buffs, ElementMarks, EmberImp, Faction, FrostSlime, Health,
+  BlightWolf, Body, BossNanmir, Buffs, ElementMarks, EmberImp, EventTotem, Faction, FrostSlime, Health,
   OakGolem, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
@@ -13,7 +13,7 @@ import { scaleAtk, scaleHp } from './Scaling';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 
-export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop';
+export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event';
 
 type SpawnKind =
   | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem'
@@ -53,6 +53,7 @@ export class RunManager {
     for (const e of world.query(Projectile)) world.destroy(e);
     for (const e of world.query(PropObstacle)) world.destroy(e);
     for (const e of world.query(ShopStand)) world.destroy(e);
+    for (const e of world.query(EventTotem)) world.destroy(e);
     world.flushDestroyed();
     this.scatterProps(world, kind);
     this.spriteSpawned = false;
@@ -108,12 +109,24 @@ export class RunManager {
         world.add(pot, new Transform(10 * M, cy + 2 * M));
         world.add(pot, new ShopStand('potion', S.potionPrice));
         const klass = world.mustGet(playerE, Player).klass;
-        const prefix = klass === 'ranger' ? 'ranger_' : 'blade_';
+        const prefix = `${klass}_`;
         const runeIds = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix)).map((r) => r.id);
         const rn = world.create();
         world.add(rn, new Transform(15 * M, cy + 2 * M));
         world.add(rn, new ShopStand('rune', S.runePrice, null, this.rng.pick(runeIds)));
         world.emit(new ToastEvent('🛒 流浪商人:走近按 F 购买', '#8fd4c8'));
+        break;
+      }
+      case 'event': {
+        this.pendingWaves = 0;
+        const cy = (balance.arena.heightM / 2) * M;
+        const kinds: Array<'blood' | 'blessing' | 'fountain'> = ['blood', 'blessing', 'fountain'];
+        kinds.forEach((k, i) => {
+          const e = world.create();
+          world.add(e, new Transform((9.5 + i * 4) * M, cy));
+          world.add(e, new EventTotem(k));
+        });
+        world.emit(new ToastEvent('❓ 秘境:三座石碑,只能选一(按 F)', '#e8c07a'));
         break;
       }
       case 'boss': {
@@ -193,7 +206,7 @@ export class RunManager {
     if (next >= R.count) return ['boss'];
     if (next === R.eliteIndex) return ['elite'];
     const choiceIdx = (R.choiceAt as number[]).indexOf(next);
-    if (choiceIdx === 0) return ['battle', 'treasure'];
+    if (choiceIdx === 0) return ['treasure', 'event']; // 稳定收益 vs 三选一赌局
     if (choiceIdx >= 1) return ['battle', 'shop'];
     return ['battle'];
   }

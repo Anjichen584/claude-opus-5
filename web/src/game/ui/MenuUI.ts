@@ -21,12 +21,14 @@ const BRANCHES: Array<{ key: 'hp' | 'atk' | 'luck'; name: string; desc: string }
 ];
 
 /** 主菜单(标题+祭坛+开始)与结算页。返回 'start' 表示玩家点了开始。 */
+type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
+
 export class MenuUI {
   /** 出战职业(职业卡选择,startRun 读取) */
-  selectedClass: 'blade' | 'ranger' = 'blade';
+  selectedClass: Klass = 'blade';
   private startRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private altarRects: Array<{ rect: Rect; key: 'hp' | 'atk' | 'luck' }> = [];
-  private classRects: Array<{ rect: Rect; klass: 'blade' | 'ranger' }> = [];
+  private classRects: Array<{ rect: Rect; klass: Klass }> = [];
 
   constructor(private readonly input: Input) {}
 
@@ -68,17 +70,20 @@ export class MenuUI {
     ctx.font = '14px monospace';
     ctx.fillText('—— 翠语林地 · 第一章 ——', w / 2, h * 0.2 + 30);
 
-    // 职业选择卡
+    // 职业选择卡 ×4
     this.classRects = [];
-    const classes: Array<{ klass: 'blade' | 'ranger'; icon: string }> = [
-      { klass: 'blade', icon: '⚔' },
-      { klass: 'ranger', icon: '🏹' },
+    const classes: Array<{ klass: Klass; icon: string; desc: string }> = [
+      { klass: 'blade', icon: '⚔', desc: '三段连斩·近战爆发' },
+      { klass: 'ranger', icon: '🏹', desc: '连射弓·走位风筝' },
+      { klass: 'arcanist', icon: '✨', desc: '追踪法球·闪现风暴' },
+      { klass: 'warden', icon: '🛡', desc: '重锤眩晕·坦克冲锋' },
     ];
-    const cw = 180;
+    const cw = 158;
     const ch = 56;
+    const totalW = classes.length * cw + (classes.length - 1) * 14;
     classes.forEach((c, i) => {
       const cfg = balance.classes[c.klass];
-      const x = w / 2 - cw - 12 + i * (cw + 24);
+      const x = w / 2 - totalW / 2 + i * (cw + 14);
       const y = h * 0.27;
       const sel = this.selectedClass === c.klass;
       const hov2 = inside({ x, y, w: cw, h: ch }, this.input.mouseX, this.input.mouseY);
@@ -88,11 +93,11 @@ export class MenuUI {
       ctx.lineWidth = sel ? 2.5 : 1.5;
       ctx.strokeRect(x, y, cw, ch);
       ctx.fillStyle = sel ? UI.gold : UI.text;
-      ctx.font = 'bold 15px monospace';
-      ctx.fillText(`${c.icon} ${cfg.hero} · ${cfg.name}`, x + cw / 2, y + 24);
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(`${c.icon} ${cfg.hero}·${cfg.name}`, x + cw / 2, y + 23);
       ctx.fillStyle = UI.dim;
       ctx.font = '10px monospace';
-      ctx.fillText(c.klass === 'blade' ? '三段连斩 · 近战爆发' : '连射弓 · 走位风筝', x + cw / 2, y + 42);
+      ctx.fillText(c.desc, x + cw / 2, y + 41);
       this.classRects.push({ rect: { x, y, w: cw, h: ch }, klass: c.klass });
     });
 

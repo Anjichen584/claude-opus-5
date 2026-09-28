@@ -16,11 +16,12 @@ export function recompute(world: World, pe: Entity): void {
   const p = world.mustGet(pe, Player);
   const eq = world.mustGet(pe, Equipment);
 
-  // 祭坛永久成长(局外,+3%/级)× 职业乘区
+  // 祭坛永久成长(局外,+3%/级)× 职业乘区 × 局内事件加成
   const altar = meta.data.altar;
-  const kls = balance.classes[world.mustGet(pe, Player).klass];
-  let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl) * kls.atkMult;
-  let hpFlat = B.hp * (1 + altar.hp * balance.altar.hpPerLvl) * kls.hpMult;
+  const pl = world.mustGet(pe, Player);
+  const kls = balance.classes[pl.klass];
+  let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl) * kls.atkMult * (1 + pl.runBuffAtk);
+  let hpFlat = B.hp * (1 + altar.hp * balance.altar.hpPerLvl) * kls.hpMult * pl.runHpMult;
   let critFlat = B.critRate;
   let moveBasePct = 0;
   let atkPct = 0;
@@ -62,7 +63,7 @@ export function recompute(world: World, pe: Entity): void {
   stats.atk = Math.round(atkFlat * (1 + atkPct / 100));
   stats.critRate = Math.min(critFlat, 1);
   stats.critDmg = B.critDmg + critDmgPct / 100;
-  stats.moveSpeed = B.moveSpeed * kls.speedMult * (1 + (moveBasePct + movePct) / 100);
+  stats.moveSpeed = B.moveSpeed * kls.speedMult * (1 + pl.runBuffSpeed) * (1 + (moveBasePct + movePct) / 100);
 
   const newMax = Math.round(hpFlat * (1 + hpPct / 100));
   const ratio = hp.max > 0 ? hp.hp / hp.max : 1;

@@ -102,7 +102,11 @@ export class PlayerSystem implements System {
         }
 
         // ---- 普通移动(指数趋近实现加减速) ----
-        const slow = p.attackT > 0 ? B.combo.moveSlow : 1;
+        const slow = p.attackT > 0
+          ? (p.klass === 'warden' ? balance.classes.warden.combo.moveSlow
+            : p.klass === 'blade' ? B.combo.moveSlow
+            : 0.85) // 远程职业射击仅轻微减速(移动射击手感)
+          : 1;
         const targetVx = axis.x * stats.moveSpeed * M * slow;
         const targetVy = axis.y * stats.moveSpeed * M * slow;
         const tau = (axis.x !== 0 || axis.y !== 0) ? B.accelTime : B.decelTime;
@@ -110,43 +114,46 @@ export class PlayerSystem implements System {
         vel.vx += (targetVx - vel.vx) * k;
         vel.vy += (targetVy - vel.vy) * k;
 
-        // ---- 普攻:剑士三段连击 / 猎手连射弓 ----
+        // ---- 普攻:近战连击(剑士/守卫) / 连射(猎手箭·秘术师法球) ----
         if ((this.input.mouseDown || this.input.isDown('KeyJ')) && p.attackT <= 0) {
-          if (p.klass === 'ranger') {
-            const bow = balance.classes.ranger.bow;
+          if (p.klass === 'ranger' || p.klass === 'arcanist') {
+            const bow = p.klass === 'ranger' ? balance.classes.ranger.bow : balance.classes.arcanist.bow;
             p.comboStage = (p.comboStage % bow.heavyEvery) + 1;
-            const heavy = p.comboStage === bow.heavyEvery; // 每 N 箭一发重箭
+            const heavy = p.comboStage === bow.heavyEvery; // 每 N 发一发强化
             p.attackDur = bow.rateS;
             p.attackT = bow.rateS;
             p.comboTimer = 1.0;
             const len = Math.hypot(p.aimX, p.aimY) || 1;
             const nx = p.aimX / len;
             const ny = p.aimY / len;
-            const arrow = world.create();
-            world.add(arrow, new Transform(tr.x + nx * 14, tr.y + ny * 14 - 12));
+            const shot = world.create();
+            world.add(shot, new Transform(tr.x + nx * 14, tr.y + ny * 14 - 12));
             const av = new Velocity();
             av.vx = nx * bow.speedM * M;
             av.vy = ny * bow.speedM * M;
-            world.add(arrow, av);
-            world.add(arrow, new Projectile(
+            world.add(shot, av);
+            const arrow = p.klass === 'ranger';
+            world.add(shot, new Projectile(
               'player', stats.atk, heavy ? bow.mult * bow.heavyMult : bow.mult, null,
               bow.radiusM * M * (heavy ? 1.6 : 1), bow.lifeS,
-              heavy ? '#ffd94f' : '#dfe8f2', 'arrow',
+              arrow ? (heavy ? '#ffd94f' : '#dfe8f2') : (heavy ? '#e8c0ff' : '#b880e8'),
+              arrow ? 'arrow' : 'orb',
             ));
           } else {
+            const combo = p.klass === 'warden' ? balance.classes.warden.combo : B.combo;
             p.comboStage = p.comboTimer > 0 ? (p.comboStage % 3) + 1 : 1;
             const idx = p.comboStage - 1;
-            p.attackDur = B.combo.attackTime[idx];
+            p.attackDur = combo.attackTime[idx];
             p.attackT = p.attackDur;
-            p.comboTimer = B.combo.window + p.attackDur;
+            p.comboTimer = combo.window + p.attackDur;
 
-            const arcRad = (B.combo.arcDeg * Math.PI) / 180;
+            const arcRad = (combo.arcDeg * Math.PI) / 180;
             // 橙装「怒涛之刃」:第三段范围 +40%
             const tempest = p.comboStage === 3 && p.specials.includes('tempest') ? 1.4 : 1;
-            const rangePx = B.combo.range * M * tempest;
+            const rangePx = combo.range * M * tempest;
             world.emit(new MeleeSweep(
-              e, tr.x, tr.y, tr.face, rangePx, arcRad, B.combo.mults[idx], p.comboStage,
-              null, p.comboStage === 3 ? B.combo.knockback3 : 0,
+              e, tr.x, tr.y, tr.face, rangePx, arcRad, combo.mults[idx], p.comboStage,
+              null, p.comboStage === 3 ? combo.knockback3 : 0,
             ));
             world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
           }

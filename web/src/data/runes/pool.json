@@ -120,6 +120,60 @@
       "name": "贯雷雨",
       "desc": "星陨箭雨附雷印记(大范围麻痹链起手)",
       "element": "bolt"
+    },
+    {
+      "id": "rune_pyreseeker",
+      "skill": "arcanist_q_seeker",
+      "name": "炽星追曳",
+      "desc": "追星法球附火印记,命中点燃",
+      "element": "fire"
+    },
+    {
+      "id": "rune_glacialveil",
+      "skill": "arcanist_e_blink",
+      "name": "霜幕",
+      "desc": "闪现起点爆裂附冰,并留下霜圈",
+      "element": "ice",
+      "groundZone": {
+        "radiusM": 1.5,
+        "lifeS": 1.8,
+        "intervalS": 0.5,
+        "mult": 0.4
+      }
+    },
+    {
+      "id": "rune_miasmaheart",
+      "skill": "arcanist_r_tempest",
+      "name": "瘴风之心",
+      "desc": "元素风暴化为毒瘴,持续叠毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_thundershatter",
+      "skill": "warden_q_quake",
+      "name": "碎雷震",
+      "desc": "岩震击附雷印记(眩晕+麻痹连携)",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_moltenram",
+      "skill": "warden_e_charge",
+      "name": "熔岩冲角",
+      "desc": "冲锋终点撞击附火,并燃起熔痕",
+      "element": "fire",
+      "groundZone": {
+        "radiusM": 1.3,
+        "lifeS": 2.0,
+        "intervalS": 0.5,
+        "mult": 0.5
+      }
+    },
+    {
+      "id": "rune_permafrost",
+      "skill": "warden_r_roar",
+      "name": "永冻怒吼",
+      "desc": "怒吼附冰印记,减速加深",
+      "element": "ice"
     }
   ]
 }

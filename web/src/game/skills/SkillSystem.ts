@@ -3,10 +3,12 @@ import type { Input } from '@engine/input/Input';
 import { M } from '@game/constants';
 import skillsData from '@data/skills/blade.json';
 import rangerData from '@data/skills/ranger.json';
+import arcanistData from '@data/skills/arcanist.json';
+import wardenData from '@data/skills/warden.json';
 import runePool from '@data/runes/pool.json';
 import type { Renderer } from '@engine/render/Renderer';
 import {
-  BeamFxEvent, Element, Faction, Health, MeleeSweep, Player, Projectile, RingFxEvent,
+  BeamFxEvent, Buffs, Element, Faction, Health, MeleeSweep, Player, Projectile, RingFxEvent,
   SfxEvent, SlashFxEvent, Stats, Transform, Velocity, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
@@ -49,11 +51,19 @@ export class SkillSystem implements System {
 
   constructor(
     private readonly input: Input,
-    private readonly klass: 'blade' | 'ranger' = 'blade',
+    private readonly klass: 'blade' | 'ranger' | 'arcanist' | 'warden' = 'blade',
     private readonly renderer: Renderer | null = null,
   ) {
-    const src = klass === 'ranger' ? rangerData.skills : skillsData.skills;
+    const src = klass === 'ranger' ? rangerData.skills
+      : klass === 'arcanist' ? arcanistData.skills
+      : klass === 'warden' ? wardenData.skills
+      : skillsData.skills;
     for (const s of src) this.defs.set(s.slot, s as SkillDef);
+  }
+
+  /** HUD 冷却遮罩用 */
+  cooldownOf(slot: string): number {
+    return this.defs.get(slot)?.cooldown ?? 1;
   }
 
   /** 玩家当前镶嵌在某技能位(Q/E/R)上的符文 */
@@ -103,6 +113,14 @@ export class SkillSystem implements System {
       this.castFanArrows(world, pe, p, tr, def);
       return;
     }
+    if (this.klass === 'arcanist') {
+      this.castHomingOrbs(world, pe, p, tr, def);
+      return;
+    }
+    if (this.klass === 'warden') {
+      this.castQuake(world, pe, p, tr, def);
+      return;
+    }
     const ph = def.phases[0] as { count: number; intervalS: number; arcDeg: number; rangeM: number; mult: number };
     const rune = this.runeOf(world, pe, def.id);
     const element = (rune?.element ?? null) as Element | null;
@@ -146,6 +164,14 @@ export class SkillSystem implements System {
     const def = this.defs.get('E')!;
     if (this.klass === 'ranger') {
       this.castNovaRoll(world, pe, p, tr, def);
+      return;
+    }
+    if (this.klass === 'arcanist') {
+      this.castBlink(world, pe, p, tr, def);
+      return;
+    }
+    if (this.klass === 'warden') {
+      this.castCharge(world, pe, p, tr, def);
       return;
     }
     const dashPh = def.phases[0] as { distM: number; durS: number; iframesS: number };
@@ -203,6 +229,14 @@ export class SkillSystem implements System {
     const def = this.defs.get('R')!;
     if (this.klass === 'ranger') {
       this.castArrowStorm(world, pe, p, tr, def);
+      return;
+    }
+    if (this.klass === 'arcanist') {
+      this.castElementStorm(world, pe, p, tr, def);
+      return;
+    }
+    if (this.klass === 'warden') {
+      this.castEarthRoar(world, pe, p, tr, def);
       return;
     }
     const ph = def.phases[0] as { minCount: number; maxCount: number; mult: number; ringM: number; durS: number; aoeM: number; seekM: number };
@@ -399,5 +433,205 @@ export class SkillSystem implements System {
         },
       });
     }
+  }
+
+  // ================== 元素秘术师 ==================
+
+  /** Q 追星术:三发追踪法球 */
+  private castHomingOrbs(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { count: number; spreadDeg: number; mult: number; speedM: number; lifeS: number; radiusM: number; homingRad: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    const stats = world.get(pe, Stats);
+    if (!stats) return;
+    p.cdQ = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('skill'));
+    const spread = (ph.spreadDeg * Math.PI) / 180;
+    for (let i = 0; i < ph.count; i++) {
+      const a = tr.face + (i - (ph.count - 1) / 2) * spread;
+      const e = world.create();
+      world.add(e, new Transform(tr.x + Math.cos(a) * 14, tr.y + Math.sin(a) * 14 - 12));
+      const v = new Velocity();
+      v.vx = Math.cos(a) * ph.speedM * M;
+      v.vy = Math.sin(a) * ph.speedM * M;
+      world.add(e, v);
+      const pj = new Projectile('player', stats.atk, ph.mult, element, ph.radiusM * M, ph.lifeS,
+        element ? elementColor(element) : '#b880e8', 'orb');
+      pj.homing = ph.homingRad;
+      world.add(e, pj);
+    }
+  }
+
+  /** E 星幕闪现:瞬移向准星,起点爆裂(符文:霜幕 → 起点冰圈) */
+  private castBlink(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { rangeM: number; iframesS: number; blastRadiusM: number; mult: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    const stats = world.get(pe, Stats);
+    if (!stats) return;
+    p.cdE = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('dash'));
+
+    const ox = tr.x;
+    const oy = tr.y;
+    // 目标点 = 准星方向(限程)
+    let dx = p.aimX;
+    let dy = p.aimY;
+    if (this.renderer) {
+      const mw = this.renderer.mouseWorld(this.input.mouseX, this.input.mouseY);
+      dx = mw.x - tr.x;
+      dy = mw.y - tr.y;
+    }
+    const d = Math.hypot(dx, dy) || 1;
+    const dist = Math.min(d, ph.rangeM * M);
+    tr.x += (dx / d) * dist;
+    tr.y += (dy / d) * dist;
+    tr.prevX = tr.x; // 瞬移不插值
+    tr.prevY = tr.y;
+    p.iframes = Math.max(p.iframes, ph.iframesS);
+
+    const color = element ? elementColor(element) : '#b880e8';
+    world.emit(new RingFxEvent(ox, oy, ph.blastRadiusM * M, color));
+    world.emit(new RingFxEvent(tr.x, tr.y, 30, color));
+    for (const e of world.query(Health, Transform, Faction)) {
+      if (world.mustGet(e, Faction).team === 'player') continue;
+      const ttr = world.mustGet(e, Transform);
+      if (Math.hypot(ttr.x - ox, ttr.y - oy) <= ph.blastRadiusM * M) {
+        dealDamage(world, {
+          source: pe, target: e, mult: ph.mult, element,
+          hitAngle: Math.atan2(ttr.y - oy, ttr.x - ox),
+        });
+      }
+    }
+    if (rune?.groundZone) {
+      const gz = rune.groundZone;
+      const z = world.create();
+      world.add(z, new Transform(ox, oy));
+      world.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', color));
+    }
+  }
+
+  /** R 元素风暴:以自身为中心的持续风暴领域 */
+  private castElementStorm(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { radiusM: number; lifeS: number; tickS: number; mult: number };
+    const minRage = def.minRage ?? 40;
+    if (p.rage < minRage) return;
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    const stats = world.get(pe, Stats);
+    if (!stats) return;
+    const ratio = (p.rage - minRage) / (100 - minRage);
+    p.rage = 0;
+    p.cdR = def.cooldown;
+    world.emit(new SfxEvent('ult'));
+    const color = element ? elementColor(element) : '#b880e8';
+    const z = world.create();
+    world.add(z, new Transform(tr.x, tr.y));
+    // 怒气越满持续越久(+50%)
+    world.add(z, new Zone(ph.radiusM * M, ph.lifeS * (1 + ratio * 0.5), ph.tickS, stats.atk, ph.mult, element, 'player', color));
+    world.emit(new RingFxEvent(tr.x, tr.y, ph.radiusM * M, color));
+  }
+
+  // ================== 岩铠守卫 ==================
+
+  /** 通用锥形近战结算(可附眩晕/击退/减速) */
+  private coneHit(
+    world: World, pe: Entity, tr: Transform, arcRad: number, rangePx: number,
+    mult: number, element: Element | null,
+    opts: { stunS?: number; knockbackM?: number; slowS?: number; slowPct?: number },
+  ): void {
+    for (const e of world.query(Health, Transform, Faction)) {
+      if (world.mustGet(e, Faction).team === 'player') continue;
+      const ttr = world.mustGet(e, Transform);
+      const dx = ttr.x - tr.x;
+      const dy = ttr.y - tr.y;
+      const d = Math.hypot(dx, dy);
+      if (d > rangePx) continue;
+      let ang = Math.atan2(dy, dx) - tr.face;
+      while (ang > Math.PI) ang -= Math.PI * 2;
+      while (ang < -Math.PI) ang += Math.PI * 2;
+      if (Math.abs(ang) > arcRad / 2) continue;
+      dealDamage(world, {
+        source: pe, target: e, mult, element,
+        hitAngle: Math.atan2(dy, dx), knockbackM: opts.knockbackM ?? 0,
+      });
+      const buffs = world.get(e, Buffs);
+      if (buffs) {
+        if (opts.stunS) buffs.stunT = Math.max(buffs.stunT, opts.stunS);
+        if (opts.slowS && opts.slowPct) {
+          buffs.slowT = Math.max(buffs.slowT, opts.slowS);
+          buffs.slowPct = opts.slowPct;
+        }
+      }
+    }
+  }
+
+  /** Q 岩震击:前方重击 + 眩晕(符文:碎雷震 → 雷) */
+  private castQuake(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { arcDeg: number; rangeM: number; mult: number; stunS: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdQ = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('skill'));
+    const arcRad = (ph.arcDeg * Math.PI) / 180;
+    world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, 3, ph.rangeM * M, arcRad));
+    world.emit(new RingFxEvent(tr.x + Math.cos(tr.face) * ph.rangeM * M * 0.6, tr.y + Math.sin(tr.face) * ph.rangeM * M * 0.6, 34, element ? elementColor(element) : '#d9a05f'));
+    this.coneHit(world, pe, tr, arcRad, ph.rangeM * M, ph.mult, element, { stunS: ph.stunS });
+  }
+
+  /** E 壁垒冲锋:突进 + 终点撞击(符文:熔岩冲角 → 终点熔痕) */
+  private castCharge(world: World, pe: Entity, p: Player, _tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { distM: number; durS: number; iframesS: number; arcDeg: number; rangeM: number; mult: number; knockbackM: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdE = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('dash'));
+
+    p.dashDirX = p.aimX;
+    p.dashDirY = p.aimY;
+    p.dashT = ph.durS;
+    p.dashDur = ph.durS;
+    p.dashSpeedPx = (ph.distM / ph.durS) * M;
+    p.iframes = Math.max(p.iframes, ph.iframesS);
+    p.attackT = 0;
+
+    this.queue.push({
+      t: ph.durS + 0.02,
+      run: (w) => {
+        const ptr = w.get(pe, Transform);
+        const stats = w.get(pe, Stats);
+        if (!ptr || !stats) return;
+        const color = element ? elementColor(element) : '#d9a05f';
+        w.emit(new SfxEvent('reaction'));
+        w.emit(new RingFxEvent(ptr.x, ptr.y, ph.rangeM * M, color));
+        this.coneHit(w, pe, ptr, (ph.arcDeg * Math.PI) / 180, ph.rangeM * M, ph.mult, element, { knockbackM: ph.knockbackM });
+        if (rune?.groundZone) {
+          const gz = rune.groundZone;
+          const z = w.create();
+          w.add(z, new Transform(ptr.x + Math.cos(ptr.face) * 0.8 * M, ptr.y + Math.sin(ptr.face) * 0.8 * M));
+          w.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', color));
+        }
+      },
+    });
+  }
+
+  /** R 大地怒吼:全周冲击波 + 击退 + 减速(符文:永冻怒吼 → 冰) */
+  private castEarthRoar(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { radiusM: number; mult: number; knockbackM: number; slowS: number; slowPct: number };
+    const minRage = def.minRage ?? 40;
+    if (p.rage < minRage) return;
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.rage = 0;
+    p.cdR = def.cooldown;
+    world.emit(new SfxEvent('ult'));
+    const color = element ? elementColor(element) : '#d9a05f';
+    for (let i = 0; i < 3; i++) {
+      const rr = ph.radiusM * M * ((i + 1) / 3);
+      this.queue.push({ t: i * 0.08, run: (w) => w.emit(new RingFxEvent(tr.x, tr.y, rr, color)) });
+    }
+    // 全周 = 用 2π 锥形
+    this.coneHit(world, pe, tr, Math.PI * 2.01, ph.radiusM * M, ph.mult, element,
+      { knockbackM: ph.knockbackM, slowS: ph.slowS, slowPct: ph.slowPct });
   }
 }
