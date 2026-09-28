@@ -7,6 +7,7 @@ import {
 } from '@game/components';
 import { ItemFactory } from './Items';
 import { salvage } from './Equip';
+import { clock } from '@game/dungeon/Clock';
 
 const L = balance.loot;
 
@@ -17,26 +18,43 @@ const L = balance.loot;
 export class LootSystem implements System {
   private rng = new Rng(4202611);
   readonly factory = new ItemFactory(this.rng);
+  /** 幸运值(祭坛提供,run 开始时注入) */
+  luck = 0;
 
   update(world: World, dt: number): void {
     // ---- 击杀掉落 ----
+    const lootMult = clock.isNight() ? balance.night.lootMult : 1; // 夜晚掉落翻倍(GDD §9)
     for (const kill of world.read(KillEvent)) {
       if (kill.kind === '') continue; // 非怪物死亡(保险)
       // 星尘(必掉,拆成 2~4 颗弹出)
-      const dust = this.rng.int(L.stardustMin, L.stardustMax);
+      const dust = this.rng.int(L.stardustMin, L.stardustMax) * lootMult;
       const motes = this.rng.int(2, 4);
       for (let i = 0; i < motes; i++) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, Math.ceil(dust / motes)));
       }
-      // 装备
-      if (this.rng.chance(L.dropEquip)) {
-        const wasPity = this.factory.pityCount >= L.pity;
-        const item = this.factory.roll(0);
-        if (wasPity) world.emit(new ToastEvent('保底触发!陨核装备!', RARITY_COLORS.legendary));
-        this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
+      // 装备:精英必掉蓝起步,Boss 必掉紫+30%橙(docs/03 §6)
+      const isElite = kill.kind === 'oakgolem';
+      const isBoss = kill.kind === 'boss';
+      const rolls = isBoss ? 2 : 1;
+      for (let r = 0; r < rolls * lootMult; r++) {
+        if (isBoss && r === 0) {
+          const rarity = this.rng.chance(0.3) ? 'legendary' as const : 'epic' as const;
+          const item = this.factory.make(this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), rarity);
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
+          continue;
+        }
+        if (isElite || isBoss || this.rng.chance(L.dropEquip)) {
+          const wasPity = this.factory.pityCount >= L.pity;
+          let item = this.factory.roll(this.luck);
+          if (isElite && (item.rarity === 'common' || item.rarity === 'fine')) {
+            item = this.factory.make(item.slot, 'rare'); // 精英保底蓝
+          }
+          if (wasPity) world.emit(new ToastEvent('保底触发!陨核装备!', RARITY_COLORS.legendary));
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
+        }
       }
       // 药剂
-      if (this.rng.chance(L.dropPotion)) {
+      if (this.rng.chance(L.dropPotion * lootMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
       }
     }

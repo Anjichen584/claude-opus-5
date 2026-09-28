@@ -199,6 +199,53 @@ export class BlightWolf {
   ky = 0;
 }
 
+/** 荆棘藤妖:固定炮台,在玩家脚下召唤预警地刺 */
+export class ThornVine {
+  state: 'idle' | 'telegraph' = 'idle';
+  t = 1 + Math.random();
+  animT = Math.random() * 10;
+}
+
+/** 橡木傀儡:缓慢逼近 + 拍地 AOE,背部弱点 ×2 */
+export class OakGolem {
+  state: 'chase' | 'windup' | 'recover' = 'chase';
+  t = 0;
+  slamCd = 1.5;
+  animT = Math.random() * 10;
+  kx = 0;
+  ky = 0;
+}
+
+/** Boss 腐木巨像·南弥尔:三阶段状态机(BossSystem 驱动) */
+export class BossNanmir {
+  phase: 1 | 2 | 3 = 1;
+  state: 'idle' | 'cast' | 'stagger' = 'idle';
+  t = 1.0;
+  attackIdx = 0;
+  animT = 0;
+}
+
+/** 房间出口传送门 */
+export class Portal {
+  animT = Math.random() * 10;
+  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss') {}
+}
+
+/** 预警打击:地面警示圈倒计时 → 一次性爆发伤害(Boss/藤妖/傀儡通用) */
+export class TelegraphStrike {
+  t: number;
+  constructor(
+    public total: number,
+    public radiusPx: number,
+    public atk: number,
+    public mult: number,
+    public team: Team,
+    public color: string,
+  ) {
+    this.t = total;
+  }
+}
+
 // ---------- 帧内事件 ----------
 
 /** 通用提示飘字(拾取/治疗/保底等) */

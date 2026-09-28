@@ -246,6 +246,174 @@ export function drawBlightWolf(
   ctx.restore();
 }
 
+/** 原创炮台怪「荆棘藤妖」:多刺藤球 + 摆动触须 + 施法时张开 */
+export function drawThornVine(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  flash: number,
+  casting: boolean,
+): void {
+  const f = flash > 0;
+  const c = (n: string): string => (f ? '#ffffff' : n);
+  const sway = Math.sin(t * 3) * 2;
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+
+  // 触须(左右摆动,施法时立起)
+  const lift = casting ? -3 : 0;
+  px(ctx, c('#3f7a3a'), -4 * P + sway, -8 * P + lift, 1.2 * P, 4 * P);
+  px(ctx, c('#3f7a3a'), 3 * P - sway, -8.6 * P + lift, 1.2 * P, 4.6 * P);
+  px(ctx, c('#3f7a3a'), -0.5 * P + sway * 0.5, -9.4 * P + lift, 1.2 * P, 3 * P);
+  // 藤球本体
+  px(ctx, c('#4f8a44'), -3.4 * P, -5.4 * P, 6.8 * P, 5 * P);
+  px(ctx, c('#63a854'), -3.4 * P, -5.4 * P, 6.8 * P, 1.6 * P);
+  // 尖刺
+  px(ctx, c('#2e5c2a'), -3.9 * P, -4 * P, 1 * P, 1 * P);
+  px(ctx, c('#2e5c2a'), 3 * P, -4.4 * P, 1 * P, 1 * P);
+  px(ctx, c('#2e5c2a'), -1 * P, -6 * P, 1 * P, 1 * P);
+  // 核心眼(施法时发亮)
+  px(ctx, c(casting ? '#f2e05f' : '#1d2430'), -0.8 * P, -3.8 * P, 1.6 * P, 1.2 * P);
+  // 根须底座
+  px(ctx, c('#54371e'), -2.6 * P, -0.8 * P, 5.2 * P, 0.8 * P);
+
+  ctx.restore();
+}
+
+/** 原创精英「橡木傀儡」:粗壮木躯 + 苔藓肩甲 + 蓄力时高举双臂;背部有裂纹弱点 */
+export function drawOakGolem(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  flash: number,
+  faceLeft: boolean,
+  windup: boolean,
+): void {
+  const f = flash > 0;
+  const c = (n: string): string => (f ? '#ffffff' : n);
+  const stomp = Math.sin(t * 5) * 1.5;
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  if (faceLeft) ctx.scale(-1, 1);
+
+  // 腿
+  px(ctx, c('#5c4326'), -3.4 * P, -3.5 * P, 2.4 * P, 3.5 * P);
+  px(ctx, c('#5c4326'), 1 * P, -3.5 * P, 2.4 * P, 3.5 * P);
+  // 躯干(粗木 + 年轮)
+  px(ctx, c('#7a5a33'), -4.4 * P, -11 * P + stomp * 0.4, 8.8 * P, 8 * P);
+  px(ctx, c('#8f6c40'), -4.4 * P, -11 * P + stomp * 0.4, 8.8 * P, 2.4 * P);
+  px(ctx, c('#5c4326'), -1.4 * P, -8 * P, 2.8 * P, 2.2 * P); // 年轮芯
+  px(ctx, c('#4a3620'), -0.7 * P, -7.4 * P, 1.4 * P, 1 * P);
+  // 背部裂纹弱点(朝后,提示绕背 ×2)
+  px(ctx, c('#f2a33c'), -4.4 * P, -9 * P, 0.8 * P, 3 * P);
+  // 苔藓肩
+  px(ctx, c('#4f8a44'), -5.2 * P, -12 * P + stomp * 0.4, 3 * P, 2 * P);
+  px(ctx, c('#4f8a44'), 2.2 * P, -12 * P + stomp * 0.4, 3 * P, 2 * P);
+  // 手臂(蓄力时高举)
+  const armY = windup ? -14 * P : -9.5 * P;
+  px(ctx, c('#6b4e2c'), -6.4 * P, armY, 2 * P, windup ? 5 * P : 5.5 * P);
+  px(ctx, c('#6b4e2c'), 4.4 * P, armY, 2 * P, windup ? 5 * P : 5.5 * P);
+  // 头(小,嵌在躯干顶)
+  px(ctx, c('#8f6c40'), -1.8 * P, -13.4 * P + stomp * 0.4, 3.6 * P, 2.6 * P);
+  px(ctx, c(windup ? '#e05f5f' : '#7fd8e8'), -1 * P, -12.6 * P + stomp * 0.4, 0.8 * P, 0.7 * P);
+  px(ctx, c(windup ? '#e05f5f' : '#7fd8e8'), 0.4 * P, -12.6 * P + stomp * 0.4, 0.8 * P, 0.7 * P);
+
+  ctx.restore();
+}
+
+/** 原创 Boss「腐木巨像·南弥尔」:巨型朽木巨像 + 蚀化核心 + 苔冠 */
+export function drawBossNanmir(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  flash: number,
+  faceLeft: boolean,
+  phase: number,
+  staggered: boolean,
+): void {
+  const f = flash > 0;
+  const c = (n: string): string => (f ? '#ffffff' : n);
+  const breathe = Math.sin(t * 2.2) * 2;
+  const S = 1.9; // 体型放大
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  ctx.scale(faceLeft ? -S : S, S);
+  if (staggered) ctx.rotate(0.1);
+
+  // 腿
+  px(ctx, c('#4a3620'), -4 * P, -4 * P, 3 * P, 4 * P);
+  px(ctx, c('#4a3620'), 1.4 * P, -4 * P, 3 * P, 4 * P);
+  // 躯干(朽木 + 裂纹)
+  px(ctx, c('#5c4326'), -5.6 * P, -13 * P + breathe * 0.3, 11.2 * P, 9.4 * P);
+  px(ctx, c('#6f5230'), -5.6 * P, -13 * P + breathe * 0.3, 11.2 * P, 2.6 * P);
+  px(ctx, c('#3a2a18'), -3 * P, -10 * P, 1 * P, 4 * P);
+  px(ctx, c('#3a2a18'), 2.2 * P, -11 * P, 1 * P, 3 * P);
+  // 蚀化核心(阶段越高越亮/变色)
+  const coreColor = staggered ? '#ffd94f' : phase === 3 ? '#e05f5f' : phase === 2 ? '#b880e8' : '#7fd8e8';
+  const pulse = 0.75 + 0.25 * Math.sin(t * (2 + phase));
+  ctx.globalAlpha = pulse;
+  px(ctx, c(coreColor), -1.4 * P, -9.4 * P, 2.8 * P, 2.8 * P);
+  ctx.globalAlpha = 1;
+  // 巨臂
+  px(ctx, c('#4a3620'), -8.4 * P, -12 * P + breathe * 0.5, 2.8 * P, 8 * P);
+  px(ctx, c('#4a3620'), 5.6 * P, -12 * P + breathe * 0.5, 2.8 * P, 8 * P);
+  px(ctx, c('#5c4326'), -8.8 * P, -5 * P, 3.6 * P, 2.4 * P); // 拳
+  px(ctx, c('#5c4326'), 5.2 * P, -5 * P, 3.6 * P, 2.4 * P);
+  // 头 + 苔冠
+  px(ctx, c('#6f5230'), -2.6 * P, -16 * P + breathe * 0.3, 5.2 * P, 3.4 * P);
+  px(ctx, c('#4f8a44'), -3.4 * P, -17.4 * P + breathe * 0.3, 6.8 * P, 1.8 * P);
+  px(ctx, c('#63a854'), -2 * P, -18.4 * P + breathe * 0.3, 1.4 * P, 1.2 * P);
+  px(ctx, c('#63a854'), 1 * P, -18.2 * P + breathe * 0.3, 1.2 * P, 1 * P);
+  // 眼
+  px(ctx, c(coreColor), -1.6 * P, -15 * P, 1.2 * P, 0.9 * P);
+  px(ctx, c(coreColor), 0.6 * P, -15 * P, 1.2 * P, 0.9 * P);
+
+  ctx.restore();
+}
+
+/** 房间出口传送门:旋涡光环 + 类型色 */
+export function drawPortal(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  t: number,
+  color: string,
+  label: string,
+): void {
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  for (let i = 0; i < 3; i++) {
+    const a = t * (1.5 + i * 0.5) + (i * Math.PI * 2) / 3;
+    const r = 16 - i * 3;
+    ctx.globalAlpha = 0.5 - i * 0.1;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3 - i * 0.6;
+    ctx.beginPath();
+    ctx.ellipse(0, -14, r, r * 1.4, a * 0.2, a, a + Math.PI * 1.4);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.25 + 0.1 * Math.sin(t * 4);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(0, -14, 11, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#0d0f1a';
+  ctx.strokeText(label, 0, -40);
+  ctx.fillStyle = color;
+  ctx.fillText(label, 0, -40);
+  ctx.restore();
+}
+
 /** 掉落物:装备箱(稀有度光柱)/ 星尘 / 药剂 */
 export function drawPickup(
   ctx: CanvasRenderingContext2D,

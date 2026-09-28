@@ -8,6 +8,9 @@ import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import { sfx } from '@engine/audio/Sfx';
 import { GameScene } from '@game/GameScene';
+import { meta } from '@game/meta/Save';
+
+meta.load(); // 局外存档(祭坛/星尘/统计)
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);

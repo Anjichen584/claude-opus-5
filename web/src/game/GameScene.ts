@@ -5,75 +5,104 @@ import { Rng } from '@engine/core/Rng';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
-import { FOREST, M, UI } from '@game/constants';
+import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
-  BlightWolf, Body, Buffs, Dummy, Element, ElementMarks, Equipment, Faction, Health,
-  Inventory, Pickup, Player, Shroomling, Stats, Transform, Velocity, WindBee, Zone,
+  BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, Equipment, Faction, Health,
+  Inventory, OakGolem, Pickup, Player, Portal, Shroomling, Stats, TelegraphStrike, ThornVine,
+  ToastEvent, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import {
-  drawBlightWolf, drawDummy, drawKnight, drawPickup, drawShadow, drawShroomling, drawWindBee,
+  drawBlightWolf, drawBossNanmir, drawKnight, drawOakGolem, drawPickup, drawPortal,
+  drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
-import { RARITY_COLORS } from '@game/constants';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem } from '@game/skills/SkillSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
+import { EliteSystem } from '@game/systems/EliteSystem';
+import { BossSystem } from '@game/systems/BossSystem';
 import { PhysicsSystem } from '@game/systems/PhysicsSystem';
 import { CombatSystem } from '@game/systems/CombatSystem';
 import { ZoneSystem } from '@game/systems/ZoneSystem';
+import { TelegraphSystem } from '@game/systems/TelegraphSystem';
 import { LootSystem } from '@game/loot/LootSystem';
 import { FeedbackSystem } from '@game/systems/FeedbackSystem';
 import { InventoryUI } from '@game/ui/InventoryUI';
+import { MenuUI, RunStats } from '@game/ui/MenuUI';
 import { recompute } from '@game/loot/Equip';
+import { RunManager } from '@game/dungeon/RunManager';
+import { clock } from '@game/dungeon/Clock';
+import { meta } from '@game/meta/Save';
+
+const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
+  battle: { color: '#dfe8f2', label: '战斗' },
+  treasure: { color: '#F2A33C', label: '宝藏' },
+  elite: { color: '#B067E8', label: '精英' },
+  boss: { color: '#e05f5f', label: '首领' },
+};
+
+type GameState = 'menu' | 'run' | 'results';
 
 /**
- * 训练场场景(Phase 1 里程碑):翠语林地风格竞技场 + 木桩 + 菇灵怪群。
+ * 主场景状态机:menu → run(8房+Boss)→ results → menu。
  * 系统更新顺序即契约(docs/02-ARCHITECTURE.md §4)。
  */
 export class GameScene {
+  private state: GameState = 'menu';
   private world = new World();
   private systems: System[] = [];
-  private feedback: FeedbackSystem;
-  private skills: SkillSystem;
+  private feedback!: FeedbackSystem;
+  private skills!: SkillSystem;
+  private loot!: LootSystem;
+  private run!: RunManager;
   private inventoryUI: InventoryUI;
+  private menuUI: MenuUI;
   private playerE = 0;
-  private spawnT = 0;
   private bg: HTMLCanvasElement;
   private fps = 60;
+  private menuT = 0;
+  private wasNight = false;
+  private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0 };
 
   constructor(
     private readonly renderer: Renderer,
     private readonly input: Input,
-    loop: GameLoop,
+    private readonly loop: GameLoop,
   ) {
-    this.feedback = new FeedbackSystem(loop, renderer.camera);
-    this.skills = new SkillSystem(input);
     this.inventoryUI = new InventoryUI(input);
+    this.menuUI = new MenuUI(input);
+    this.bg = this.bakeBackground();
+    this.renderer.camera.snap((balance.arena.widthM / 2) * M, (balance.arena.heightM / 2) * M);
+  }
+
+  // ---------- run 生命周期 ----------
+
+  private startRun(): void {
+    this.world = new World();
+    this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
+    this.skills = new SkillSystem(this.input);
+    this.loot = new LootSystem();
+    this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
+    this.loot.factory.pityCount = meta.data.pity;
+    this.run = new RunManager(this.loot.factory);
     this.systems = [
-      new PlayerSystem(input, renderer),
+      new PlayerSystem(this.input, this.renderer),
       this.skills,
       new EnemySystem(),
+      new EliteSystem(),
+      new BossSystem(),
       new PhysicsSystem(),
       new CombatSystem(),
       new ZoneSystem(),
-      new LootSystem(),
+      new TelegraphSystem(),
+      this.loot,
       this.feedback,
     ];
-    this.bg = this.bakeBackground();
-    this.setup();
-  }
 
-  // ---------- 装配 ----------
-
-  private setup(): void {
     const w = this.world;
     const B = balance.player;
-    const cx = (balance.arena.widthM / 2) * M;
-    const cy = (balance.arena.heightM / 2) * M;
-
-    // 玩家「澜」
     this.playerE = w.create();
-    w.add(this.playerE, new Transform(cx, cy));
+    w.add(this.playerE, new Transform(2.5 * M, (balance.arena.heightM / 2) * M));
     w.add(this.playerE, new Velocity());
     w.add(this.playerE, new Body(B.bodyRadius));
     w.add(this.playerE, new Health(B.hp));
@@ -83,109 +112,87 @@ export class GameScene {
     w.add(this.playerE, new Inventory());
     w.add(this.playerE, new Equipment());
     recompute(w, this.playerE);
-    this.renderer.camera.snap(cx, cy);
 
-    // 训练木桩(左侧训练角)
-    for (let i = 0; i < balance.arena.dummyCount; i++) {
-      const e = w.create();
-      w.add(e, new Transform(5 * M, (4 + i * 4) * M));
-      w.add(e, new Velocity());
-      w.add(e, new Body(0.35, true));
-      w.add(e, new Health(99999));
-      w.add(e, new Faction('neutral'));
-      w.add(e, new Dummy());
-      w.add(e, new ElementMarks()); // 木桩可挂印记,方便测试连锁反应
-      w.add(e, new Buffs());
-    }
+    clock.reset();
+    this.wasNight = false;
+    meta.data.stats.runs++;
+    meta.save();
+    this.run.startRoom(w, 'battle', this.playerE);
+    const ptr = w.mustGet(this.playerE, Transform);
+    this.renderer.camera.snap(ptr.x, ptr.y);
+    this.state = 'run';
   }
 
-  private spawnShroom(rng: Rng): void {
-    const w = this.world;
-    const E = balance.enemies.shroomling;
-    const ptr = w.mustGet(this.playerE, Transform);
-    // 从场地边缘随机点出生,且离玩家 ≥ 7m
-    let x = 0; let y = 0;
-    for (let tries = 0; tries < 20; tries++) {
-      x = rng.range(1.5, balance.arena.widthM - 1.5) * M;
-      y = rng.range(1.5, balance.arena.heightM - 1.5) * M;
-      if (Math.hypot(x - ptr.x, y - ptr.y) > 7 * M) break;
+  private endRun(victory: boolean): void {
+    const p = this.world.mustGet(this.playerE, Player);
+    this.lastStats = {
+      victory,
+      rooms: this.run.depth + 1,
+      kills: this.feedback.kills,
+      timeS: clock.runTime,
+      stardustGained: p.stardust,
+    };
+    meta.data.stardust += p.stardust;
+    meta.data.pity = this.loot.factory.pityCount;
+    meta.data.stats.totalKills += this.feedback.kills;
+    if (victory) {
+      meta.data.stats.clears++;
+      if (meta.data.stats.bestTimeS === 0 || clock.runTime < meta.data.stats.bestTimeS) {
+        meta.data.stats.bestTimeS = clock.runTime;
+      }
     }
-    const e = w.create();
-    w.add(e, new Transform(x, y));
-    w.add(e, new Velocity());
-    w.add(e, new Body(E.bodyRadius));
-    w.add(e, new Health(E.hp));
-    w.add(e, new Stats(E.atk, E.speed, 0, 1, E.def));
-    w.add(e, new Faction('enemy'));
-    w.add(e, new Shroomling());
-    w.add(e, new ElementMarks());
-    w.add(e, new Buffs());
-  }
-
-  private spawnRng = new Rng(777);
-
-  /** 通用出怪(风蜂/蚀化狼) */
-  private spawnEnemy(kind: 'windbee' | 'blightwolf'): void {
-    const w = this.world;
-    const cfg = balance.enemies[kind];
-    const ptr = w.mustGet(this.playerE, Transform);
-    let x = 0;
-    let y = 0;
-    for (let tries = 0; tries < 20; tries++) {
-      x = this.spawnRng.range(1.5, balance.arena.widthM - 1.5) * M;
-      y = this.spawnRng.range(1.5, balance.arena.heightM - 1.5) * M;
-      if (Math.hypot(x - ptr.x, y - ptr.y) > 7 * M) break;
-    }
-    const e = w.create();
-    w.add(e, new Transform(x, y));
-    w.add(e, new Velocity());
-    w.add(e, new Body(cfg.bodyRadius));
-    w.add(e, new Health(cfg.hp));
-    w.add(e, new Stats(cfg.atk, cfg.speed, 0, 1, cfg.def));
-    w.add(e, new Faction('enemy'));
-    w.add(e, new ElementMarks());
-    w.add(e, new Buffs());
-    if (kind === 'windbee') w.add(e, new WindBee());
-    else w.add(e, new BlightWolf());
+    meta.save();
+    this.state = 'results';
   }
 
   // ---------- 更新 ----------
 
   update(dt: number): void {
-    // 背包打开时暂停世界(输入仍处理)
+    this.menuT += dt;
+
+    if (this.state === 'menu') {
+      if (this.menuUI.updateMenu() === 'start') this.startRun();
+      this.input.endFrame();
+      return;
+    }
+    if (this.state === 'results') {
+      if (this.menuUI.updateResults() === 'menu') this.state = 'menu';
+      this.input.endFrame();
+      return;
+    }
+
+    // ---- run ----
     const uiConsumed = this.inventoryUI.handleInput(this.world, this.playerE);
     if (uiConsumed) {
       this.input.endFrame();
       return;
     }
 
+    clock.tick(dt);
+    const night = clock.isNight();
+    if (night !== this.wasNight) {
+      this.wasNight = night;
+      this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
+    }
+
     for (const s of this.systems) s.update(this.world, dt);
 
-    // 补怪(三种怪各自维持目标数量)
-    this.spawnT -= dt;
-    if (this.spawnT <= 0) {
-      this.spawnT = balance.arena.spawnInterval;
-      if (this.world.count(Shroomling) < balance.arena.shroomTarget) this.spawnShroom(this.spawnRng);
-      else if (this.world.count(WindBee) < balance.arena.beeTarget) this.spawnEnemy('windbee');
-      else if (this.world.count(BlightWolf) < balance.arena.wolfTarget) this.spawnEnemy('blightwolf');
+    const outcome = this.run.update(this.world, dt, this.playerE);
+    if (outcome === 'victory') {
+      this.endRun(true);
+      return;
+    }
+    const p = this.world.mustGet(this.playerE, Player);
+    if (p.respawnT > 0) {
+      this.endRun(false);
+      return;
     }
 
-    // 木桩状态推进
-    const now = performance.now();
-    for (const e of this.world.query(Dummy)) {
-      const d = this.world.mustGet(e, Dummy);
-      d.wobble *= Math.exp(-4 * dt);
-      d.wobblePhase += dt * 22;
-      while (d.hits.length > 0 && now - d.hits[0][0] > 3000) d.hits.shift();
-    }
-
-    // 受击闪白衰减
+    // 受击闪白 / 印记过期 / Buff 衰减
     for (const e of this.world.query(Health)) {
       const h = this.world.mustGet(e, Health);
       if (h.flash > 0) h.flash -= dt;
     }
-
-    // 元素印记过期
     for (const e of this.world.query(ElementMarks)) {
       const m = this.world.mustGet(e, ElementMarks);
       for (const el of Object.keys(m.marks) as Element[]) {
@@ -194,7 +201,6 @@ export class GameScene {
         else m.marks[el] = left;
       }
     }
-    // Buff 计时衰减
     for (const e of this.world.query(Buffs)) {
       const b = this.world.mustGet(e, Buffs);
       if (b.stunT > 0) b.stunT -= dt;
@@ -202,7 +208,6 @@ export class GameScene {
       if (b.vulnT > 0) b.vulnT -= dt;
     }
 
-    // 相机跟随
     const ptr = this.world.mustGet(this.playerE, Transform);
     this.renderer.camera.follow(ptr.x, ptr.y, dt);
     this.renderer.camera.update(dt);
@@ -219,13 +224,39 @@ export class GameScene {
     const r = this.renderer;
     r.clear('#131a12');
 
+    if (this.state === 'menu') {
+      // 菜单背景:地图淡出
+      r.inWorld((ctx) => {
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(this.bg, 0, 0);
+        ctx.globalAlpha = 1;
+      });
+      this.menuUI.renderMenu(r.ctx, r.width, r.height, this.menuT);
+      return;
+    }
+
+    this.renderWorld(alpha);
+
+    if (this.state === 'results') {
+      this.menuUI.renderResults(r.ctx, r.width, r.height, this.lastStats);
+      return;
+    }
+
+    this.renderHud();
+    this.feedback.renderScreen(r.ctx, r.width, r.height);
+    this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
+  }
+
+  private renderWorld(alpha: number): void {
+    const r = this.renderer;
     r.inWorld((ctx) => {
       ctx.drawImage(this.bg, 0, 0);
+      const w = this.world;
 
-      // 地面区域(火焰地带/毒云/孢子雾),画在实体之下
-      for (const e of this.world.query(Zone, Transform)) {
-        const z = this.world.mustGet(e, Zone);
-        const tr = this.world.mustGet(e, Transform);
+      // 地面区域
+      for (const e of w.query(Zone, Transform)) {
+        const z = w.mustGet(e, Zone);
+        const tr = w.mustGet(e, Transform);
         const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 120);
         ctx.save();
         ctx.globalAlpha = 0.16 * pulse * Math.min(z.life * 2, 1);
@@ -240,75 +271,104 @@ export class GameScene {
         ctx.restore();
       }
 
-      // 收集可绘制体并按 Y 排序(伪 3D 遮挡)
+      // 预警圈(倒计时填充)
+      for (const e of w.query(TelegraphStrike, Transform)) {
+        const ts = w.mustGet(e, TelegraphStrike);
+        const tr = w.mustGet(e, Transform);
+        const prog = 1 - ts.t / ts.total;
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = ts.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(tr.x, tr.y, ts.radiusPx, ts.radiusPx * 0.62, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 0.22 + prog * 0.2;
+        ctx.fillStyle = ts.color;
+        ctx.beginPath();
+        ctx.ellipse(tr.x, tr.y, ts.radiusPx * prog, ts.radiusPx * 0.62 * prog, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 实体 Y 排序
       interface D { y: number; draw: () => void }
       const list: D[] = [];
-      const w = this.world;
+      const lerp = (tr: Transform): [number, number] => [
+        tr.prevX + (tr.x - tr.prevX) * alpha,
+        tr.prevY + (tr.y - tr.prevY) * alpha,
+      ];
 
-      for (const e of w.query(Dummy, Transform)) {
-        const tr = w.mustGet(e, Transform);
-        const d = w.mustGet(e, Dummy);
-        list.push({ y: tr.y, draw: () => { drawShadow(ctx, tr.x, tr.y, 16); drawDummy(ctx, tr.x, tr.y, d.wobble, d.wobblePhase); } });
-      }
       for (const e of w.query(Shroomling, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const s = w.mustGet(e, Shroomling);
         const h = w.mustGet(e, Health);
-        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
-        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
+        const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 11); drawShroomling(ctx, ix, iy, s.animT, h.flash, s.state === 'chase'); } });
       }
       for (const e of w.query(WindBee, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const b = w.mustGet(e, WindBee);
         const h = w.mustGet(e, Health);
-        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
-        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
+        const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 7); drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph'); } });
       }
       for (const e of w.query(BlightWolf, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const wf = w.mustGet(e, BlightWolf);
         const h = w.mustGet(e, Health);
-        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
-        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
-        list.push({
-          y: iy,
-          draw: () => {
-            drawShadow(ctx, ix, iy, 16);
-            drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, Math.cos(tr.face) < 0, wf.state === 'growl', wf.state === 'pounce');
-          },
-        });
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 16); drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, Math.cos(tr.face) < 0, wf.state === 'growl', wf.state === 'pounce'); } });
+      }
+      for (const e of w.query(ThornVine, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const v = w.mustGet(e, ThornVine);
+        const h = w.mustGet(e, Health);
+        list.push({ y: tr.y, draw: () => { drawShadow(ctx, tr.x, tr.y, 12); drawThornVine(ctx, tr.x, tr.y, v.animT, h.flash, v.state === 'telegraph'); } });
+      }
+      for (const e of w.query(OakGolem, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const g = w.mustGet(e, OakGolem);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 18); drawOakGolem(ctx, ix, iy, g.animT, h.flash, Math.cos(tr.face) < 0, g.state === 'windup'); } });
+      }
+      for (const e of w.query(BossNanmir, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const boss = w.mustGet(e, BossNanmir);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 34); drawBossNanmir(ctx, ix, iy, boss.animT, h.flash, Math.cos(tr.face) < 0, boss.phase, boss.state === 'stagger'); } });
+      }
+      for (const e of w.query(Portal, Transform)) {
+        const tr = w.mustGet(e, Transform);
+        const po = w.mustGet(e, Portal);
+        po.animT += 0.016;
+        const st = PORTAL_STYLE[po.kind];
+        list.push({ y: tr.y, draw: () => drawPortal(ctx, tr.x, tr.y, po.animT, st.color, st.label) });
       }
       for (const e of w.query(Pickup, Transform)) {
         const tr = w.mustGet(e, Transform);
         const pk = w.mustGet(e, Pickup);
         const color = pk.kind === 'item' && pk.item ? RARITY_COLORS[pk.item.rarity] : '#f2d98c';
-        list.push({
-          y: tr.y - 1, // 掉落物压在怪脚下之下一点
-          draw: () => drawPickup(ctx, tr.x, tr.y, pk.kind, color, pk.bobPhase, pk.item?.glyph),
-        });
+        list.push({ y: tr.y - 1, draw: () => drawPickup(ctx, tr.x, tr.y, pk.kind, color, pk.bobPhase, pk.item?.glyph) });
       }
       {
         const e = this.playerE;
-        const tr = w.mustGet(e, Transform);
-        const p = w.mustGet(e, Player);
-        const h = w.mustGet(e, Health);
-        const ix = tr.prevX + (tr.x - tr.prevX) * alpha;
-        const iy = tr.prevY + (tr.y - tr.prevY) * alpha;
-        if (p.respawnT <= 0) {
+        const tr = w.get(e, Transform);
+        const p = w.get(e, Player);
+        const h = w.get(e, Health);
+        if (tr && p && h && p.respawnT <= 0) {
+          const [ix, iy] = lerp(tr);
           list.push({
             y: iy,
             draw: () => {
               drawShadow(ctx, ix, iy, 13);
               drawKnight(ctx, ix, iy, {
-                t: p.animT,
-                moving: p.moving,
-                faceLeft: p.aimX < 0,
+                t: p.animT, moving: p.moving, faceLeft: p.aimX < 0,
                 attackStage: p.attackT > 0 ? p.comboStage : 0,
                 attackProg: p.attackDur > 0 ? 1 - p.attackT / p.attackDur : 0,
-                dashing: p.dashT > 0,
-                flash: h.flash,
+                dashing: p.dashT > 0, flash: h.flash,
                 invuln: p.iframes > 0 && p.dashT <= 0,
               });
             },
@@ -319,14 +379,13 @@ export class GameScene {
       list.sort((a, b) => a.y - b.y);
       for (const d of list) d.draw();
 
-      // 元素印记标示(头顶色点)
-      for (const e of this.world.query(ElementMarks, Transform)) {
-        const m = this.world.mustGet(e, ElementMarks);
+      // 元素印记标示
+      for (const e of w.query(ElementMarks, Transform)) {
+        const m = w.mustGet(e, ElementMarks);
         const els = Object.keys(m.marks) as Element[];
         if (els.length === 0) continue;
-        const tr = this.world.mustGet(e, Transform);
-        const isDummy = this.world.has(e, Dummy);
-        const baseY = tr.y - (isDummy ? 48 : 30);
+        const tr = w.mustGet(e, Transform);
+        const baseY = tr.y - (w.has(e, BossNanmir) ? 110 : 32);
         els.forEach((el, i) => {
           const x = tr.x + (i - (els.length - 1) / 2) * 10;
           ctx.fillStyle = elementColor(el);
@@ -337,25 +396,15 @@ export class GameScene {
         });
       }
 
-      // 木桩 DPS 牌
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'center';
-      for (const e of w.query(Dummy, Transform)) {
-        const tr = w.mustGet(e, Transform);
-        const d = w.mustGet(e, Dummy);
-        const dps = Math.round(d.hits.reduce((s, hi) => s + hi[1], 0) / 3);
-        if (dps > 0) {
-          ctx.fillStyle = UI.gold;
-          ctx.fillText(`DPS ${dps}`, tr.x, tr.y - 14 * 3 - 8);
-        }
-      }
-
       this.feedback.renderWorld(ctx);
     });
 
-    this.renderHud();
-    this.feedback.renderScreen(r.ctx, r.width, r.height);
-    this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
+    // 夜幕滤镜(屏幕空间)
+    if (clock.isNight() && this.state === 'run') {
+      const { ctx, width, height } = r;
+      ctx.fillStyle = 'rgba(20, 28, 62, 0.34)';
+      ctx.fillRect(0, 0, width, height);
+    }
   }
 
   private renderHud(): void {
@@ -379,8 +428,38 @@ export class GameScene {
     ctx.font = '11px monospace';
     ctx.fillText(`${Math.ceil(hp.hp)} / ${hp.max}`, 28, 55);
 
+    // 顶部中央:房间进度 + 昼夜
+    const roomLabel = this.run.roomKind === 'boss'
+      ? balance.boss.nanmir.name
+      : `房间 ${this.run.depth + 1}/${balance.rooms.count + 1} · ${PORTAL_STYLE[this.run.roomKind].label}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.panel;
+    ctx.fillRect(width / 2 - 150, 14, 300, 26);
+    ctx.fillStyle = UI.text;
+    ctx.font = 'bold 12px monospace';
+    const night = clock.isNight();
+    ctx.fillText(`${night ? '🌙' : '☀'} ${roomLabel} · ${Math.ceil(clock.untilSwitch())}s`, width / 2, 31);
+
+    // Boss 血条
+    for (const e of this.world.query(BossNanmir, Health)) {
+      const bh = this.world.mustGet(e, Health);
+      const boss = this.world.mustGet(e, BossNanmir);
+      const bw = Math.min(560, width - 120);
+      const bx = width / 2 - bw / 2;
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(bx - 6, 48, bw + 12, 30);
+      ctx.fillStyle = '#232838';
+      ctx.fillRect(bx, 60, bw, 12);
+      ctx.fillStyle = boss.state === 'stagger' ? UI.gold : '#b34747';
+      ctx.fillRect(bx, 60, bw * Math.max(bh.hp / bh.max, 0), 12);
+      ctx.fillStyle = UI.text;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText(`${balance.boss.nanmir.name} · P${boss.phase}`, width / 2, 57);
+    }
+
     // 左下:翻滚冷却
     const cdRatio = p.dashCd > 0 ? 1 - p.dashCd / balance.player.dash.cooldown : 1;
+    ctx.textAlign = 'left';
     ctx.fillStyle = UI.panel;
     ctx.fillRect(14, height - 64, 130, 50);
     ctx.fillStyle = cdRatio >= 1 ? UI.gold : UI.dim;
@@ -391,14 +470,13 @@ export class GameScene {
     ctx.fillStyle = cdRatio >= 1 ? UI.gold : UI.dim;
     ctx.fillRect(24, height - 34, 110 * cdRatio, 8);
 
-    // 连击提示
     if (p.comboStage > 0 && p.comboTimer > 0) {
       ctx.fillStyle = p.comboStage === 3 ? UI.crit : UI.text;
       ctx.font = `bold ${14 + p.comboStage * 2}px monospace`;
       ctx.fillText(`${p.comboStage} 段`, 160, height - 36);
     }
 
-    // ---- 技能栏(底部中央):Q/E/R + 怒气条 ----
+    // 技能栏
     const slotW = 64;
     const slotH = 56;
     const gap = 10;
@@ -424,11 +502,10 @@ export class GameScene {
       ctx.font = '10px monospace';
       ctx.fillStyle = UI.dim;
       ctx.fillText(this.skills.skillName(s.key), x + slotW / 2, baseY + 38);
-      // 冷却遮罩
       if (s.cd > 0) {
-        const ratio = s.cd / s.cdMax;
+        const cr = s.cd / s.cdMax;
         ctx.fillStyle = 'rgba(13,15,26,0.65)';
-        ctx.fillRect(x, baseY, slotW, slotH * ratio);
+        ctx.fillRect(x, baseY, slotW, slotH * Math.min(cr, 1));
         ctx.fillStyle = UI.text;
         ctx.font = 'bold 13px monospace';
         ctx.fillText(s.cd.toFixed(1), x + slotW / 2, baseY + slotH / 2 + 4);
@@ -437,48 +514,32 @@ export class GameScene {
         ctx.fillRect(x, baseY, slotW, slotH);
       }
     });
-    // 怒气条(R 槽上方)
     const rageX = baseX + 2 * (slotW + gap);
-    const rageRatio = p.rage / 100;
     ctx.fillStyle = '#232838';
     ctx.fillRect(rageX, baseY - 12, slotW, 7);
     ctx.fillStyle = p.rage >= 40 ? UI.gold : '#8a6b1f';
-    ctx.fillRect(rageX, baseY - 12, slotW * rageRatio, 7);
-    if (p.rage >= 40) {
-      ctx.fillStyle = UI.gold;
-      ctx.font = '9px monospace';
-      ctx.fillText(`怒气 ${Math.round(p.rage)}`, rageX + slotW / 2, baseY - 16);
-    }
+    ctx.fillRect(rageX, baseY - 12, slotW * (p.rage / 100), 7);
 
-    // 右上:击杀/死亡/FPS + 资源
+    // 右上:统计与资源
     ctx.textAlign = 'right';
     ctx.fillStyle = UI.panel;
     ctx.fillRect(width - 210, 14, 196, 48);
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
-    ctx.fillText(`击杀 ${this.feedback.kills}  阵亡 ${p.deaths}  FPS ${Math.round(this.fps)}`, width - 24, 32);
+    ctx.fillText(`击杀 ${this.feedback.kills}  FPS ${Math.round(this.fps)}`, width - 24, 32);
     ctx.fillStyle = UI.gold;
     ctx.fillText(`✦ ${p.stardust}`, width - 110, 52);
     ctx.fillStyle = p.potionCharges > 0 ? UI.hpLow : UI.dim;
     ctx.fillText(`药剂[1] ×${p.potionCharges}`, width - 24, 52);
 
-    // 底部操作提示
+    // 底部提示
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(232,232,232,0.55)';
+    ctx.fillStyle = 'rgba(232,232,232,0.5)';
     ctx.font = '12px monospace';
-    ctx.fillText('WASD 移动 · 左键连斩 · 空格翻滚 · Q🔥/E❄/R⚡技能(异元素连锁!) · [Tab]背包 · [1]药剂 · 怪掉装备,捡了就穿!', width / 2, height - 12);
-
-    // 阵亡遮罩
-    if (p.respawnT > 0) {
-      ctx.fillStyle = 'rgba(13,15,26,0.55)';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = UI.hpLow;
-      ctx.font = 'bold 26px monospace';
-      ctx.fillText('已阵亡 — 重整旗鼓…', width / 2, height / 2);
-    }
+    ctx.fillText('清空房间后踩传送门前进 · 异元素连击触发连锁 · 傀儡要绕背打 · [Tab]背包', width / 2, height - 12);
   }
 
-  /** 烘焙静态地面到离屏画布(每帧只 drawImage 一次) */
+  /** 烘焙静态地面 */
   private bakeBackground(): HTMLCanvasElement {
     const wPx = balance.arena.widthM * M;
     const hPx = balance.arena.heightM * M;
@@ -488,7 +549,6 @@ export class GameScene {
     const ctx = cv.getContext('2d')!;
     const rng = new Rng(20231124);
 
-    // 草地棋盘
     for (let ty = 0; ty < balance.arena.heightM; ty++) {
       for (let tx = 0; tx < balance.arena.widthM; tx++) {
         ctx.fillStyle = (tx + ty) % 2 === 0 ? FOREST.grassA : FOREST.grassB;
@@ -499,7 +559,6 @@ export class GameScene {
         }
       }
     }
-    // 点缀:花与石
     for (let i = 0; i < 70; i++) {
       const x = rng.range(M, wPx - M);
       const y = rng.range(M, hPx - M);
@@ -517,7 +576,6 @@ export class GameScene {
         ctx.fillRect(x, y, 7, 5);
       }
     }
-    // 树篱边界
     ctx.fillStyle = FOREST.hedge;
     ctx.fillRect(0, 0, wPx, M * 0.6);
     ctx.fillRect(0, hPx - M * 0.6, wPx, M * 0.6);

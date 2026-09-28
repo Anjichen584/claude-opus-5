@@ -2,8 +2,9 @@ import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  BeamFxEvent, BlightWolf, Buffs, Dummy, Element, ElementMarks, Faction, Health, HitEvent,
-  KillEvent, Player, ReactionEvent, RingFxEvent, Shroomling, Stats, Transform, WindBee, Zone,
+  BeamFxEvent, BlightWolf, BossNanmir, Buffs, Dummy, Element, ElementMarks, Faction, Health,
+  HitEvent, KillEvent, OakGolem, Player, ReactionEvent, RingFxEvent, Shroomling, Stats,
+  ThornVine, Transform, WindBee, Zone,
 } from '@game/components';
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
@@ -53,7 +54,14 @@ export function dealDamage(world: World, o: DealOpts): void {
   const srcPlayer = o.source !== null ? world.get(o.source, Player) : undefined;
   const elemBonus = o.element && srcPlayer ? 1 + srcPlayer.elemDmg : 1;
 
-  const amount = finalDamage(atk, o.mult * elemBonus * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
+  // 橡木傀儡背部弱点:从背后命中 ×2(GDD §8 教学走位)
+  let backstab = 1;
+  const golem = world.get(o.target, OakGolem);
+  if (golem && Math.cos(o.hitAngle - tTr.face) > 0.35) {
+    backstab = balance.enemies.oakgolem.backstabMult;
+  }
+
+  const amount = finalDamage(atk, o.mult * elemBonus * backstab * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
 
   // ---- 玩家目标走受伤入口(尊重无敌帧/翻滚) ----
   if (world.has(o.target, Player)) {
@@ -97,7 +105,7 @@ export function dealDamage(world: World, o: DealOpts): void {
   if (kb > 0) {
     const kx = Math.cos(o.hitAngle) * kb * M;
     const ky = Math.sin(o.hitAngle) * kb * M;
-    const knockable = shroom ?? world.get(o.target, WindBee) ?? world.get(o.target, BlightWolf);
+    const knockable = shroom ?? world.get(o.target, WindBee) ?? world.get(o.target, BlightWolf) ?? golem;
     if (knockable) {
       knockable.kx += kx;
       knockable.ky += ky;
@@ -112,7 +120,13 @@ export function dealDamage(world: World, o: DealOpts): void {
       const srcHp = world.get(o.source, Health);
       if (srcHp && srcHp.hp > 0) srcHp.hp = Math.min(srcHp.max, srcHp.hp + 3);
     }
-    const kind = shroom ? 'shroomling' : world.has(o.target, WindBee) ? 'windbee' : world.has(o.target, BlightWolf) ? 'blightwolf' : 'monster';
+    const kind = shroom ? 'shroomling'
+      : world.has(o.target, WindBee) ? 'windbee'
+      : world.has(o.target, BlightWolf) ? 'blightwolf'
+      : world.has(o.target, ThornVine) ? 'thornvine'
+      : golem ? 'oakgolem'
+      : world.has(o.target, BossNanmir) ? 'boss'
+      : 'monster';
     world.emit(new KillEvent(tTr.x, tTr.y, kind));
     // 菇灵死亡孢子雾(毒,伤玩家)——教学元素机制(docs/01 §8)
     if (shroom) {

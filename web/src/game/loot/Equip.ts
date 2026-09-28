@@ -1,6 +1,7 @@
 import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { Equipment, Health, Inventory, Player, Stats } from '@game/components';
+import { meta } from '@game/meta/Save';
 import type { Item } from './Items';
 
 /**
@@ -15,8 +16,10 @@ export function recompute(world: World, pe: Entity): void {
   const p = world.mustGet(pe, Player);
   const eq = world.mustGet(pe, Equipment);
 
-  let atkFlat = B.atk;
-  let hpFlat = B.hp;
+  // 祭坛永久成长(局外,+3%/级)
+  const altar = meta.data.altar;
+  let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl);
+  let hpFlat = B.hp * (1 + altar.hp * balance.altar.hpPerLvl);
   let critFlat = B.critRate;
   let moveBasePct = 0;
   let atkPct = 0;
