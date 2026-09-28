@@ -97,6 +97,14 @@ export class GameScene {
   private campUI: CampUI;
   private settingsUI: SettingsUI;
   private settingsRect = { x: 0, y: 0, w: 0, h: 0 };
+  private gearRect = { x: 0, y: 0, w: 0, h: 0 };
+
+  /** 本帧是否点击在矩形内 */
+  private clickIn(r: { x: number; y: number; w: number; h: number }): boolean {
+    return this.input.mousePressed &&
+      this.input.mouseX >= r.x && this.input.mouseX <= r.x + r.w &&
+      this.input.mouseY >= r.y && this.input.mouseY <= r.y + r.h;
+  }
   private campNearE: number | null = null;
   private quitRect = { x: 0, y: 0, w: 0, h: 0 };
   private playerE = 0;
@@ -322,6 +330,13 @@ export class GameScene {
       interact: this.campNearE !== null, night: false,
     });
 
+    // 设置面板(营地 Esc 直接打开;含"返回标题"按钮)
+    if (this.settingsUI.open) {
+      if (this.settingsUI.update() === 'title') this.state = 'menu';
+      this.input.endFrame();
+      return;
+    }
+
     // 面板层优先消费输入(本帧开着就整帧消费,防 Esc/F 穿透)
     const panelWasOpen = this.campUI.panel !== 'none';
     const act = this.campUI.update();
@@ -340,9 +355,10 @@ export class GameScene {
       return;
     }
 
-    // Esc 回标题
-    if (this.input.wasPressed('Escape')) {
-      this.state = 'menu';
+    // Esc/O/⚙ → 设置(回标题的入口在设置面板里)
+    if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyO') || this.clickIn(this.gearRect)) {
+      this.settingsUI.showQuitToTitle = true;
+      this.settingsUI.open = true;
       this.input.endFrame();
       return;
     }
@@ -385,6 +401,22 @@ export class GameScene {
     this.input.endFrame();
   }
 
+  /** 右上角⚙齿轮按钮(标题/营地通用入口) */
+  private drawGear(ctx: CanvasRenderingContext2D, width: number, _height: number): void {
+    this.gearRect = { x: width - 54, y: 14, w: 40, h: 40 };
+    ctx.save();
+    ctx.fillStyle = 'rgba(26,31,48,0.85)';
+    ctx.fillRect(this.gearRect.x, this.gearRect.y, 40, 40);
+    ctx.strokeStyle = '#3a4154';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(this.gearRect.x, this.gearRect.y, 40, 40);
+    ctx.fillStyle = UI.text;
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚙', this.gearRect.x + 20, this.gearRect.y + 27);
+    ctx.restore();
+  }
+
   private renderCampHud(): void {
     const ctx = this.renderer.ctx;
     const width = this.renderer.width;
@@ -405,7 +437,7 @@ export class GameScene {
     ctx.fillText(
       this.input.touchActive
         ? '打木桩试招 · 走近建筑点 F 钮 · 🌀传送门出征'
-        : '打木桩试招(怒气已满可放R) · 走近建筑按 [F] · 🌀传送门出征 · [Esc]回标题',
+        : '打木桩试招(怒气已满可放R) · 走近建筑按 [F] · 🌀传送门出征 · [Esc]设置',
       width / 2, height - 12,
     );
     ctx.restore();
@@ -474,6 +506,18 @@ export class GameScene {
     );
     music.tick();
     if (this.state === 'menu') {
+      // 标题页也能开设置(Esc/O/右下⚙)
+      if (this.settingsUI.open) {
+        this.settingsUI.update();
+        this.input.endFrame();
+        return;
+      }
+      if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyO') || this.clickIn(this.gearRect)) {
+        this.settingsUI.showQuitToTitle = false;
+        this.settingsUI.open = true;
+        this.input.endFrame();
+        return;
+      }
       if (this.menuUI.updateMenu() === 'start') this.enterCamp();
       this.input.endFrame();
       return;
@@ -516,7 +560,10 @@ export class GameScene {
         sfx.setVolume(this.muted ? 0 : meta.data.settings.sfxVol);
         music.setVolume(this.muted ? 0 : meta.data.settings.musicVol);
       }
-      if (this.input.wasPressed('KeyO')) this.settingsUI.open = true;
+      if (this.input.wasPressed('KeyO')) {
+        this.settingsUI.showQuitToTitle = false;
+        this.settingsUI.open = true;
+      }
       if (this.input.wasPressed('Backspace')) {
         this.paused = false;
         this.endRun(false);
@@ -530,6 +577,7 @@ export class GameScene {
         const sR = this.settingsRect;
         const q = this.quitRect;
         if (mx >= sR.x && mx <= sR.x + sR.w && my >= sR.y && my <= sR.y + sR.h) {
+          this.settingsUI.showQuitToTitle = false;
           this.settingsUI.open = true;
         } else if (mx >= q.x && mx <= q.x + q.w && my >= q.y && my <= q.y + q.h) {
           this.paused = false;
@@ -631,6 +679,8 @@ export class GameScene {
         scale: 1.35, faceLeft: true, alpha: 0.85, sy: 1 + Math.sin(this.menuT * 2.2) * 0.02,
       });
       this.menuUI.renderMenu(r.ctx, r.width, r.height, this.menuT);
+      this.drawGear(r.ctx, r.width, r.height);
+      if (this.settingsUI.open) this.settingsUI.render(r.ctx, r.width, r.height);
       return;
     }
 
@@ -638,8 +688,10 @@ export class GameScene {
 
     if (this.state === 'camp') {
       this.renderCampHud();
+      this.drawGear(r.ctx, r.width, r.height);
       this.touch.render(r.ctx, r.width, r.height);
       this.campUI.render(r.ctx, r.width, r.height);
+      if (this.settingsUI.open) this.settingsUI.render(r.ctx, r.width, r.height);
       return;
     }
 

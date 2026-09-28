@@ -16,6 +16,8 @@ const inside = (r: Rect, x: number, y: number): boolean =>
  */
 export class SettingsUI {
   open = false;
+  /** 营地/标题打开时显示"返回标题"按钮(战斗中用暂停面板自己的放弃) */
+  showQuitToTitle = false;
   /** 正在等待新键的动作 id */
   private capturing: string | null = null;
 
@@ -25,11 +27,12 @@ export class SettingsUI {
   private bindRects: Array<{ rect: Rect; id: string }> = [];
   private resetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private closeRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private titleRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   constructor(private readonly input: Input) {}
 
-  /** 打开时每帧调用,消费全部输入。返回 'close' 表示退出设置。 */
-  update(): 'close' | null {
+  /** 打开时每帧调用,消费全部输入。返回 'close' | 'title' | null。 */
+  update(): 'close' | 'title' | null {
     const s = meta.data.settings;
 
     // ---- 改绑捕获模式 ----
@@ -88,6 +91,10 @@ export class SettingsUI {
     if (inside(this.resetRect, mx, my)) {
       resetBinds();
       return null;
+    }
+    if (this.showQuitToTitle && inside(this.titleRect, mx, my)) {
+      this.open = false;
+      return 'title';
     }
     if (inside(this.closeRect, mx, my)) {
       this.open = false;
@@ -193,6 +200,9 @@ export class SettingsUI {
       return r;
     };
     this.resetRect = btn('恢复默认键位', px + 28, 160, false);
+    if (this.showQuitToTitle) {
+      this.titleRect = btn('返回标题', px + pw / 2 - 60, 120, false);
+    }
     this.closeRect = btn('✓ 返回', px + pw - 28 - 140, 140, true);
     ctx.restore();
   }
