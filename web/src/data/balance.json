@@ -286,7 +286,8 @@
     "dayS": 240,
     "hpMult": 1.25,
     "atkMult": 1.15,
-    "lootMult": 2
+    "lootMult": 2,
+    "lanternCost": 120
   },
   "scalingPerDepth": {
     "hp": 1.06,
@@ -464,7 +465,8 @@
           15
         ]
       ]
-    }
+    },
+    "runeDropElite": 0.35
   },
   "reactions": {
     "markDurS": 4.0,
@@ -523,6 +525,20 @@
       "bodyRadius": 0,
       "perRoomMin": 3,
       "perRoomMax": 6
+    }
+  },
+  "shop": {
+    "prices": {
+      "rare": 60,
+      "epic": 140,
+      "legendary": 320
+    },
+    "potionPrice": 40,
+    "runePrice": 90,
+    "thirdStandWeights": {
+      "rare": 0.6,
+      "epic": 0.3,
+      "legendary": 0.1
     }
   }
 }

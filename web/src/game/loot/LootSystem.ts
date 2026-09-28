@@ -8,6 +8,7 @@ import {
 import { ItemFactory } from './Items';
 import { salvage } from './Equip';
 import { clock } from '@game/dungeon/Clock';
+import { RUNE_POOL } from '@game/skills/SkillSystem';
 
 const L = balance.loot;
 
@@ -67,6 +68,16 @@ export class LootSystem implements System {
       // 药剂
       if (this.rng.chance(L.dropPotion * lootMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
+      }
+      // 符文:精英 35% / Boss 必掉(掉玩家未拥有的,集齐后掉星尘)
+      if (isBoss || (isElite && this.rng.chance(L.runeDropElite))) {
+        const owned = new Set(this.ownedRunes(world));
+        const candidates = [...RUNE_POOL.keys()].filter((id) => !owned.has(id));
+        if (candidates.length > 0) {
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('rune', null, 0, this.rng.pick(candidates)));
+        } else {
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, 30));
+        }
       }
     }
 
@@ -141,9 +152,28 @@ export class LootSystem implements System {
         }
         break;
       }
+      case 'rune': {
+        const rune = pk.runeId ? RUNE_POOL.get(pk.runeId) : undefined;
+        if (!rune) break;
+        if (p.runeBag.includes(rune.id)) {
+          p.stardust += 40;
+          world.emit(new ToastEvent(`重复符文 ${rune.name} → 星尘 +40`, UI.dim));
+        } else {
+          p.runeBag.push(rune.id);
+          world.emit(new ToastEvent(`◈ 获得符文「${rune.name}」!Tab 镶嵌`, '#B067E8'));
+          world.emit(new SfxEvent('ult'));
+        }
+        break;
+      }
       default:
         break;
     }
+  }
+
+  /** 玩家已拥有符文(去重掉落用) */
+  private ownedRunes(world: World): string[] {
+    for (const e of world.query(Player)) return world.mustGet(e, Player).runeBag;
+    return [];
   }
 
   private spawnPickup(world: World, x: number, y: number, pk: Pickup): void {

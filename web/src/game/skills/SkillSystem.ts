@@ -2,7 +2,7 @@ import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import { M } from '@game/constants';
 import skillsData from '@data/skills/blade.json';
-import runesData from '@data/runes/starter.json';
+import runePool from '@data/runes/pool.json';
 import {
   BeamFxEvent, Element, Faction, Health, MeleeSweep, Player, RingFxEvent,
   SfxEvent, SlashFxEvent, Stats, Transform, Zone,
@@ -10,12 +10,20 @@ import {
 import { elementColor } from '@game/combat/Elements';
 import { dealDamage } from '@game/combat/DamagePipeline';
 
-interface RuneDef {
+export interface RuneDef {
   id: string;
+  /** 目标技能 id(仅能镶到该技能) */
+  skill: string;
   name: string;
+  desc: string;
   element?: string;
   groundZone?: { radiusM: number; lifeS: number; intervalS: number; mult: number };
 }
+
+/** 全符文池(id → 定义),UI 与掉落共用 */
+export const RUNE_POOL = new Map<string, RuneDef>(
+  (runePool.runes as RuneDef[]).map((r) => [r.id, r]),
+);
 
 interface Scheduled { t: number; run: (world: World) => void }
 
@@ -26,17 +34,22 @@ interface Scheduled { t: number; run: (world: World) => void }
 export class SkillSystem implements System {
   private queue: Scheduled[] = [];
   private defs = new Map<string, (typeof skillsData.skills)[number]>();
-  private runes = new Map<string, RuneDef>();
 
   constructor(private readonly input: Input) {
     for (const s of skillsData.skills) this.defs.set(s.slot, s);
-    const eq = runesData.equipped as Record<string, RuneDef>;
-    for (const [skillId, rune] of Object.entries(eq)) this.runes.set(skillId, rune);
   }
 
-  runeFor(slot: string): RuneDef | undefined {
+  /** 玩家当前镶嵌在某技能位(Q/E/R)上的符文 */
+  runeFor(world: World, pe: Entity, slot: string): RuneDef | undefined {
     const def = this.defs.get(slot);
-    return def ? this.runes.get(def.id) : undefined;
+    if (!def) return undefined;
+    return this.runeOf(world, pe, def.id);
+  }
+
+  private runeOf(world: World, pe: Entity, skillId: string): RuneDef | undefined {
+    const p = world.get(pe, Player);
+    const runeId = p?.equippedRunes[skillId];
+    return runeId ? RUNE_POOL.get(runeId) : undefined;
   }
 
   skillName(slot: string): string {
@@ -70,7 +83,7 @@ export class SkillSystem implements System {
   private castQ(world: World, pe: Entity, p: Player, _tr: Transform): void {
     const def = this.defs.get('Q')!;
     const ph = def.phases[0] as { count: number; intervalS: number; arcDeg: number; rangeM: number; mult: number };
-    const rune = this.runes.get(def.id);
+    const rune = this.runeOf(world, pe, def.id);
     const element = (rune?.element ?? null) as Element | null;
     p.cdQ = def.cooldown * (1 - p.cdr);
     world.emit(new SfxEvent('skill'));
@@ -112,7 +125,7 @@ export class SkillSystem implements System {
     const def = this.defs.get('E')!;
     const dashPh = def.phases[0] as { distM: number; durS: number; iframesS: number };
     const blastPh = def.phases[1] as { delayS: number; radiusM: number; mult: number };
-    const rune = this.runes.get(def.id);
+    const rune = this.runeOf(world, pe, def.id);
     const element = (rune?.element ?? null) as Element | null;
     p.cdE = def.cooldown * (1 - p.cdr);
     world.emit(new SfxEvent('dash'));
@@ -149,6 +162,13 @@ export class SkillSystem implements System {
             });
           }
         }
+        // 符文(燃焰余迹):爆点留下元素地带
+        if (rune?.groundZone) {
+          const gz = rune.groundZone;
+          const z = w.create();
+          w.add(z, new Transform(ex, ey));
+          w.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', color));
+        }
       },
     });
   }
@@ -159,7 +179,7 @@ export class SkillSystem implements System {
     const ph = def.phases[0] as { minCount: number; maxCount: number; mult: number; ringM: number; durS: number; aoeM: number; seekM: number };
     const minRage = def.minRage ?? 40;
     if (p.rage < minRage) return;
-    const rune = this.runes.get(def.id);
+    const rune = this.runeOf(world, pe, def.id);
     const element = (rune?.element ?? null) as Element | null;
 
     const ratio = (p.rage - minRage) / (100 - minRage);
@@ -202,6 +222,16 @@ export class SkillSystem implements System {
                 source: pe, target: e, mult: ph.mult, element,
                 hitAngle: Math.atan2(ttr.y - y, ttr.x - x),
               });
+            }
+          }
+          // 符文(霜陨/烬雨):每 4 剑一个元素地带
+          if (rune?.groundZone && i % 4 === 0) {
+            const gz = rune.groundZone;
+            const stats = w.get(pe, Stats);
+            if (stats) {
+              const z = w.create();
+              w.add(z, new Transform(x, y));
+              w.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', color));
             }
           }
         },

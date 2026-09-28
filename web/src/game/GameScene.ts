@@ -9,8 +9,8 @@ import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
-  Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent,
-  ToxinToad, Transform, Velocity, WindBee, Zone,
+  ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
+  ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import {
@@ -18,7 +18,8 @@ import {
   drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
-import { SkillSystem } from '@game/skills/SkillSystem';
+import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
+import { ShopSystem } from '@game/systems/ShopSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
 import { CritterSystem } from '@game/systems/CritterSystem';
@@ -44,6 +45,7 @@ const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   treasure: { color: '#F2A33C', label: '宝藏' },
   elite: { color: '#B067E8', label: '精英' },
   boss: { color: '#e05f5f', label: '首领' },
+  shop: { color: '#8fd4c8', label: '商店' },
 };
 
 type GameState = 'menu' | 'run' | 'results';
@@ -59,6 +61,7 @@ export class GameScene {
   private feedback!: FeedbackSystem;
   private skills!: SkillSystem;
   private loot!: LootSystem;
+  private shop!: ShopSystem;
   private run!: RunManager;
   private inventoryUI: InventoryUI;
   private menuUI: MenuUI;
@@ -91,6 +94,7 @@ export class GameScene {
     this.loot = new LootSystem();
     this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
     this.loot.factory.pityCount = meta.data.pity;
+    this.shop = new ShopSystem(this.input);
     this.run = new RunManager(this.loot.factory);
     this.systems = [
       new PlayerSystem(this.input, this.renderer),
@@ -104,6 +108,7 @@ export class GameScene {
       new CombatSystem(),
       new ZoneSystem(),
       new TelegraphSystem(),
+      this.shop,
       this.loot,
       this.feedback,
     ];
@@ -121,6 +126,13 @@ export class GameScene {
     w.add(this.playerE, new Inventory());
     w.add(this.playerE, new Equipment());
     recompute(w, this.playerE);
+
+    // 开局赠 1 枚随机符文(已镶嵌)——每局元素流派不同
+    const runeIds = [...RUNE_POOL.keys()];
+    const gift = RUNE_POOL.get(runeIds[Math.floor(Math.random() * runeIds.length)])!;
+    const player = w.mustGet(this.playerE, Player);
+    player.runeBag.push(gift.id);
+    player.equippedRunes[gift.skill] = gift.id;
 
     clock.reset();
     this.wasNight = false;
@@ -181,7 +193,20 @@ export class GameScene {
     const night = clock.isNight();
     if (night !== this.wasNight) {
       this.wasNight = night;
-      this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
+      this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!([L] 星灯买断)' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
+    }
+    // 星灯:花星尘立即天亮(vs 冒险赚双倍掉落——风险决策)
+    if (night && this.input.wasPressed('KeyL')) {
+      const p0 = this.world.mustGet(this.playerE, Player);
+      const cost = balance.night.lanternCost;
+      if (p0.stardust >= cost) {
+        p0.stardust -= cost;
+        clock.skipNight();
+        this.wasNight = false;
+        this.world.emit(new ToastEvent(`🏮 星灯点亮,黎明降临(✦-${cost})`, '#f2d98c'));
+      } else {
+        this.world.emit(new ToastEvent(`星尘不足,星灯需 ✦${cost}`, UI.hpLow));
+      }
     }
 
     for (const s of this.systems) s.update(this.world, dt);
@@ -515,6 +540,58 @@ export class GameScene {
         } });
       }
 
+      // ---- 商店摊位 ----
+      for (const e of w.query(ShopStand, Transform)) {
+        const stand = w.mustGet(e, ShopStand);
+        const tr = w.mustGet(e, Transform);
+        const near = this.shop.nearbyStand === e;
+        list.push({ y: tr.y, draw: () => {
+          // 木摊
+          ctx.fillStyle = '#6b4e2c';
+          ctx.fillRect(tr.x - 22, tr.y - 16, 44, 16);
+          ctx.fillStyle = '#8f6c40';
+          ctx.fillRect(tr.x - 26, tr.y - 22, 52, 8);
+          const alpha = stand.sold ? 0.35 : 1;
+          ctx.globalAlpha = alpha;
+          // 货物
+          const bob = Math.sin(stand.animT * 3) * 2;
+          if (stand.wares === 'item' && stand.item) {
+            ctx.fillStyle = RARITY_COLORS[stand.item.rarity];
+            ctx.font = 'bold 20px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(stand.item.glyph, tr.x, tr.y - 30 + bob);
+          } else if (stand.wares === 'potion') {
+            ctx.fillStyle = UI.hpLow;
+            ctx.font = 'bold 18px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('❤', tr.x, tr.y - 30 + bob);
+          } else {
+            ctx.fillStyle = '#B067E8';
+            ctx.font = 'bold 20px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('◈', tr.x, tr.y - 30 + bob);
+          }
+          // 价签
+          ctx.font = 'bold 12px monospace';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#0d0f1a';
+          const tag = stand.sold ? '已售' : `✦${stand.price}`;
+          ctx.strokeText(tag, tr.x, tr.y + 14);
+          ctx.fillStyle = stand.sold ? UI.dim : UI.gold;
+          ctx.fillText(tag, tr.x, tr.y + 14);
+          ctx.globalAlpha = 1;
+          if (near && !stand.sold) {
+            const name = stand.wares === 'item' ? stand.item!.name
+              : stand.wares === 'potion' ? '治疗药剂'
+              : `符文「${RUNE_POOL.get(stand.runeId!)?.name ?? '?'}」`;
+            ctx.fillStyle = '#8fd4c8';
+            ctx.font = 'bold 12px monospace';
+            ctx.strokeText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
+            ctx.fillText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
+          }
+        } });
+      }
+
       // ---- 弹幕 ----
       for (const e of w.query(Projectile, Transform)) {
         const pj = w.mustGet(e, Projectile);
@@ -721,6 +798,12 @@ export class GameScene {
       ctx.font = '10px monospace';
       ctx.fillStyle = UI.dim;
       ctx.fillText(this.skills.skillName(s.key), x + slotW / 2, baseY + 38);
+      const rune = this.skills.runeFor(this.world, this.playerE, s.key);
+      if (rune) {
+        ctx.fillStyle = rune.element ? elementColor(rune.element as Element) : UI.dim;
+        ctx.font = '9px monospace';
+        ctx.fillText(`◈${rune.name}`, x + slotW / 2, baseY + 50);
+      }
       if (s.cd > 0) {
         const cr = s.cd / s.cdMax;
         ctx.fillStyle = 'rgba(13,15,26,0.65)';
@@ -755,7 +838,10 @@ export class GameScene {
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(232,232,232,0.5)';
     ctx.font = '12px monospace';
-    ctx.fillText('清空房间后踩传送门前进 · 异元素连击触发连锁 · 傀儡要绕背打 · [Tab]背包', width / 2, height - 12);
+    const hint = clock.isNight()
+      ? `🌙 夜间掉落×2 · [L] 星灯 ✦${balance.night.lanternCost} 立即天亮 · [Tab]背包镶符文`
+      : '清空房间踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包/符文 · 商店按[F]买';
+    ctx.fillText(hint, width / 2, height - 12);
   }
 
   /** 烘焙静态地面 */

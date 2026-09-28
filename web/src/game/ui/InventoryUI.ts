@@ -6,6 +6,14 @@ import { Equipment, Health, Inventory, Player, Stats } from '@game/components';
 import { equipFromInventory, unequipSlot } from '@game/loot/Equip';
 import type { Item, Slot } from '@game/loot/Items';
 import { SLOTS } from '@game/loot/Items';
+import { RUNE_POOL } from '@game/skills/SkillSystem';
+import { elementColor } from '@game/combat/Elements';
+import type { Element } from '@game/components';
+
+/** 技能 id → 快捷键标签 */
+const SKILL_KEY: Record<string, string> = {
+  blade_q_cleave: 'Q', blade_e_tidestep: 'E', blade_r_starfall: 'R',
+};
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -21,8 +29,10 @@ export class InventoryUI {
   open = false;
   private invRects: Rect[] = [];
   private eqRects: Array<{ rect: Rect; slot: Slot }> = [];
+  private runeRects: Array<{ rect: Rect; runeId: string }> = [];
   private hoverInv = -1;
   private hoverEq: Slot | null = null;
+  private hoverRune: string | null = null;
 
   constructor(private readonly input: Input) {}
 
@@ -42,12 +52,29 @@ export class InventoryUI {
     for (const er of this.eqRects) {
       if (inside(er.rect, mx, my)) this.hoverEq = er.slot;
     }
+    this.hoverRune = null;
+    for (const rr of this.runeRects) {
+      if (inside(rr.rect, mx, my)) this.hoverRune = rr.runeId;
+    }
 
     if (this.input.mousePressed) {
       if (this.hoverInv >= 0) equipFromInventory(world, pe, this.hoverInv);
       else if (this.hoverEq) unequipSlot(world, pe, this.hoverEq);
+      else if (this.hoverRune) this.toggleRune(world, pe, this.hoverRune);
     }
     return true;
+  }
+
+  /** 点击符文:镶嵌到其目标技能 / 已镶嵌则卸下 */
+  private toggleRune(world: World, pe: Entity, runeId: string): void {
+    const rune = RUNE_POOL.get(runeId);
+    if (!rune) return;
+    const p = world.mustGet(pe, Player);
+    if (p.equippedRunes[rune.skill] === runeId) {
+      delete p.equippedRunes[rune.skill];
+    } else {
+      p.equippedRunes[rune.skill] = runeId;
+    }
   }
 
   render(ctx: CanvasRenderingContext2D, world: World, pe: Entity, width: number, height: number): void {
@@ -63,7 +90,7 @@ export class InventoryUI {
     ctx.fillRect(0, 0, width, height);
 
     const panelW = 660;
-    const panelH = 420;
+    const panelH = 486;
     const px = (width - panelW) / 2;
     const py = (height - panelH) / 2;
     panel(ctx, px, py, panelW, panelH);
@@ -119,6 +146,59 @@ export class InventoryUI {
       const item = inv.items[i] ?? null;
       this.drawCell(ctx, x, y, cell, item, this.hoverInv === i);
       this.invRects.push({ x, y, w: cell, h: cell });
+    }
+
+    // ---- 底部:符文镶嵌区 ----
+    this.runeRects = [];
+    const runeY = py + panelH - 62;
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('符文(点击镶嵌到对应技能,精英/Boss/商店获取):', px + 18, runeY - 8);
+    if (p.runeBag.length === 0) {
+      ctx.fillText('—— 尚未获得符文 ——', px + 18, runeY + 26);
+    }
+    p.runeBag.forEach((id, i) => {
+      const rune = RUNE_POOL.get(id);
+      if (!rune) return;
+      const rc = 44;
+      const x = px + 18 + i * (rc + 8);
+      const equipped = p.equippedRunes[rune.skill] === id;
+      const col = rune.element ? elementColor(rune.element as Element) : UI.text;
+      ctx.fillStyle = equipped ? '#2a3147' : '#1a1f30';
+      ctx.fillRect(x, runeY, rc, rc);
+      ctx.strokeStyle = equipped ? UI.gold : col;
+      ctx.lineWidth = equipped ? 2.5 : 1.5;
+      ctx.strokeRect(x + 1, runeY + 1, rc - 2, rc - 2);
+      ctx.fillStyle = col;
+      ctx.font = 'bold 17px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('◈', x + rc / 2, runeY + 22);
+      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = equipped ? UI.gold : UI.dim;
+      ctx.fillText(SKILL_KEY[rune.skill] ?? '?', x + rc / 2, runeY + 37);
+      this.runeRects.push({ rect: { x, y: runeY, w: rc, h: rc }, runeId: id });
+    });
+    // 符文悬停说明
+    if (this.hoverRune) {
+      const rune = RUNE_POOL.get(this.hoverRune);
+      if (rune) {
+        const tx = this.input.mouseX + 14;
+        const ty = this.input.mouseY - 10;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(13,15,26,0.95)';
+        ctx.fillRect(tx, ty - 18, 320, 58);
+        ctx.strokeStyle = '#3a4154';
+        ctx.strokeRect(tx, ty - 18, 320, 58);
+        ctx.fillStyle = rune.element ? elementColor(rune.element as Element) : UI.text;
+        ctx.font = 'bold 13px monospace';
+        ctx.fillText(`◈ ${rune.name} [${SKILL_KEY[rune.skill] ?? '?'}技能]`, tx + 10, ty + 2);
+        ctx.fillStyle = UI.text;
+        ctx.font = '11px monospace';
+        ctx.fillText(rune.desc, tx + 10, ty + 20);
+        ctx.fillStyle = UI.dim;
+        ctx.fillText(p.equippedRunes[rune.skill] === rune.id ? '点击卸下' : '点击镶嵌(替换该技能现有符文)', tx + 10, ty + 34);
+      }
     }
 
     // ---- 悬停 tooltip(含同部位对比) ----

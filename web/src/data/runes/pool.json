@@ -1,0 +1,73 @@
+{
+  "$doc": "符文池:掉落/商店获取,背包(Tab)点击镶嵌。原则:符文改变技能行为与元素,不加裸数值(docs/01-GDD.md §5)。skill 字段 = 目标技能 id。",
+  "runes": [
+    {
+      "id": "rune_emberseed",
+      "skill": "blade_q_cleave",
+      "name": "焚风之种",
+      "desc": "裂空斩附火印记,末段在身前留下火焰地带",
+      "element": "fire",
+      "groundZone": { "radiusM": 1.6, "lifeS": 2.0, "intervalS": 0.5, "mult": 0.6 }
+    },
+    {
+      "id": "rune_glacialbloom",
+      "skill": "blade_q_cleave",
+      "name": "凝霜之绽",
+      "desc": "裂空斩附冰印记,末段绽放霜圈(触发冻链弹射)",
+      "element": "ice",
+      "groundZone": { "radiusM": 1.4, "lifeS": 1.8, "intervalS": 0.5, "mult": 0.4 }
+    },
+    {
+      "id": "rune_venomfang",
+      "skill": "blade_q_cleave",
+      "name": "蚀绿毒牙",
+      "desc": "裂空斩附毒印记(与火焰组合触发燃瘴毒云)",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_frostcore",
+      "skill": "blade_e_tidestep",
+      "name": "霜核",
+      "desc": "潮涌步残影爆炸附冰印记",
+      "element": "ice"
+    },
+    {
+      "id": "rune_emberwake",
+      "skill": "blade_e_tidestep",
+      "name": "燃焰余迹",
+      "desc": "残影爆炸附火印记,并在原地留下火海",
+      "element": "fire",
+      "groundZone": { "radiusM": 1.5, "lifeS": 2.2, "intervalS": 0.5, "mult": 0.5 }
+    },
+    {
+      "id": "rune_thunderecho",
+      "skill": "blade_e_tidestep",
+      "name": "雷鸣回响",
+      "desc": "残影爆炸附雷印记(蒸汽目标上触发超载爆发)",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_stormstring",
+      "skill": "blade_r_starfall",
+      "name": "引雷矢",
+      "desc": "万剑归宗坠剑附雷印记",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_frostfall",
+      "skill": "blade_r_starfall",
+      "name": "霜陨",
+      "desc": "坠剑附冰印记,部分落点留下冻土",
+      "element": "ice",
+      "groundZone": { "radiusM": 0.9, "lifeS": 1.4, "intervalS": 0.5, "mult": 0.3 }
+    },
+    {
+      "id": "rune_cinderrain",
+      "skill": "blade_r_starfall",
+      "name": "烬雨",
+      "desc": "坠剑附火印记,部分落点燃起余烬",
+      "element": "fire",
+      "groundZone": { "radiusM": 0.9, "lifeS": 1.4, "intervalS": 0.5, "mult": 0.4 }
+    }
+  ]
+}

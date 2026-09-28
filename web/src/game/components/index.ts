@@ -87,6 +87,9 @@ export class Player {
   // 资源(Phase 3)
   stardust = 0;
   potionCharges = 1;
+  /** 符文背包(符文 id 列表)与镶嵌表(技能id → 符文id) */
+  runeBag: string[] = [];
+  equippedRunes: Record<string, string> = {};
   // 恢复与死亡
   regenDelay = 0;
   deaths = 0;
@@ -154,9 +157,10 @@ export class Pickup {
   magnet = false;
 
   constructor(
-    public kind: 'item' | 'stardust' | 'potion',
+    public kind: 'item' | 'stardust' | 'potion' | 'rune',
     public item: import('@game/loot/Items').Item | null = null,
     public value = 0,
+    public runeId: string | null = null,
   ) {}
 }
 
@@ -228,7 +232,7 @@ export class BossNanmir {
 /** 房间出口传送门 */
 export class Portal {
   animT = Math.random() * 10;
-  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss') {}
+  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss' | 'shop') {}
 }
 
 /** 预警打击:地面警示圈倒计时 → 一次性爆发伤害(Boss/藤妖/傀儡通用) */
@@ -319,6 +323,19 @@ export class Projectile {
 /** 场景物件:树/岩石可碰撞,灌木纯装饰 */
 export class PropObstacle {
   constructor(public kind: 'tree' | 'rock' | 'bush') {}
+}
+
+/** 商店摊位(商店房):走近按 F 购买 */
+export class ShopStand {
+  sold = false;
+  animT = Math.random() * 10;
+
+  constructor(
+    public wares: 'item' | 'potion' | 'rune',
+    public price: number,
+    public item: import('@game/loot/Items').Item | null = null,
+    public runeId: string | null = null,
+  ) {}
 }
 
 export class ToastEvent {

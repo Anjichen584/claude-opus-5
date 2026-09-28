@@ -4,15 +4,16 @@ import balance from '@data/balance.json';
 import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, ElementMarks, EmberImp, Faction, FrostSlime, Health,
-  OakGolem, Pickup, Portal, Projectile, PropObstacle, SfxEvent, Shroomling, SparkLizard,
-  StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad, Transform,
-  Velocity, WindBee, Zone,
+  OakGolem, Pickup, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
+  SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
+  Transform, Velocity, WindBee, Zone,
 } from '@game/components';
+import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { scaleAtk, scaleHp } from './Scaling';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 
-export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss';
+export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop';
 
 type SpawnKind =
   | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem'
@@ -51,6 +52,7 @@ export class RunManager {
     for (const e of world.query(Pickup)) world.destroy(e);
     for (const e of world.query(Projectile)) world.destroy(e);
     for (const e of world.query(PropObstacle)) world.destroy(e);
+    for (const e of world.query(ShopStand)) world.destroy(e);
     world.flushDestroyed();
     this.scatterProps(world, kind);
     this.spriteSpawned = false;
@@ -85,6 +87,31 @@ export class RunManager {
           world.add(e, new Pickup('item', item));
         }
         world.emit(new ToastEvent('宝藏室!', RARITY_COLORS.epic));
+        break;
+      }
+      case 'shop': {
+        this.pendingWaves = 0;
+        const S = balance.shop;
+        const cy = (balance.arena.heightM / 2) * M;
+        // 三个装备摊:蓝 / 紫 / 加权第三摊
+        const rarities: Array<'rare' | 'epic' | 'legendary'> = ['rare', 'epic'];
+        const w3 = this.rng.next();
+        rarities.push(w3 < S.thirdStandWeights.legendary ? 'legendary' : w3 < S.thirdStandWeights.legendary + S.thirdStandWeights.epic ? 'epic' : 'rare');
+        rarities.forEach((rar, i) => {
+          const item = this.factory.make(this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), rar);
+          const e = world.create();
+          world.add(e, new Transform((9 + i * 4) * M, cy - 2 * M));
+          world.add(e, new ShopStand('item', S.prices[rar], item));
+        });
+        // 药剂摊 + 符文摊
+        const pot = world.create();
+        world.add(pot, new Transform(10 * M, cy + 2 * M));
+        world.add(pot, new ShopStand('potion', S.potionPrice));
+        const runeIds = [...RUNE_POOL.keys()];
+        const rn = world.create();
+        world.add(rn, new Transform(15 * M, cy + 2 * M));
+        world.add(rn, new ShopStand('rune', S.runePrice, null, this.rng.pick(runeIds)));
+        world.emit(new ToastEvent('🛒 流浪商人:走近按 F 购买', '#8fd4c8'));
         break;
       }
       case 'boss': {
@@ -158,12 +185,14 @@ export class RunManager {
     return 'playing';
   }
 
-  /** 下一站类型:固定序列 + 选路点 */
+  /** 下一站类型:固定序列 + 选路点(第一个选路点给宝藏,第二个给商店) */
   private nextKinds(): RoomKind[] {
     const next = this.depth + 1;
     if (next >= R.count) return ['boss'];
     if (next === R.eliteIndex) return ['elite'];
-    if ((R.choiceAt as number[]).includes(next)) return ['battle', 'treasure'];
+    const choiceIdx = (R.choiceAt as number[]).indexOf(next);
+    if (choiceIdx === 0) return ['battle', 'treasure'];
+    if (choiceIdx >= 1) return ['battle', 'shop'];
     return ['battle'];
   }
 

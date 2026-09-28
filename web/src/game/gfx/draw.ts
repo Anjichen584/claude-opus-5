@@ -419,7 +419,7 @@ export function drawPickup(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  kind: 'item' | 'stardust' | 'potion',
+  kind: 'item' | 'stardust' | 'potion' | 'rune',
   color: string,
   bobPhase: number,
   glyph?: string,
@@ -427,6 +427,28 @@ export function drawPickup(
   const bob = Math.sin(bobPhase) * 3;
   ctx.save();
   ctx.translate(Math.round(x), Math.round(y - 8 + bob));
+
+  if (kind === 'rune') {
+    // 符文石:菱形 + 元素辉光
+    const tw = 0.7 + 0.3 * Math.sin(bobPhase * 2);
+    ctx.globalAlpha = 0.35 * tw;
+    ctx.fillStyle = '#B067E8';
+    ctx.beginPath();
+    ctx.arc(0, -4, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#B067E8';
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-5, -9, 10, 10);
+    ctx.restore();
+    ctx.fillStyle = '#e8d5f7';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('◈', 0, -1);
+    ctx.restore();
+    return;
+  }
 
   if (kind === 'stardust') {
     const tw = 0.6 + 0.4 * Math.sin(bobPhase * 2);

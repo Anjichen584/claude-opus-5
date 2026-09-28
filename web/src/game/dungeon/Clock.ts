@@ -29,6 +29,12 @@ class GameClock {
     const t = this.runTime % balance.night.cycleS;
     return t < balance.night.dayS ? balance.night.dayS - t : balance.night.cycleS - t;
   }
+
+  /** 星灯买断:立即跳到下一个白天(GDD §9 决策点) */
+  skipNight(): void {
+    if (!this.isNight()) return;
+    this.runTime = Math.ceil(this.runTime / balance.night.cycleS) * balance.night.cycleS;
+  }
 }
 
 export const clock = new GameClock();
