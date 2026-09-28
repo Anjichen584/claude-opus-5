@@ -1,62 +1,74 @@
 using UnityEngine;
-using StarfallKnights.Combat;
+using StarfallKnights.Core;
+using SysV2 = System.Numerics.Vector2;
 
 namespace StarfallKnights.UnityLayer
 {
-    /// <summary>基础追击怪(镜像 web EnemySystem 菇灵行为):追玩家 + 接触伤害 + 受击闪白/击退。</summary>
+    /// <summary>敌人视图+基础追击 AI(逻辑驱动):追玩家/接触伤害/受击闪白/眩晕减速生效。</summary>
     public sealed class EnemyAgent : MonoBehaviour
     {
-        public readonly CombatUnit Unit = new();
+        public Actor Actor { get; private set; }
 
         private float _speed;
         private float _contactCd;
-        private Vector3 _knock;
+        private float _lastHp;
         private float _flash;
         private Renderer _rd;
         private Color _baseColor;
 
-        public void Init(float hp, float atk, float speedMps)
+        public void Bind(Actor actor, float speedMps)
         {
-            Unit.HpMax = hp;
-            Unit.Hp = hp;
-            Unit.Atk = atk;
+            Actor = actor;
             _speed = speedMps;
+            _lastHp = actor.Unit.Hp;
             _rd = GetComponent<Renderer>();
             _baseColor = _rd.material.color;
+            transform.position = GameBootstrap.ToUnity(actor.Pos);
         }
 
         private void Update()
         {
+            if (Actor == null) return;
             float dt = Time.deltaTime;
-            Unit.TickTimers(dt);
             _contactCd -= dt;
+
+            // 受击闪白(血量下降侦测)
+            if (Actor.Unit.Hp < _lastHp) _flash = 0.09f;
+            _lastHp = Actor.Unit.Hp;
             if (_flash > 0)
             {
                 _flash -= dt;
-                _rd.material.color = Color.Lerp(_baseColor, Color.white, Mathf.Clamp01(_flash * 12f));
+                _rd.material.color = Color.Lerp(_baseColor, Color.white, Mathf.Clamp01(_flash * 11f));
             }
 
-            var player = GameBootstrap.I.Player;
-            if (player == null || Unit.StunT > 0) return;
+            var boot = GameBootstrap.I;
+            var player = boot.Player;
+            if (player == null) return;
+            var u = Actor.Unit;
+            if (u.StunT > 0) { Sync(); return; }
 
-            var to = player.transform.position - transform.position;
-            to.y = 0;
-            float slow = Unit.SlowT > 0 ? 1f - Unit.SlowPct : 1f;
-            transform.position += to.normalized * _speed * slow * dt + _knock * dt;
-            _knock = Vector3.Lerp(_knock, Vector3.zero, 8f * dt);
-
-            if (to.magnitude < 0.8f && _contactCd <= 0)
+            if (_speed > 0)
             {
-                _contactCd = 0.8f;
-                player.Hurt(Unit.Atk);
+                var to = player.Actor.Pos - Actor.Pos;
+                float d = to.Length();
+                if (d > 0.01f)
+                {
+                    float slow = u.SlowT > 0 ? 1f - u.SlowPct : 1f;
+                    Actor.Pos += to / d * _speed * slow * dt;
+                    Actor.Face = Mathf.Atan2(to.Y, to.X);
+                }
+                if (d < 0.85f && _contactCd <= 0)
+                {
+                    _contactCd = 0.8f;
+                    player.Hurt(u.Atk);
+                }
             }
+            Sync();
         }
 
-        public void OnHit(int dmg, Vector3 dir)
+        private void Sync()
         {
-            _flash = 0.08f;
-            _knock += dir * 3.5f;
-            if (Unit.Dead) Destroy(gameObject);
+            transform.position = GameBootstrap.ToUnity(Actor.Pos);
         }
     }
 }

@@ -10,10 +10,17 @@
 |---|---|---|
 | `Core/Rng.cs` | `engine/core/Rng.ts` | mulberry32 确定性随机(同种子同序列,双端可复现掉落) |
 | `Core/GameClock.cs` | `game/dungeon/Clock.ts` | 昼夜时钟(360s 周期,昼240/夜120,星灯 SkipNight) |
+| `Core/LogicActor.cs` | `components(Transform/Velocity/敌人标记)` | 逻辑演员:位置+速度+战斗单元(System.Numerics,零 Unity 依赖) |
+| `Core/LogicWorld.cs` | `World + 空间查询` | 玩家/敌人/Zone 容器 + 圆形/锥形查询 + 推进 |
 | `Combat/Elements.cs` | `game/combat/Elements.ts` | 四元素 + 六反应表 |
 | `Combat/Formulas.cs` | `game/combat/formulas.ts` | 防御减伤 def/(def+50)、最终伤害公式 |
 | `Combat/CombatUnit.cs` | `components(Health/Stats/Marks/Buffs)` | 战斗单元聚合 + 计时器推进 |
 | `Combat/DamagePipeline.cs` | `game/combat/DamagePipeline.ts` | 统一伤害入口:印记→反应→暴击/防御/易伤→上印记;连锁衰减 0.8^depth |
+| `Combat/Zones.cs` | `Zone 组件 + ZoneSystem` | 持续区域(火海/毒沼/冰圈)按 tick 结算,可触发反应 |
+| `Skills/BladeSkills.cs` | `game/skills/SkillSystem.ts(剑士路径)` | Q裂空斩三连/E潮涌步+残影爆炸/R万剑归宗(怒气驱动),延迟段调度队列,符文元素+地带 |
+| `Skills/RunePool.cs` | `data/runes/pool.json(剑士9枚)` | 符文定义硬编码镜像 |
+| `Dungeon/RunManagerLite.cs` | `game/dungeon/RunManager.ts(一章)` | 9 房序列/精英房/加权预算出怪池/夜间缩放,OnSpawn/OnRoomCleared/OnVictory 回调 |
+| `Meta/MetaSave.cs` | `game/meta/Save.ts` | 局外存档 POCO(JsonUtility 兼容)+ 祭坛升价公式 |
 | `Loot/Items.cs` | `game/loot/Items.ts` | 稀有度权重+幸运+保底(200 次必橙)、词条工厂 |
 | `Data/Balance.cs` | `data/balance.json`(节选) | 核心常量镜像 ⚠ 双端修改需同步 |
 
@@ -32,9 +39,9 @@
 
 | 文件 | 内容 |
 |---|---|
-| `Unity/GameBootstrap.cs` | **挂到空物体即可玩**:自动建场地/主角/波次循环,驱动 GameClock,接 OnReaction 回调 |
-| `Unity/PlayerController.cs` | WASD 指数趋近移动 / 鼠标瞄准 / 左键三段连击(锥形判定走 DamagePipeline)/ 空格翻滚无敌帧 |
-| `Unity/EnemyAgent.cs` | 追击+接触伤害+受击闪白/击退,复用 CombatUnit 计时器 |
+| `Unity/GameBootstrap.cs` | **挂到空物体即玩(逻辑驱动)**:LogicWorld+RunManagerLite 推进 9 房,清房出传送门踩过继续,Boss 死通关;Zone 元素色圆盘可视化;击杀入账 MetaSave |
+| `Unity/PlayerController.cs` | WASD/鼠标瞄准/左键三段连击(攒怒气)/空格翻滚/**Q·E·R 技能**(BladeSkills+开局随机符文) |
+| `Unity/EnemyAgent.cs` | 视图同步+追击 AI,眩晕/减速 Buff 生效,受击闪白(血量侦测) |
 | `Unity/CameraFollow.cs` | 顶视角指数平滑跟随 |
 
 > 占位渲染用原色几何体;正式像素美术把 `web/public/sprites/*.png`
@@ -42,10 +49,10 @@
 
 ## 尚未镜像(Web 端已有)
 
-- 技能执行器(四职业 Q/E/R)与符文池 36 枚
-- 房间序列/出怪表/地形模板、商店/秘境/图纸
-- Boss 南弥尔 / 薇尔莎 行为树
-- 存档(Web 用 localStorage;Unity 建议 PlayerPrefs/JSON 文件)
+- 猎手/秘术师/守卫三职业技能与全 36 符文
+- 第二三章(冰原/荒漠)出怪表与 Boss 薇尔莎/卡兹拉行为
+- 商店/秘境/图纸/星灯交互、装备穿戴 recompute
+- 存档落盘(MetaSave 已备好,宿主接 PlayerPrefs 两行即可)
 
 ## 快速开始(Unity 2022.3 LTS+)
 

@@ -76,6 +76,7 @@
 | **第二 Boss:霜语女妖·薇尔莎** | 2026-09-28 | VelshaSystem 三阶段:P1八向冰弹环/P2+暴风雪预警区(爆后残留冰雾)+召唤雪绒球/P3冲锋+全冷却×0.65;Boss血条双Boss通用;胜利判定双Boss |
 | **Unity C# 镜像(逻辑层)** | 2026-09-28 | unity/Assets/Scripts:Rng(mulberry32同构)/Elements六反应/Formulas/CombatUnit/DamagePipeline(印记→反应→结算,OnReaction回调解耦空间逻辑)/ItemFactory(权重+幸运+保底)/GameClock;纯C#零UnityEngine依赖可单测;README 映射表+快速开始 |
 | **Unity 渲染层(最小可玩)** | 2026-09-28 | Unity/GameBootstrap(挂空物体即玩:场地/主角/波次循环)+PlayerController(WASD指数趋近/鼠标瞄准/三段连击/翻滚iframe)+EnemyAgent(追击/接触伤/闪白击退)+CameraFollow;占位几何体渲染,像素图导入说明见README |
+| **Unity 二期:技能/房间/符文/存档** | 2026-09-28 | 逻辑层新增:LogicActor/LogicWorld(System.Numerics零依赖,圆/锥查询)、Zones(元素地带tick结算)、BladeSkills(Q三连/E残影爆/R万剑,调度队列+怒气+符文位)、RunePool(剑士9枚镜像)、RunManagerLite(9房序列/精英/加权出怪/夜间缩放,回调解耦)、MetaSave(JsonUtility兼容+祭坛价公式);渲染层重构为逻辑驱动:传送门推进房间、Zone元素色圆盘可视化、QER可用、开局随机符文、击杀入账 |
 | **手柄支持** | 2026-09-28 | Input.pollGamepad:标准映射合成键码(PadA...)+双摇杆;左摇杆模拟量移动/右摇杆瞄准(优先于鼠标)/X·RT普攻/A翻滚/LB·RB·Y技能/B交互/十字上药剂·下星灯/Start暂停·确认/Back背包 |
 | **主角双帧走路动画** | 2026-09-28 | 图生图迈步帧×4(与立绘同角色),移动时8fps交替;帧未加载自动回落站立帧;管线批量处理 |
 | **冰原专属场景物件** | 2026-09-28 | 雪松/雪岩/冰晶簇×3,第二章物件贴图自动切换(树→雪松等),碰撞半径沿用 |
@@ -94,7 +95,7 @@
 **引擎层缺**: ☐ 资源加载器(图集) ☐ 场景栈 ☐ 对象池抽象 ☐ 采样音频(音效仍为合成器,BGM 已程序化成曲)
 **游戏层缺**: ☐ 存档版本迁移(现仅 v1,defaults 合并兜底) ☐ 键位自定义 ☐ 怪物多帧动画
 **内容数据缺**: ☐ 第四章(远期) ☐ 技能特效贴图 ☐ 怪物多帧动画
-**Unity 缺**: ☐ 技能执行器/符文 ☐ 房间序列/Boss行为 ☐ 像素图正式导入 ☐ balance.json codegen
+**Unity 缺**: ☐ 其余三职业技能/全36符文 ☐ 二三章出怪与双Boss行为 ☐ 商店/秘境/装备穿戴 ☐ 像素图正式导入 ☐ balance.json codegen
 **美术**: 41/约90 项(四主角×双帧+19怪+三Boss+三地砖+物件×9) | **CI**: ✅ 线上 https://anjichen584.github.io/claude-opus-5/ | **Unity 移植**: 逻辑层 8 文件 + 渲染层 4 文件(最小可玩)
 
 ## 📌 下一步(Phase 5 剩余清单)

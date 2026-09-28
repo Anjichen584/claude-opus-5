@@ -2,16 +2,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using StarfallKnights.Combat;
 using StarfallKnights.Core;
-using StarfallKnights.Data;
+using StarfallKnights.Dungeon;
 using StarfallKnights.Loot;
+using StarfallKnights.Meta;
+using SysV2 = System.Numerics.Vector2;
 
 namespace StarfallKnights.UnityLayer
 {
     /// <summary>
-    /// 最小可玩启动器:挂在空 GameObject 上即可运行——
-    /// 自动创建地面/主角/一波敌人,驱动时钟与波次。
-    /// 渲染用原色 Quad/Capsule 占位;正式美术可把 web/public/sprites 下 PNG
-    /// 以 Point Filter 导入替换。
+    /// 启动器(逻辑驱动版):LogicWorld + RunManagerLite 推进 9 房序列,
+    /// 清房出传送门,Boss 死通关;Zone 有半透明圆盘可视化。挂空物体即玩。
+    /// 逻辑坐标(米,XY)→ Unity (x, 0, z)。
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
     {
@@ -20,32 +21,53 @@ namespace StarfallKnights.UnityLayer
         [Header("场地(米)")] public float ArenaW = 20f;
         public float ArenaH = 11f;
 
-        public readonly GameClock Clock = new();
+        public readonly LogicWorld World = new();
+        public readonly RunManagerLite Run = new();
         public ItemFactory Factory { get; private set; }
+        public MetaSave Meta { get; private set; }
         public PlayerController Player { get; private set; }
-        public readonly List<EnemyAgent> Enemies = new();
 
-        private int _wave;
+        private readonly Dictionary<Actor, GameObject> _views = new();
+        private readonly Dictionary<Zone, GameObject> _zoneViews = new();
+        private GameObject _portal;
+
+        public static Vector3 ToUnity(SysV2 p) => new(p.X - 10f, 0.45f, p.Y - 5.5f);
+        public static SysV2 ToLogic(Vector3 p) => new(p.x + 10f, p.z + 5.5f);
 
         private void Awake()
         {
             I = this;
+            Meta = new MetaSave(); // 宿主可换 PlayerPrefs 读档
             Factory = new ItemFactory((uint)System.Environment.TickCount);
-            DamagePipeline.OnReaction = OnReaction;
+            DamagePipeline.OnReaction = (r) => Debug.Log($"[Reaction] {r.Kind}");
             BuildArena();
             SpawnPlayer();
-            SpawnWave();
+            World.OnEnemyDied = OnEnemyDied;
+            Run.OnSpawn = SpawnEnemy;
+            Run.OnRoomCleared = (_) => ShowPortal();
+            Run.OnVictory = () =>
+            {
+                Meta.clears++;
+                Debug.Log("★ 章节通关!");
+                ShowPortal();
+            };
+            Run.NextRoom(World);
         }
 
         private void Update()
         {
-            Clock.Tick(Time.deltaTime);
-            // 清波 → 下一波(镜像 web RunManager 的最小循环)
-            Enemies.RemoveAll(e => e == null);
-            if (Enemies.Count == 0)
+            float dt = Time.deltaTime;
+            World.Tick(dt);
+            Run.Tick(World);
+            SyncZoneViews();
+
+            // 踩传送门 → 下一房
+            if (_portal != null && Player != null &&
+                Vector3.Distance(Player.transform.position, _portal.transform.position) < 0.9f)
             {
-                _wave++;
-                SpawnWave();
+                Destroy(_portal);
+                _portal = null;
+                if (!Run.NextRoom(World)) Debug.Log("序列结束,返回营地(宿主自行处理场景切换)");
             }
         }
 
@@ -62,41 +84,100 @@ namespace StarfallKnights.UnityLayer
             cam.orthographicSize = 6.5f;
             cam.transform.position = new Vector3(0, 10, 0);
             cam.transform.rotation = Quaternion.Euler(90, 0, 0);
-            cam.gameObject.AddComponent<CameraFollow>();
+            if (cam.GetComponent<CameraFollow>() == null) cam.gameObject.AddComponent<CameraFollow>();
         }
 
         private void SpawnPlayer()
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = "Hero";
-            go.transform.position = new Vector3(-ArenaW * 0.35f, 0.5f, 0);
             go.GetComponent<Renderer>().material.color = new Color(0.31f, 0.62f, 0.78f);
             Player = go.AddComponent<PlayerController>();
+            World.Player = Player.Actor;
+            Player.Actor.Pos = new SysV2(3.5f, ArenaH / 2f);
         }
 
-        private void SpawnWave()
+        private void SpawnEnemy(EnemyKind kind, float hp, float atk, float speed)
         {
-            bool night = Clock.IsNight;
-            int n = 4 + _wave * 2;
-            for (int i = 0; i < n; i++)
+            var actor = new Actor { Kind = kind };
+            actor.Unit.HpMax = hp;
+            actor.Unit.Hp = hp;
+            actor.Unit.Atk = atk;
+            actor.Unit.Def = kind == EnemyKind.OakGolem ? 4 : 0;
+            actor.Pos = new SysV2(
+                Random.Range(ArenaW * 0.45f, ArenaW - 1.5f), Random.Range(1.2f, ArenaH - 1.2f));
+            World.Enemies.Add(actor);
+
+            bool boss = kind == EnemyKind.BossNanmir;
+            var go = GameObject.CreatePrimitive(boss ? PrimitiveType.Cube : PrimitiveType.Sphere);
+            go.name = kind.ToString();
+            go.transform.localScale = Vector3.one * (boss ? 1.6f : kind == EnemyKind.OakGolem ? 1.1f : 0.75f);
+            go.GetComponent<Renderer>().material.color = kind switch
             {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.name = $"Shroomling_{_wave}_{i}";
-                go.transform.position = new Vector3(
-                    Random.Range(0f, ArenaW * 0.45f), 0.4f, Random.Range(-ArenaH * 0.4f, ArenaH * 0.4f));
-                go.transform.localScale = Vector3.one * 0.8f;
-                go.GetComponent<Renderer>().material.color = night
-                    ? new Color(0.75f, 0.35f, 0.5f) : new Color(0.85f, 0.3f, 0.28f);
-                var agent = go.AddComponent<EnemyAgent>();
-                agent.Init(Balance.ScaleHp(45, _wave, night), Balance.ScaleAtk(8, _wave, night), 1.9f);
-                Enemies.Add(agent);
+                EnemyKind.Shroomling => new Color(0.85f, 0.30f, 0.28f),
+                EnemyKind.WindBee => new Color(0.9f, 0.8f, 0.3f),
+                EnemyKind.BlightWolf => new Color(0.45f, 0.35f, 0.6f),
+                EnemyKind.ThornVine => new Color(0.25f, 0.5f, 0.3f),
+                EnemyKind.OakGolem => new Color(0.5f, 0.36f, 0.2f),
+                _ => new Color(0.55f, 0.2f, 0.2f),
+            };
+            var agent = go.AddComponent<EnemyAgent>();
+            agent.Bind(actor, speed);
+            _views[actor] = go;
+        }
+
+        private void OnEnemyDied(Actor a)
+        {
+            Meta.totalKills++;
+            Meta.stardust += 3 + (int)(a.Unit.HpMax / 30);
+            if (_views.TryGetValue(a, out var go))
+            {
+                _views.Remove(a);
+                Destroy(go);
             }
         }
 
-        private void OnReaction(ReactionResult r)
+        private void ShowPortal()
         {
-            // 空间型反应的宿主实现:蒸汽范围伤害 / 冻链弹射(最近邻)
-            Debug.Log($"[Reaction] {r.Kind} depth={r.ChainDepth}");
+            _portal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            _portal.name = "Portal";
+            _portal.transform.position = new Vector3(ArenaW / 2f - 1.5f - 10f, 0.05f, 0);
+            _portal.transform.localScale = new Vector3(1.2f, 0.05f, 1.2f);
+            _portal.GetComponent<Renderer>().material.color = new Color(0.95f, 0.85f, 0.4f);
+        }
+
+        /// <summary>Zone 可视化:半透明圆盘随生灭同步。</summary>
+        private void SyncZoneViews()
+        {
+            foreach (var z in World.Zones)
+            {
+                if (_zoneViews.ContainsKey(z)) continue;
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                go.name = "Zone";
+                Destroy(go.GetComponent<Collider>());
+                go.transform.position = ToUnity(z.Pos) + Vector3.down * 0.35f;
+                go.transform.localScale = new Vector3(z.RadiusM * 2, 0.03f, z.RadiusM * 2);
+                var mat = go.GetComponent<Renderer>().material;
+                mat.color = z.Element switch
+                {
+                    Element.Fire => new Color(1f, 0.55f, 0.35f, 0.45f),
+                    Element.Ice => new Color(0.55f, 0.85f, 1f, 0.45f),
+                    Element.Bolt => new Color(1f, 0.9f, 0.45f, 0.45f),
+                    Element.Toxin => new Color(0.7f, 0.9f, 0.45f, 0.45f),
+                    _ => new Color(1f, 1f, 1f, 0.35f),
+                };
+                _zoneViews[z] = go;
+            }
+            var dead = new List<Zone>();
+            foreach (var kv in _zoneViews)
+            {
+                if (!World.Zones.Contains(kv.Key))
+                {
+                    Destroy(kv.Value);
+                    dead.Add(kv.Key);
+                }
+            }
+            foreach (var k in dead) _zoneViews.Remove(k);
         }
     }
 }
