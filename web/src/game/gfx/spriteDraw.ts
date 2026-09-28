@@ -61,7 +61,7 @@ export function drawSprite(
 }
 
 export const SPRITE_NAMES = [
-  'knight', 'shroomling', 'windbee', 'blightwolf', 'thornvine', 'oakgolem', 'boss_nanmir', 'grass_tile',
+  'knight', 'ranger', 'shroomling', 'windbee', 'blightwolf', 'thornvine', 'oakgolem', 'boss_nanmir', 'grass_tile',
   'emberimp', 'frostslime', 'sparklizard', 'toxintoad', 'stardustsprite',
   'prop_tree', 'prop_rock', 'prop_bush',
 ] as const;

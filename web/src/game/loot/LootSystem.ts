@@ -69,10 +69,14 @@ export class LootSystem implements System {
       if (this.rng.chance(L.dropPotion * lootMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
       }
-      // 符文:精英 35% / Boss 必掉(掉玩家未拥有的,集齐后掉星尘)
+      // 符文:精英 35% / Boss 必掉(只掉本职业未拥有的,集齐后掉星尘)
       if (isBoss || (isElite && this.rng.chance(L.runeDropElite))) {
-        const owned = new Set(this.ownedRunes(world));
-        const candidates = [...RUNE_POOL.keys()].filter((id) => !owned.has(id));
+        const info = this.playerRuneInfo(world);
+        const owned = new Set(info.bag);
+        const prefix = info.klass === 'ranger' ? 'ranger_' : 'blade_';
+        const candidates = [...RUNE_POOL.values()]
+          .filter((r) => r.skill.startsWith(prefix) && !owned.has(r.id))
+          .map((r) => r.id);
         if (candidates.length > 0) {
           this.spawnPickup(world, kill.x, kill.y, new Pickup('rune', null, 0, this.rng.pick(candidates)));
         } else {
@@ -170,10 +174,13 @@ export class LootSystem implements System {
     }
   }
 
-  /** 玩家已拥有符文(去重掉落用) */
-  private ownedRunes(world: World): string[] {
-    for (const e of world.query(Player)) return world.mustGet(e, Player).runeBag;
-    return [];
+  /** 玩家符文持有与职业(去重+职业过滤掉落用) */
+  private playerRuneInfo(world: World): { bag: string[]; klass: 'blade' | 'ranger' } {
+    for (const e of world.query(Player)) {
+      const p = world.mustGet(e, Player);
+      return { bag: p.runeBag, klass: p.klass };
+    }
+    return { bag: [], klass: 'blade' };
   }
 
   private spawnPickup(world: World, x: number, y: number, pk: Pickup): void {

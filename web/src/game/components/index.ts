@@ -87,6 +87,8 @@ export class Player {
   // 资源(Phase 3)
   stardust = 0;
   potionCharges = 1;
+  /** 职业(影响普攻形态/技能表/基础属性乘区) */
+  klass: 'blade' | 'ranger' = 'blade';
   /** 符文背包(符文 id 列表)与镶嵌表(技能id → 符文id) */
   runeBag: string[] = [];
   equippedRunes: Record<string, string> = {};
@@ -317,6 +319,8 @@ export class Projectile {
     public radiusPx: number,
     public lifeS: number,
     public color: string,
+    /** 渲染形态:光球 / 箭矢(沿速度方向) */
+    public shape: 'orb' | 'arrow' = 'orb',
   ) {}
 }
 

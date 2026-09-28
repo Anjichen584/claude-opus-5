@@ -7,7 +7,12 @@
       "name": "焚风之种",
       "desc": "裂空斩附火印记,末段在身前留下火焰地带",
       "element": "fire",
-      "groundZone": { "radiusM": 1.6, "lifeS": 2.0, "intervalS": 0.5, "mult": 0.6 }
+      "groundZone": {
+        "radiusM": 1.6,
+        "lifeS": 2.0,
+        "intervalS": 0.5,
+        "mult": 0.6
+      }
     },
     {
       "id": "rune_glacialbloom",
@@ -15,7 +20,12 @@
       "name": "凝霜之绽",
       "desc": "裂空斩附冰印记,末段绽放霜圈(触发冻链弹射)",
       "element": "ice",
-      "groundZone": { "radiusM": 1.4, "lifeS": 1.8, "intervalS": 0.5, "mult": 0.4 }
+      "groundZone": {
+        "radiusM": 1.4,
+        "lifeS": 1.8,
+        "intervalS": 0.5,
+        "mult": 0.4
+      }
     },
     {
       "id": "rune_venomfang",
@@ -37,7 +47,12 @@
       "name": "燃焰余迹",
       "desc": "残影爆炸附火印记,并在原地留下火海",
       "element": "fire",
-      "groundZone": { "radiusM": 1.5, "lifeS": 2.2, "intervalS": 0.5, "mult": 0.5 }
+      "groundZone": {
+        "radiusM": 1.5,
+        "lifeS": 2.2,
+        "intervalS": 0.5,
+        "mult": 0.5
+      }
     },
     {
       "id": "rune_thunderecho",
@@ -59,7 +74,12 @@
       "name": "霜陨",
       "desc": "坠剑附冰印记,部分落点留下冻土",
       "element": "ice",
-      "groundZone": { "radiusM": 0.9, "lifeS": 1.4, "intervalS": 0.5, "mult": 0.3 }
+      "groundZone": {
+        "radiusM": 0.9,
+        "lifeS": 1.4,
+        "intervalS": 0.5,
+        "mult": 0.3
+      }
     },
     {
       "id": "rune_cinderrain",
@@ -67,7 +87,39 @@
       "name": "烬雨",
       "desc": "坠剑附火印记,部分落点燃起余烬",
       "element": "fire",
-      "groundZone": { "radiusM": 0.9, "lifeS": 1.4, "intervalS": 0.5, "mult": 0.4 }
+      "groundZone": {
+        "radiusM": 0.9,
+        "lifeS": 1.4,
+        "intervalS": 0.5,
+        "mult": 0.4
+      }
+    },
+    {
+      "id": "rune_flamefeather",
+      "skill": "ranger_q_fan",
+      "name": "焰羽箭",
+      "desc": "瞬影三连附火印记(点燃后接毒箭触发燃瘴)",
+      "element": "fire"
+    },
+    {
+      "id": "rune_frostring",
+      "skill": "ranger_e_nova",
+      "name": "霜环",
+      "desc": "回旋起点绽放霜圈,环箭附冰印记",
+      "element": "ice",
+      "groundZone": {
+        "radiusM": 1.4,
+        "lifeS": 1.8,
+        "intervalS": 0.5,
+        "mult": 0.4
+      }
+    },
+    {
+      "id": "rune_stormpierce",
+      "skill": "ranger_r_storm",
+      "name": "贯雷雨",
+      "desc": "星陨箭雨附雷印记(大范围麻痹链起手)",
+      "element": "bolt"
     }
   ]
 }

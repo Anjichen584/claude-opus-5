@@ -2,10 +2,12 @@ import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import { M } from '@game/constants';
 import skillsData from '@data/skills/blade.json';
+import rangerData from '@data/skills/ranger.json';
 import runePool from '@data/runes/pool.json';
+import type { Renderer } from '@engine/render/Renderer';
 import {
-  BeamFxEvent, Element, Faction, Health, MeleeSweep, Player, RingFxEvent,
-  SfxEvent, SlashFxEvent, Stats, Transform, Zone,
+  BeamFxEvent, Element, Faction, Health, MeleeSweep, Player, Projectile, RingFxEvent,
+  SfxEvent, SlashFxEvent, Stats, Transform, Velocity, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import { dealDamage } from '@game/combat/DamagePipeline';
@@ -27,16 +29,31 @@ export const RUNE_POOL = new Map<string, RuneDef>(
 
 interface Scheduled { t: number; run: (world: World) => void }
 
+/** 通用技能定义(blade.json / ranger.json 共用形状) */
+interface SkillDef {
+  id: string;
+  slot: string;
+  name: string;
+  cooldown: number;
+  minRage?: number;
+  phases: Array<Record<string, unknown>>;
+}
+
 /**
  * 技能系统:数据驱动(data/skills)+ 符文修饰(data/runes)。
  * phase 类型:multiSweep / dash / echoBlast / swordRain(新增类型在此登记并写执行器)。
  */
 export class SkillSystem implements System {
   private queue: Scheduled[] = [];
-  private defs = new Map<string, (typeof skillsData.skills)[number]>();
+  private defs = new Map<string, SkillDef>();
 
-  constructor(private readonly input: Input) {
-    for (const s of skillsData.skills) this.defs.set(s.slot, s);
+  constructor(
+    private readonly input: Input,
+    private readonly klass: 'blade' | 'ranger' = 'blade',
+    private readonly renderer: Renderer | null = null,
+  ) {
+    const src = klass === 'ranger' ? rangerData.skills : skillsData.skills;
+    for (const s of src) this.defs.set(s.slot, s as SkillDef);
   }
 
   /** 玩家当前镶嵌在某技能位(Q/E/R)上的符文 */
@@ -79,9 +96,13 @@ export class SkillSystem implements System {
     if (this.input.wasPressed('KeyR') && p.cdR <= 0) this.castR(world, pe, p, tr);
   }
 
-  // ---- Q 裂空斩:三连扇形斩(符文:焚风之种 → 火印记+火焰地带) ----
-  private castQ(world: World, pe: Entity, p: Player, _tr: Transform): void {
+  // ---- Q:剑士裂空斩 / 猎手瞬影三连 ----
+  private castQ(world: World, pe: Entity, p: Player, tr: Transform): void {
     const def = this.defs.get('Q')!;
+    if (this.klass === 'ranger') {
+      this.castFanArrows(world, pe, p, tr, def);
+      return;
+    }
     const ph = def.phases[0] as { count: number; intervalS: number; arcDeg: number; rangeM: number; mult: number };
     const rune = this.runeOf(world, pe, def.id);
     const element = (rune?.element ?? null) as Element | null;
@@ -120,9 +141,13 @@ export class SkillSystem implements System {
     }
   }
 
-  // ---- E 潮涌步:突进 + 残影延迟爆炸(符文:霜核 → 冰印记) ----
+  // ---- E:剑士潮涌步 / 猎手疾风回旋 ----
   private castE(world: World, pe: Entity, p: Player, tr: Transform): void {
     const def = this.defs.get('E')!;
+    if (this.klass === 'ranger') {
+      this.castNovaRoll(world, pe, p, tr, def);
+      return;
+    }
     const dashPh = def.phases[0] as { distM: number; durS: number; iframesS: number };
     const blastPh = def.phases[1] as { delayS: number; radiusM: number; mult: number };
     const rune = this.runeOf(world, pe, def.id);
@@ -173,9 +198,13 @@ export class SkillSystem implements System {
     });
   }
 
-  // ---- R 星陨·万剑归宗:按怒气召唤光剑坠落(符文:引雷矢 → 雷印记) ----
-  private castR(world: World, pe: Entity, p: Player, _tr: Transform): void {
+  // ---- R:剑士万剑归宗 / 猎手星陨箭雨 ----
+  private castR(world: World, pe: Entity, p: Player, tr: Transform): void {
     const def = this.defs.get('R')!;
+    if (this.klass === 'ranger') {
+      this.castArrowStorm(world, pe, p, tr, def);
+      return;
+    }
     const ph = def.phases[0] as { minCount: number; maxCount: number; mult: number; ringM: number; durS: number; aoeM: number; seekM: number };
     const minRage = def.minRage ?? 40;
     if (p.rage < minRage) return;
@@ -232,6 +261,139 @@ export class SkillSystem implements System {
               const z = w.create();
               w.add(z, new Transform(x, y));
               w.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', color));
+            }
+          }
+        },
+      });
+    }
+  }
+
+  // ================== 星弓猎手 ==================
+
+  /** 玩家箭矢工厂(元素来自符文) */
+  private fireArrow(
+    world: World, pe: Entity, angle: number,
+    speedM: number, mult: number, radiusM: number, lifeS: number, element: Element | null,
+  ): void {
+    const tr = world.get(pe, Transform);
+    const stats = world.get(pe, Stats);
+    if (!tr || !stats) return;
+    const e = world.create();
+    world.add(e, new Transform(tr.x + Math.cos(angle) * 14, tr.y + Math.sin(angle) * 14 - 12));
+    const v = new Velocity();
+    v.vx = Math.cos(angle) * speedM * M;
+    v.vy = Math.sin(angle) * speedM * M;
+    world.add(e, v);
+    const color = element ? elementColor(element) : '#dfe8f2';
+    world.add(e, new Projectile('player', stats.atk, mult, element, radiusM * M, lifeS, color, 'arrow'));
+  }
+
+  /** Q 瞬影三连:朝准星扇形三箭 */
+  private castFanArrows(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { count: number; spreadDeg: number; mult: number; speedM: number; lifeS: number; radiusM: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdQ = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('skill'));
+    const base = tr.face;
+    const spread = (ph.spreadDeg * Math.PI) / 180;
+    for (let i = 0; i < ph.count; i++) {
+      const off = (i - (ph.count - 1) / 2) * spread;
+      this.fireArrow(world, pe, base + off, ph.speedM, ph.mult, ph.radiusM, ph.lifeS, element);
+    }
+  }
+
+  /** E 疾风回旋:突进翻滚,落点放射一圈环箭(符文:霜环 → 起点冰圈) */
+  private castNovaRoll(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { distM: number; durS: number; iframesS: number; arrows: number; mult: number; speedM: number; lifeS: number; radiusM: number };
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+    p.cdE = def.cooldown * (1 - p.cdr);
+    world.emit(new SfxEvent('dash'));
+
+    p.dashDirX = p.aimX;
+    p.dashDirY = p.aimY;
+    p.dashT = ph.durS;
+    p.dashDur = ph.durS;
+    p.dashSpeedPx = (ph.distM / ph.durS) * M;
+    p.iframes = Math.max(p.iframes, ph.iframesS);
+    p.attackT = 0;
+
+    // 符文(霜环):起点留冰圈
+    if (rune?.groundZone) {
+      const gz = rune.groundZone;
+      const stats = world.get(pe, Stats);
+      if (stats) {
+        const z = world.create();
+        world.add(z, new Transform(tr.x, tr.y));
+        world.add(z, new Zone(gz.radiusM * M, gz.lifeS, gz.intervalS, stats.atk, gz.mult, element, 'player', element ? elementColor(element) : '#ffffff'));
+      }
+    }
+
+    // 落点环箭
+    this.queue.push({
+      t: ph.durS + 0.02,
+      run: (w) => {
+        const ptr = w.get(pe, Transform);
+        if (!ptr) return;
+        w.emit(new RingFxEvent(ptr.x, ptr.y, 40, element ? elementColor(element) : '#dfe8f2'));
+        w.emit(new SfxEvent('reaction'));
+        for (let i = 0; i < ph.arrows; i++) {
+          const a = (i / ph.arrows) * Math.PI * 2;
+          this.fireArrow(w, pe, a, ph.speedM, ph.mult, ph.radiusM, ph.lifeS, element);
+        }
+      },
+    });
+  }
+
+  /** R 星陨箭雨:朝准星区域倾泻箭雨(怒气越满箭越多) */
+  private castArrowStorm(world: World, pe: Entity, p: Player, tr: Transform, def: SkillDef): void {
+    const ph = def.phases[0] as unknown as { minCount: number; maxCount: number; mult: number; radiusM: number; durS: number; rangeM: number; aoeM: number };
+    const minRage = def.minRage ?? 40;
+    if (p.rage < minRage) return;
+    const rune = this.runeOf(world, pe, def.id);
+    const element = (rune?.element ?? null) as Element | null;
+
+    // 目标点 = 准星(限制射程)
+    let tx = tr.x + p.aimX * ph.rangeM * M;
+    let ty = tr.y + p.aimY * ph.rangeM * M;
+    if (this.renderer) {
+      const mw = this.renderer.mouseWorld(this.input.mouseX, this.input.mouseY);
+      const dx = mw.x - tr.x;
+      const dy = mw.y - tr.y;
+      const d = Math.hypot(dx, dy);
+      const cl = Math.min(d, ph.rangeM * M) / (d || 1);
+      tx = tr.x + dx * cl;
+      ty = tr.y + dy * cl;
+    }
+
+    const ratio = (p.rage - minRage) / (100 - minRage);
+    const count = Math.round(ph.minCount + ratio * (ph.maxCount - ph.minCount));
+    p.rage = 0;
+    p.cdR = def.cooldown;
+    world.emit(new SfxEvent('ult'));
+
+    for (let i = 0; i < count; i++) {
+      this.queue.push({
+        t: (i / count) * ph.durS,
+        run: (w) => {
+          const stats = w.get(pe, Stats);
+          if (!stats) return;
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.sqrt(Math.random()) * ph.radiusM * M;
+          const x = tx + Math.cos(a) * r;
+          const y = ty + Math.sin(a) * r;
+          const color = element ? elementColor(element) : '#ffd94f';
+          w.emit(new BeamFxEvent(x, y, color));
+          for (const e of w.query(Health, Transform, Faction)) {
+            const f = w.mustGet(e, Faction);
+            if (f.team === 'player') continue;
+            const ttr = w.mustGet(e, Transform);
+            if (Math.hypot(ttr.x - x, ttr.y - y) <= ph.aoeM * M) {
+              dealDamage(w, {
+                source: pe, target: e, mult: ph.mult, element,
+                hitAngle: Math.atan2(ttr.y - y, ttr.x - x),
+              });
             }
           }
         },

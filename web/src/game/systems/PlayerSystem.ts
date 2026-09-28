@@ -4,8 +4,8 @@ import type { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { M, UI } from '@game/constants';
 import {
-  DashGhostEvent, Health, MeleeSweep, Player, PlayerHurtEvent, SfxEvent, SlashFxEvent,
-  Stats, ToastEvent, Transform, Velocity, Zone,
+  DashGhostEvent, Health, MeleeSweep, Player, PlayerHurtEvent, Projectile, SfxEvent,
+  SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
 
 const B = balance.player;
@@ -110,23 +110,46 @@ export class PlayerSystem implements System {
         vel.vx += (targetVx - vel.vx) * k;
         vel.vy += (targetVy - vel.vy) * k;
 
-        // ---- 三段连击 ----
+        // ---- 普攻:剑士三段连击 / 猎手连射弓 ----
         if ((this.input.mouseDown || this.input.isDown('KeyJ')) && p.attackT <= 0) {
-          p.comboStage = p.comboTimer > 0 ? (p.comboStage % 3) + 1 : 1;
-          const idx = p.comboStage - 1;
-          p.attackDur = B.combo.attackTime[idx];
-          p.attackT = p.attackDur;
-          p.comboTimer = B.combo.window + p.attackDur;
+          if (p.klass === 'ranger') {
+            const bow = balance.classes.ranger.bow;
+            p.comboStage = (p.comboStage % bow.heavyEvery) + 1;
+            const heavy = p.comboStage === bow.heavyEvery; // 每 N 箭一发重箭
+            p.attackDur = bow.rateS;
+            p.attackT = bow.rateS;
+            p.comboTimer = 1.0;
+            const len = Math.hypot(p.aimX, p.aimY) || 1;
+            const nx = p.aimX / len;
+            const ny = p.aimY / len;
+            const arrow = world.create();
+            world.add(arrow, new Transform(tr.x + nx * 14, tr.y + ny * 14 - 12));
+            const av = new Velocity();
+            av.vx = nx * bow.speedM * M;
+            av.vy = ny * bow.speedM * M;
+            world.add(arrow, av);
+            world.add(arrow, new Projectile(
+              'player', stats.atk, heavy ? bow.mult * bow.heavyMult : bow.mult, null,
+              bow.radiusM * M * (heavy ? 1.6 : 1), bow.lifeS,
+              heavy ? '#ffd94f' : '#dfe8f2', 'arrow',
+            ));
+          } else {
+            p.comboStage = p.comboTimer > 0 ? (p.comboStage % 3) + 1 : 1;
+            const idx = p.comboStage - 1;
+            p.attackDur = B.combo.attackTime[idx];
+            p.attackT = p.attackDur;
+            p.comboTimer = B.combo.window + p.attackDur;
 
-          const arcRad = (B.combo.arcDeg * Math.PI) / 180;
-          // 橙装「怒涛之刃」:第三段范围 +40%
-          const tempest = p.comboStage === 3 && p.specials.includes('tempest') ? 1.4 : 1;
-          const rangePx = B.combo.range * M * tempest;
-          world.emit(new MeleeSweep(
-            e, tr.x, tr.y, tr.face, rangePx, arcRad, B.combo.mults[idx], p.comboStage,
-            null, p.comboStage === 3 ? B.combo.knockback3 : 0,
-          ));
-          world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
+            const arcRad = (B.combo.arcDeg * Math.PI) / 180;
+            // 橙装「怒涛之刃」:第三段范围 +40%
+            const tempest = p.comboStage === 3 && p.specials.includes('tempest') ? 1.4 : 1;
+            const rangePx = B.combo.range * M * tempest;
+            world.emit(new MeleeSweep(
+              e, tr.x, tr.y, tr.face, rangePx, arcRad, B.combo.mults[idx], p.comboStage,
+              null, p.comboStage === 3 ? B.combo.knockback3 : 0,
+            ));
+            world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
+          }
         }
       }
 

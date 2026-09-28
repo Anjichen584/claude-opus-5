@@ -4,7 +4,7 @@ import balance from '@data/balance.json';
 import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, ElementMarks, EmberImp, Faction, FrostSlime, Health,
-  OakGolem, Pickup, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
+  OakGolem, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
 } from '@game/components';
@@ -107,7 +107,9 @@ export class RunManager {
         const pot = world.create();
         world.add(pot, new Transform(10 * M, cy + 2 * M));
         world.add(pot, new ShopStand('potion', S.potionPrice));
-        const runeIds = [...RUNE_POOL.keys()];
+        const klass = world.mustGet(playerE, Player).klass;
+        const prefix = klass === 'ranger' ? 'ranger_' : 'blade_';
+        const runeIds = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix)).map((r) => r.id);
         const rn = world.create();
         world.add(rn, new Transform(15 * M, cy + 2 * M));
         world.add(rn, new ShopStand('rune', S.runePrice, null, this.rng.pick(runeIds)));

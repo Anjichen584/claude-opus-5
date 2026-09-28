@@ -13,6 +13,7 @@ import type { Element } from '@game/components';
 /** 技能 id → 快捷键标签 */
 const SKILL_KEY: Record<string, string> = {
   blade_q_cleave: 'Q', blade_e_tidestep: 'E', blade_r_starfall: 'R',
+  ranger_q_fan: 'Q', ranger_e_nova: 'E', ranger_r_storm: 'R',
 };
 
 interface Rect { x: number; y: number; w: number; h: number }

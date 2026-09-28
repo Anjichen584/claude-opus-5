@@ -540,5 +540,30 @@
       "epic": 0.3,
       "legendary": 0.1
     }
+  },
+  "classes": {
+    "blade": {
+      "name": "狂澜剑士",
+      "hero": "澜",
+      "hpMult": 1.0,
+      "atkMult": 1.0,
+      "speedMult": 1.0
+    },
+    "ranger": {
+      "name": "星弓猎手",
+      "hero": "絮",
+      "hpMult": 0.85,
+      "atkMult": 0.95,
+      "speedMult": 1.08,
+      "bow": {
+        "rateS": 0.38,
+        "mult": 0.6,
+        "speedM": 11,
+        "radiusM": 0.12,
+        "lifeS": 0.9,
+        "heavyEvery": 4,
+        "heavyMult": 1.35
+      }
+    }
   }
 }

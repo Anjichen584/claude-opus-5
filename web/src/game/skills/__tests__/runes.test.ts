@@ -2,19 +2,24 @@ import { describe, expect, it } from 'vitest';
 import pool from '@data/runes/pool.json';
 import balance from '@data/balance.json';
 
-const VALID_SKILLS = ['blade_q_cleave', 'blade_e_tidestep', 'blade_r_starfall'];
+const BLADE_SKILLS = ['blade_q_cleave', 'blade_e_tidestep', 'blade_r_starfall'];
+const RANGER_SKILLS = ['ranger_q_fan', 'ranger_e_nova', 'ranger_r_storm'];
+const VALID_SKILLS = [...BLADE_SKILLS, ...RANGER_SKILLS];
 const VALID_ELEMENTS = ['fire', 'ice', 'bolt', 'toxin'];
 
 describe('符文池', () => {
-  it('共 9 枚,id 唯一', () => {
-    expect(pool.runes.length).toBe(9);
+  it('共 12 枚,id 唯一', () => {
+    expect(pool.runes.length).toBe(12);
     const ids = new Set(pool.runes.map((r) => r.id));
-    expect(ids.size).toBe(9);
+    expect(ids.size).toBe(12);
   });
 
-  it('每个技能各 3 枚(Q/E/R 均可换装)', () => {
-    for (const skill of VALID_SKILLS) {
+  it('剑士每技能 3 枚;猎手每技能 1 枚(首发)', () => {
+    for (const skill of BLADE_SKILLS) {
       expect(pool.runes.filter((r) => r.skill === skill).length).toBe(3);
+    }
+    for (const skill of RANGER_SKILLS) {
+      expect(pool.runes.filter((r) => r.skill === skill).length).toBe(1);
     }
   });
 

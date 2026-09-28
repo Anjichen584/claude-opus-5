@@ -88,9 +88,10 @@ export class GameScene {
   // ---------- run 生命周期 ----------
 
   private startRun(): void {
+    const klass = this.menuUI.selectedClass;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
-    this.skills = new SkillSystem(this.input);
+    this.skills = new SkillSystem(this.input, klass, this.renderer);
     this.loot = new LootSystem();
     this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
     this.loot.factory.pityCount = meta.data.pity;
@@ -122,17 +123,19 @@ export class GameScene {
     w.add(this.playerE, new Health(B.hp));
     w.add(this.playerE, new Stats(B.atk, B.moveSpeed, B.critRate, B.critDmg, B.def));
     w.add(this.playerE, new Faction('player'));
-    w.add(this.playerE, new Player());
+    const playerComp = new Player();
+    playerComp.klass = klass;
+    w.add(this.playerE, playerComp);
     w.add(this.playerE, new Inventory());
     w.add(this.playerE, new Equipment());
     recompute(w, this.playerE);
 
-    // 开局赠 1 枚随机符文(已镶嵌)——每局元素流派不同
-    const runeIds = [...RUNE_POOL.keys()];
+    // 开局赠 1 枚本职业随机符文(已镶嵌)——每局元素流派不同
+    const prefix = klass === 'ranger' ? 'ranger_' : 'blade_';
+    const runeIds = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix)).map((r) => r.id);
     const gift = RUNE_POOL.get(runeIds[Math.floor(Math.random() * runeIds.length)])!;
-    const player = w.mustGet(this.playerE, Player);
-    player.runeBag.push(gift.id);
-    player.equippedRunes[gift.skill] = gift.id;
+    playerComp.runeBag.push(gift.id);
+    playerComp.equippedRunes[gift.skill] = gift.id;
 
     clock.reset();
     this.wasNight = false;
@@ -270,8 +273,8 @@ export class GameScene {
         ctx.drawImage(this.bg, 0, 0);
         ctx.globalAlpha = 1;
       });
-      // 主角立绘(呼吸摇摆)
-      drawSprite(r.ctx, 'knight', r.width / 2 - 240, r.height * 0.30, {
+      // 主角立绘(呼吸摇摆,跟随所选职业)
+      drawSprite(r.ctx, this.menuUI.selectedClass === 'ranger' ? 'ranger' : 'knight', r.width / 2 - 240, r.height * 0.30, {
         scale: 3.2, rot: Math.sin(this.menuT * 1.6) * 0.03, sy: 1 + Math.sin(this.menuT * 3.2) * 0.015,
       });
       drawSprite(r.ctx, 'boss_nanmir', r.width / 2 + 265, r.height * 0.33, {
@@ -592,26 +595,49 @@ export class GameScene {
         } });
       }
 
-      // ---- 弹幕 ----
-      for (const e of w.query(Projectile, Transform)) {
+      // ---- 弹幕(光球 / 箭矢) ----
+      for (const e of w.query(Projectile, Transform, Velocity)) {
         const pj = w.mustGet(e, Projectile);
         const tr = w.mustGet(e, Transform);
+        const vel = w.mustGet(e, Velocity);
         const [ix, iy] = lerp(tr);
         list.push({ y: iy + 6, draw: () => {
           ctx.save();
-          ctx.globalAlpha = 0.3;
-          ctx.fillStyle = pj.color;
-          ctx.beginPath();
-          ctx.arc(ix, iy, pj.radiusPx * 1.9, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.beginPath();
-          ctx.arc(ix, iy, pj.radiusPx, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(ix, iy, pj.radiusPx * 0.45, 0, Math.PI * 2);
-          ctx.fill();
+          if (pj.shape === 'arrow') {
+            // 箭矢:沿速度方向的杆+镞+尾羽
+            const a = Math.atan2(vel.vy, vel.vx);
+            ctx.translate(ix, iy);
+            ctx.rotate(a);
+            ctx.strokeStyle = '#c9a063';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-9, 0);
+            ctx.lineTo(7, 0);
+            ctx.stroke();
+            ctx.fillStyle = pj.color;
+            ctx.beginPath();
+            ctx.moveTo(11, 0);
+            ctx.lineTo(5, -3.5);
+            ctx.lineTo(5, 3.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#dfe8f2';
+            ctx.fillRect(-11, -2.5, 4, 5);
+          } else {
+            ctx.globalAlpha = 0.3;
+            ctx.fillStyle = pj.color;
+            ctx.beginPath();
+            ctx.arc(ix, iy, pj.radiusPx * 1.9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.arc(ix, iy, pj.radiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(ix, iy, pj.radiusPx * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+          }
           ctx.restore();
         } });
       }
@@ -656,7 +682,7 @@ export class GameScene {
                 rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
                 sx = 1 + punch * 0.08;
               }
-              const ok = drawSprite(ctx, 'knight', ix, iy, {
+              const ok = drawSprite(ctx, p.klass === 'ranger' ? 'ranger' : 'knight', ix, iy, {
                 flash: h.flash, faceLeft, rot, sx, sy,
                 alpha: p.dashT > 0 ? 0.7 : p.iframes > 0 ? 0.85 : 1,
               });
@@ -714,7 +740,8 @@ export class GameScene {
     ctx.fillStyle = UI.text;
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText('澜 · 狂澜剑士', 24, 34);
+    const klassCfg = balance.classes[p.klass];
+    ctx.fillText(`${klassCfg.hero} · ${klassCfg.name}`, 24, 34);
     const ratio = Math.max(hp.hp / hp.max, 0);
     ctx.fillStyle = '#232838';
     ctx.fillRect(24, 44, 220, 14);

@@ -22,8 +22,11 @@ const BRANCHES: Array<{ key: 'hp' | 'atk' | 'luck'; name: string; desc: string }
 
 /** 主菜单(标题+祭坛+开始)与结算页。返回 'start' 表示玩家点了开始。 */
 export class MenuUI {
+  /** 出战职业(职业卡选择,startRun 读取) */
+  selectedClass: 'blade' | 'ranger' = 'blade';
   private startRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private altarRects: Array<{ rect: Rect; key: 'hp' | 'atk' | 'luck' }> = [];
+  private classRects: Array<{ rect: Rect; klass: 'blade' | 'ranger' }> = [];
 
   constructor(private readonly input: Input) {}
 
@@ -36,6 +39,9 @@ export class MenuUI {
       if (inside(this.startRect, mx, my)) return 'start';
       for (const ar of this.altarRects) {
         if (inside(ar.rect, mx, my)) this.tryUpgrade(ar.key);
+      }
+      for (const cr of this.classRects) {
+        if (inside(cr.rect, mx, my)) this.selectedClass = cr.klass;
       }
     }
     return null;
@@ -62,10 +68,38 @@ export class MenuUI {
     ctx.font = '14px monospace';
     ctx.fillText('—— 翠语林地 · 第一章 ——', w / 2, h * 0.2 + 30);
 
+    // 职业选择卡
+    this.classRects = [];
+    const classes: Array<{ klass: 'blade' | 'ranger'; icon: string }> = [
+      { klass: 'blade', icon: '⚔' },
+      { klass: 'ranger', icon: '🏹' },
+    ];
+    const cw = 180;
+    const ch = 56;
+    classes.forEach((c, i) => {
+      const cfg = balance.classes[c.klass];
+      const x = w / 2 - cw - 12 + i * (cw + 24);
+      const y = h * 0.27;
+      const sel = this.selectedClass === c.klass;
+      const hov2 = inside({ x, y, w: cw, h: ch }, this.input.mouseX, this.input.mouseY);
+      ctx.fillStyle = sel ? '#2a3147' : hov2 ? '#232838' : UI.panel;
+      ctx.fillRect(x, y, cw, ch);
+      ctx.strokeStyle = sel ? UI.gold : '#3a4154';
+      ctx.lineWidth = sel ? 2.5 : 1.5;
+      ctx.strokeRect(x, y, cw, ch);
+      ctx.fillStyle = sel ? UI.gold : UI.text;
+      ctx.font = 'bold 15px monospace';
+      ctx.fillText(`${c.icon} ${cfg.hero} · ${cfg.name}`, x + cw / 2, y + 24);
+      ctx.fillStyle = UI.dim;
+      ctx.font = '10px monospace';
+      ctx.fillText(c.klass === 'blade' ? '三段连斩 · 近战爆发' : '连射弓 · 走位风筝', x + cw / 2, y + 42);
+      this.classRects.push({ rect: { x, y, w: cw, h: ch }, klass: c.klass });
+    });
+
     // 开始按钮
     const bw = 240;
     const bh = 52;
-    this.startRect = { x: w / 2 - bw / 2, y: h * 0.32, w: bw, h: bh };
+    this.startRect = { x: w / 2 - bw / 2, y: h * 0.38, w: bw, h: bh };
     const hov = inside(this.startRect, this.input.mouseX, this.input.mouseY);
     ctx.fillStyle = hov ? '#2a3147' : UI.panel;
     ctx.fillRect(this.startRect.x, this.startRect.y, bw, bh);
@@ -78,7 +112,7 @@ export class MenuUI {
 
     // 祭坛
     const ax = w / 2 - 260;
-    const ay = h * 0.48;
+    const ay = h * 0.53;
     ctx.fillStyle = UI.panel;
     ctx.fillRect(ax, ay, 520, 170);
     ctx.strokeStyle = '#3a4154';

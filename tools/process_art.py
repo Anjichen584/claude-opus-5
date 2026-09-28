@@ -16,6 +16,7 @@ OUT = ROOT / "web" / "public" / "sprites"
 # 目标显示高度(px,游戏内 1:1 绘制;M=48px/m)
 TARGETS = {
     "knight": 46,
+    "ranger": 46,
     "shroomling": 30,
     "windbee": 24,
     "blightwolf": 36,
