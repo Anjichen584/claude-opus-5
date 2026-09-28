@@ -2,6 +2,7 @@ import { World } from '@engine/ecs/World';
 import type { System } from '@engine/ecs/World';
 import { GameLoop } from '@engine/core/GameLoop';
 import { sfx } from '@engine/audio/Sfx';
+import { music } from '@engine/audio/Music';
 import { Rng } from '@engine/core/Rng';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
@@ -448,6 +449,14 @@ export class GameScene {
 
     this.input.pollGamepad(dt);
     this.input.tickTouch(dt);
+
+    // ---- BGM:按场景选曲(同曲无操作,引擎内前瞻调度) ----
+    music.play(
+      this.state === 'run'
+        ? (this.run.roomKind === 'boss' ? 'boss' : (`ch${this.run.chapter}` as 'ch1' | 'ch2' | 'ch3'))
+        : 'camp',
+    );
+    music.tick();
     if (this.state === 'menu') {
       if (this.menuUI.updateMenu() === 'start') this.enterCamp();
       this.input.endFrame();
@@ -480,7 +489,8 @@ export class GameScene {
     if (this.paused) {
       if (this.input.wasPressed('KeyM')) {
         this.muted = !this.muted;
-        sfx.volume = this.muted ? 0 : 0.35;
+        sfx.setVolume(this.muted ? 0 : 0.35);
+        music.setVolume(this.muted ? 0 : 0.8);
       }
       if (this.input.wasPressed('Backspace')) {
         this.paused = false;

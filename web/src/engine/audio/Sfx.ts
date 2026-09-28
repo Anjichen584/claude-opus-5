@@ -8,6 +8,12 @@ class SfxEngine {
   private master: GainNode | null = null;
   volume = 0.35;
 
+  /** 运行时调音量(0=静音);直接改 volume 字段不会作用于已创建的 master */
+  setVolume(v: number): void {
+    this.volume = v;
+    if (this.master && this.ctx) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+  }
+
   unlock(): void {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') void this.ctx.resume();

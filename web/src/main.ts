@@ -7,6 +7,7 @@ import { GameLoop } from '@engine/core/GameLoop';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import { sfx } from '@engine/audio/Sfx';
+import { music } from '@engine/audio/Music';
 import { GameScene } from '@game/GameScene';
 import { meta } from '@game/meta/Save';
 
@@ -17,10 +18,14 @@ const renderer = new Renderer(canvas);
 const input = new Input();
 input.attach(canvas);
 
-// 浏览器自动播放策略:首次手势解锁音频
-const unlockAudio = (): void => sfx.unlock();
+// 浏览器自动播放策略:首次手势解锁音频(含触屏)
+const unlockAudio = (): void => {
+  sfx.unlock();
+  music.unlock();
+};
 window.addEventListener('mousedown', unlockAudio);
 window.addEventListener('keydown', unlockAudio);
+window.addEventListener('touchstart', unlockAudio);
 
 let scene: GameScene;
 let lastRender = performance.now();
