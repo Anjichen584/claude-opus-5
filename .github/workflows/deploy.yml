@@ -6,16 +6,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write # 推 gh-pages 分支
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -24,11 +22,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      # enablement: true → 若仓库尚未开启 Pages,则自动创建站点(需要 pages:write)
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - name: Install & Test & Build
         working-directory: web
         run: |
@@ -36,16 +29,10 @@ jobs:
           npx tsc --noEmit
           npx vitest run
           npx vite build --base=/claude-opus-5/
-      - uses: actions/upload-pages-artifact@v3
+      # 推到 gh-pages 分支:GitHub 会自动为该分支开启 Pages(经典模式,无需手动设置)
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: web/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: web/dist
+          force_orphan: true
