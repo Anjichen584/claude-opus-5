@@ -51,6 +51,11 @@ TARGETS = {
     "boss_velsha": 128,
     # 第三章「烬语荒漠」
     "cinderrat": 22,
+    # 怪物第二帧(双帧动画)
+    "shroomling_f2": 30,
+    "windbee_f2": 24,
+    "blightwolf_f2": 36,
+    "cinderrat_f2": 22,
     "dunebeetle": 36,
     "flamedancer": 34,
     "duststinger": 32,
@@ -60,6 +65,10 @@ TARGETS = {
     "prop_tumble": 32,
 }
 TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
+
+# 特效贴图:纯黑底,运行时 'lighter' 加法混合(黑=不发光,无需抠图)。
+# 处理:亮度>16 的 bbox 裁剪 → 等比缩放到目标高。
+FX = {"fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128}
 DIST = 88  # 幕布色距阈值
 
 
@@ -132,6 +141,8 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, target_h in TARGETS.items():
         f = SRC / f"{name}.png"
+        if not f.exists():
+            continue  # 瘦身工作流:源图已清、成品在 public/sprites,跳过
         img = key_out(Image.open(f))
         box = img.getbbox()
         img = img.crop(box)
@@ -139,8 +150,35 @@ def main() -> None:
         img = img.resize((max(1, round(img.width * scale)), target_h), Image.NEAREST)
         img.save(OUT / f"{name}.png")
         print(f"{name}: {img.width}x{img.height}")
+    for name, size in FX.items():
+        src = SRC / f"{name}.png"
+        if not src.exists():
+            print(f"{name}: 缺源图,跳过")
+            continue
+        img = Image.open(src).convert("RGB")
+        px = img.load()
+        w, h = img.size
+        minx, miny, maxx, maxy = w, h, 0, 0
+        for y in range(0, h, 2):
+            for x in range(0, w, 2):
+                r, g, b = px[x, y]
+                if r + g + b > 48:
+                    minx = min(minx, x); maxx = max(maxx, x)
+                    miny = min(miny, y); maxy = max(maxy, y)
+        if maxx <= minx:
+            print(f"{name}: 全黑?跳过")
+            continue
+        img = img.crop((max(0, minx - 4), max(0, miny - 4), min(w, maxx + 5), min(h, maxy + 5)))
+        scale = size / img.height
+        img = img.resize((max(1, round(img.width * scale)), size), Image.NEAREST)
+        img.save(OUT / f"{name}.png")
+        print(f"{name}: fx {img.width}x{img.height}")
+
     for name, size in TILE.items():
-        img = Image.open(SRC / f"{name}.png").convert("RGB")
+        tf = SRC / f"{name}.png"
+        if not tf.exists():
+            continue
+        img = Image.open(tf).convert("RGB")
         # 裁掉 5% 边框(生成图边缘偏暗会形成平铺接缝)
         bw, bh = img.size
         m = int(min(bw, bh) * 0.05)

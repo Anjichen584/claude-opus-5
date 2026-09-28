@@ -70,4 +70,6 @@ export const SPRITE_NAMES = [
   'knight_walk', 'ranger_walk', 'arcanist_walk', 'warden_walk',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
+  'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',
+  'shroomling_f2', 'windbee_f2', 'blightwolf_f2', 'cinderrat_f2',
 ] as const;

@@ -9,6 +9,7 @@ import {
   RingFxEvent, SfxEvent, SlashFxEvent, ToastEvent,
 } from '@game/components';
 import { drawSlashArc } from '@game/gfx/draw';
+import { sprites } from '@engine/render/Sprites';
 
 interface Floater { x: number; y: number; vy: number; t: number; life: number; text: string; color: string; scale: number }
 interface Particle { x: number; y: number; vx: number; vy: number; t: number; life: number; color: string; size: number }
@@ -28,6 +29,7 @@ export class FeedbackSystem implements System {
   private ghosts: Ghost[] = [];
   private beams: Beam[] = [];
   private rings: Ring[] = [];
+  private bursts: Array<{ x: number; y: number; t: number; life: number; scale: number; rot: number }> = [];
   hurtVignette = 0;
   kills = 0;
 
@@ -45,6 +47,12 @@ export class FeedbackSystem implements System {
       if (hit.kill) this.camera.shake(feel.shake.kill.amp, feel.shake.kill.dur);
       else if (hit.crit) this.camera.shake(feel.shake.crit.amp, feel.shake.crit.dur);
       sfx.play(hit.kill ? 'kill' : hit.crit ? 'crit' : 'hit');
+      if (hit.crit || hit.kill) {
+        this.bursts.push({
+          x: hit.x, y: hit.y, t: 0, life: 0.22,
+          scale: hit.kill ? 1.25 : 0.9, rot: Math.random() * Math.PI * 2,
+        });
+      }
 
       // 飘字:普通白 / 暴击金 / 元素附色(GDD §3.1)
       const elColor = hit.element ? ({ fire: '#ff9a6b', ice: '#8fdcff', bolt: '#ffe57a', toxin: '#b8e878' } as Record<string, string>)[hit.element] : null;
@@ -171,12 +179,32 @@ export class FeedbackSystem implements System {
     for (const g of this.ghosts) g.t += dt;
     for (const b of this.beams) b.t += dt;
     for (const r of this.rings) r.t += dt;
+    for (const bu of this.bursts) bu.t += dt;
     this.floaters = this.floaters.filter((f) => f.t < f.life);
     this.particles = this.particles.filter((p) => p.t < p.life);
     this.slashes = this.slashes.filter((s) => s.t < s.dur);
     this.ghosts = this.ghosts.filter((g) => g.t < g.life);
     this.beams = this.beams.filter((b) => b.t < b.life);
     this.rings = this.rings.filter((r) => r.t < r.life);
+    this.bursts = this.bursts.filter((b) => b.t < b.life);
+  }
+
+  /** 加法混合画特效贴图(黑底=透明发光)。返回 false 表示贴图未加载。 */
+  private static fx(
+    ctx: CanvasRenderingContext2D, name: string, x: number, y: number,
+    opts: { rot?: number; scaleW?: number; scaleH?: number; alpha?: number; flipY?: boolean },
+  ): boolean {
+    const img = sprites.get(name);
+    if (!img) return false;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = opts.alpha ?? 1;
+    ctx.translate(x, y);
+    if (opts.rot) ctx.rotate(opts.rot);
+    ctx.scale(opts.scaleW ?? 1, (opts.scaleH ?? opts.scaleW ?? 1) * (opts.flipY ? -1 : 1));
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    ctx.restore();
+    return true;
   }
 
   /** 世界空间特效层(实体之上) */
@@ -191,10 +219,22 @@ export class FeedbackSystem implements System {
       ctx.fill();
       ctx.restore();
     }
-    // 光剑/落雷柱
+    // 光剑/落雷柱(贴图优先:加法混合星剑光柱 + 程序化基座色环保留元素色)
     for (const b of this.beams) {
       const p = b.t / b.life;
       const a = 1 - p;
+      if (FeedbackSystem.fx(ctx, 'fx_beam', b.x, b.y - 62 * (1 - p * 0.3), {
+        alpha: a, scaleW: 0.9 - p * 0.3, scaleH: 1 - p * 0.35,
+      })) {
+        ctx.save();
+        ctx.globalAlpha = a * 0.5;
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y, 16 * (1 - p * 0.3), 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha = a * 0.85;
       const h = 180 * (1 - p * 0.4);
@@ -212,9 +252,23 @@ export class FeedbackSystem implements System {
       ctx.fill();
       ctx.restore();
     }
-    // 扩散环
+    // 扩散环(贴图优先)
     for (const r of this.rings) {
       const p = r.t / r.life;
+      const grow = r.radius * (0.3 + 0.7 * p) * 2;
+      if (FeedbackSystem.fx(ctx, 'fx_ring', r.x, r.y - 8, {
+        alpha: (1 - p) * 0.9, scaleW: grow / 93, scaleH: (grow / 93) * 0.55, rot: p * 0.6,
+      })) {
+        ctx.save();
+        ctx.globalAlpha = (1 - p) * 0.5;
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y - 8, r.radius * (0.3 + 0.7 * p), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha = (1 - p) * 0.8;
       ctx.strokeStyle = r.color;
@@ -225,7 +279,24 @@ export class FeedbackSystem implements System {
       ctx.restore();
     }
     for (const s of this.slashes) {
-      drawSlashArc(ctx, s.x, s.y, s.angle, s.stage, s.t / s.dur, s.rangePx, s.arcRad);
+      const p = s.t / s.dur;
+      const big = s.stage >= 3;
+      if (!FeedbackSystem.fx(ctx, 'fx_slash', s.x + Math.cos(s.angle) * s.rangePx * 0.55,
+        s.y - 14 + Math.sin(s.angle) * s.rangePx * 0.55, {
+          rot: s.angle, alpha: (1 - p) * 0.95,
+          scaleW: (s.rangePx / 109) * (big ? 2.2 : 1.7) * (0.8 + p * 0.4),
+          scaleH: (s.rangePx / 109) * (big ? 2.0 : 1.5),
+          flipY: s.stage % 2 === 0,
+        })) {
+        drawSlashArc(ctx, s.x, s.y, s.angle, s.stage, p, s.rangePx, s.arcRad);
+      }
+    }
+    // 暴击/击杀冲击爆闪
+    for (const bu of this.bursts) {
+      const p = bu.t / bu.life;
+      FeedbackSystem.fx(ctx, 'fx_burst', bu.x, bu.y - 12, {
+        rot: bu.rot, alpha: 1 - p, scaleW: bu.scale * (0.5 + p * 0.9),
+      });
     }
     for (const p of this.particles) {
       ctx.globalAlpha = 1 - p.t / p.life;

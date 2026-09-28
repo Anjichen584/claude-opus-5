@@ -417,6 +417,18 @@ export class GameScene {
     ctx.restore();
   }
 
+
+  /** 双帧动画:第二帧存在则 8fps 交替(needMove=仅移动中切帧) */
+  private frame2(base: string, e: number, needMove: boolean): string {
+    if (Math.floor(clock.runTime * 8) % 2 !== 1) return base;
+    if (sprites.get(`${base}_f2`) === null) return base;
+    if (needMove) {
+      const v = this.world.get(e, Velocity);
+      if (!v || Math.hypot(v.vx, v.vy) < 30) return base;
+    }
+    return `${base}_f2`;
+  }
+
   private renderCampHud(): void {
     const ctx = this.renderer.ctx;
     const width = this.renderer.width;
@@ -820,7 +832,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 11);
           const walk = s.state === 'chase' ? 10 : 5;
-          if (!drawSprite(ctx, 'shroomling', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('shroomling', e, false), ix, iy, {
             flash: h.flash, rot: Math.sin(s.animT * walk) * 0.07,
             sy: 1 + Math.sin(s.animT * walk * 2) * 0.05,
           })) drawShroomling(ctx, ix, iy, s.animT, h.flash, s.state === 'chase');
@@ -835,7 +847,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 7);
           const jitter = b.state === 'telegraph' ? (Math.random() - 0.5) * 0.3 : 0;
-          if (!drawSprite(ctx, 'windbee', ix, iy - 10 + Math.sin(b.animT * 9) * 3, {
+          if (!drawSprite(ctx, this.frame2('windbee', e, false), ix, iy - 10 + Math.sin(b.animT * 9) * 3, {
             flash: h.flash, faceLeft: (vel?.vx ?? 0) < 0, rot: jitter + Math.sin(b.animT * 5) * 0.08,
           })) drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph');
         } });
@@ -850,7 +862,7 @@ export class GameScene {
           const faceLeft = Math.cos(tr.face) < 0;
           const lean = wf.state === 'pounce' ? (faceLeft ? 0.16 : -0.16) : 0;
           const growl = wf.state === 'growl' ? (Math.random() - 0.5) * 0.12 : 0;
-          if (!drawSprite(ctx, 'blightwolf', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('blightwolf', e, true), ix, iy, {
             flash: h.flash, faceLeft, rot: lean + growl,
             sy: 1 + Math.sin(wf.animT * 12) * 0.03,
           })) drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, faceLeft, wf.state === 'growl', wf.state === 'pounce');
@@ -1082,7 +1094,7 @@ export class GameScene {
         const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 8);
-          if (!drawSprite(ctx, 'cinderrat', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('cinderrat', e, true), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: Math.sin(r0.animT * 14) * 0.1,
           })) blob(ix, iy, 9, '#ff9a6b');
