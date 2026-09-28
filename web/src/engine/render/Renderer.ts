@@ -1,11 +1,13 @@
 import { Camera } from './Camera';
 
-/** 画布管理:尺寸自适应、像素风采样设置、相机持有。分层顺序由场景控制。 */
+/** 画布管理:尺寸自适应、像素风采样设置、界面缩放、相机持有。分层顺序由场景控制。 */
 export class Renderer {
   readonly ctx: CanvasRenderingContext2D;
   readonly camera = new Camera();
   width = 0;
   height = 0;
+  /** 界面缩放 0.5~2.0:逻辑分辨率 = 物理 / uiScale(越大画面越大) */
+  uiScale = 1;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -15,9 +17,14 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
+  setUiScale(s: number): void {
+    this.uiScale = Math.min(2, Math.max(0.5, s));
+    this.resize();
+  }
+
   resize(): void {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
+    this.width = Math.round(window.innerWidth / this.uiScale);
+    this.height = Math.round(window.innerHeight / this.uiScale);
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     this.ctx.imageSmoothingEnabled = false; // 像素风铁律

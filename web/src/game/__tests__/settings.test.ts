@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BINDS } from '@game/meta/Save';
+import { DEFAULT_BINDS, meta } from '@game/meta/Save';
 import { ACTIONS, keyLabel } from '@game/meta/Bindings';
 
 describe('设置与键位绑定', () => {
@@ -14,6 +14,16 @@ describe('设置与键位绑定', () => {
   it('默认键位互不冲突', () => {
     const codes = Object.values(DEFAULT_BINDS);
     expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it('默认设置:音量/缩放在合法区间', () => {
+    const s = meta.data.settings;
+    expect(s.musicVol).toBeGreaterThanOrEqual(0);
+    expect(s.musicVol).toBeLessThanOrEqual(1);
+    expect(s.sfxVol).toBeGreaterThanOrEqual(0);
+    expect(s.sfxVol).toBeLessThanOrEqual(1);
+    expect(s.uiScale).toBeGreaterThanOrEqual(0.5);
+    expect(s.uiScale).toBeLessThanOrEqual(2.0);
   });
 
   it('键名美化覆盖常用键', () => {

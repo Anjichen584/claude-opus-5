@@ -458,6 +458,14 @@ export class GameScene {
     this.input.pollGamepad(dt);
     this.input.tickTouch(dt);
 
+    // ---- 界面缩放同步(设置里改动即时生效) ----
+    const uiScale = meta.data.settings.uiScale;
+    if (this.renderer.uiScale !== uiScale) {
+      this.renderer.setUiScale(uiScale);
+      this.input.pointerScale = 1 / this.renderer.uiScale;
+      this.bg = this.bakeBackground(); // 逻辑分辨率变了,重烘焙背景无损
+    }
+
     // ---- BGM:按场景选曲(同曲无操作,引擎内前瞻调度) ----
     music.play(
       this.state === 'run'

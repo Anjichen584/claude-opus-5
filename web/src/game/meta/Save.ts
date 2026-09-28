@@ -7,6 +7,8 @@ export interface Settings {
   musicVol: number;
   /** 音效音量 0~1 */
   sfxVol: number;
+  /** 界面缩放 0.5~2.0 */
+  uiScale: number;
   /** 动作 → 键码(KeyboardEvent.code) */
   binds: Record<string, string>;
 }
@@ -47,7 +49,7 @@ function defaults(): SaveData {
     pity: 0,
     blueprintShards: 0,
     craftQueued: false,
-    settings: { musicVol: 0.8, sfxVol: 0.35, binds: { ...DEFAULT_BINDS } },
+    settings: { musicVol: 0.8, sfxVol: 0.35, uiScale: 1, binds: { ...DEFAULT_BINDS } },
     stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0 },
   };
 }

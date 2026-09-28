@@ -72,6 +72,8 @@ export class Input {
   private virtualDown = new Set<string>();
   /** 本帧最后按下的物理键码(改绑捕获用,endFrame 清空) */
   lastKey: string | null = null;
+  /** 指针坐标换算系数 = 1/uiScale(界面缩放时客户端坐标→逻辑坐标) */
+  pointerScale = 1;
 
   /** 触点快照(TouchControls 读取) */
   touches(): Array<{ id: number; x: number; y: number; sx: number; sy: number; claimed: string | null; started: boolean }> {
@@ -107,7 +109,7 @@ export class Input {
 
   attach(target: HTMLElement): void {
     // ---- 触屏事件 ----
-    const touchPos = (t: Touch): { x: number; y: number } => ({ x: t.clientX, y: t.clientY });
+    const touchPos = (t: Touch): { x: number; y: number } => ({ x: t.clientX * this.pointerScale, y: t.clientY * this.pointerScale });
     target.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.touchActiveT = 3;
@@ -154,8 +156,8 @@ export class Input {
       this.mouseDown = false;
     });
     target.addEventListener('mousemove', (e) => {
-      this.mouseX = e.clientX;
-      this.mouseY = e.clientY;
+      this.mouseX = e.clientX * this.pointerScale;
+      this.mouseY = e.clientY * this.pointerScale;
     });
     target.addEventListener('mousedown', (e) => {
       if (e.button === 0) {
@@ -177,7 +179,7 @@ export class Input {
   private touchJoy(): { x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * 0.6) continue;
+      if (t.sx > window.innerWidth * this.pointerScale * 0.6) continue;
       const dx = t.x - t.sx;
       const dy = t.y - t.sy;
       const d = Math.hypot(dx, dy);
@@ -192,7 +194,7 @@ export class Input {
   joyVisual(): { ax: number; ay: number; x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * 0.6) continue;
+      if (t.sx > window.innerWidth * this.pointerScale * 0.6) continue;
       return { ax: t.sx, ay: t.sy, x: t.x, y: t.y };
     }
     return null;
