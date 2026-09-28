@@ -3,8 +3,9 @@ import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import { M, RARITY_COLORS } from '@game/constants';
 import {
-  BlightWolf, Body, BossNanmir, Buffs, ElementMarks, Faction, Health, OakGolem, Pickup,
-  Portal, SfxEvent, Shroomling, Stats, TelegraphStrike, ThornVine, ToastEvent, Transform,
+  BlightWolf, Body, BossNanmir, Buffs, ElementMarks, EmberImp, Faction, FrostSlime, Health,
+  OakGolem, Pickup, Portal, Projectile, PropObstacle, SfxEvent, Shroomling, SparkLizard,
+  StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad, Transform,
   Velocity, WindBee, Zone,
 } from '@game/components';
 import { scaleAtk, scaleHp } from './Scaling';
@@ -12,6 +13,10 @@ import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 
 export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss';
+
+type SpawnKind =
+  | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem'
+  | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite';
 
 const R = balance.rooms;
 
@@ -28,6 +33,7 @@ export class RunManager {
   private pendingWaves = 0;
   private waveTimer = 0;
   private portalsSpawned = false;
+  private spriteSpawned = false;
   private rng = new Rng(Date.now() >>> 0);
 
   constructor(private readonly factory: ItemFactory) {}
@@ -38,12 +44,16 @@ export class RunManager {
     this.portalsSpawned = false;
     this.bossSpawned = false;
 
-    // 清场(传送门/预警/区域残留)
+    // 清场(传送门/预警/区域/弹幕/物件残留)
     for (const e of world.query(Portal)) world.destroy(e);
     for (const e of world.query(TelegraphStrike)) world.destroy(e);
     for (const e of world.query(Zone)) world.destroy(e);
     for (const e of world.query(Pickup)) world.destroy(e);
+    for (const e of world.query(Projectile)) world.destroy(e);
+    for (const e of world.query(PropObstacle)) world.destroy(e);
     world.flushDestroyed();
+    this.scatterProps(world, kind);
+    this.spriteSpawned = false;
 
     // 玩家回到房间左侧入口
     const ptr = world.mustGet(playerE, Transform);
@@ -110,11 +120,13 @@ export class RunManager {
       }
     }
 
-    // ---- 清房判定 ----
+    // ---- 清房判定(星尘精灵是彩蛋怪,不挡门) ----
     if (!this.cleared) {
       const enemiesLeft =
         world.count(Shroomling) + world.count(WindBee) + world.count(BlightWolf) +
-        world.count(ThornVine) + world.count(OakGolem) + world.count(BossNanmir);
+        world.count(ThornVine) + world.count(OakGolem) + world.count(BossNanmir) +
+        world.count(EmberImp) + world.count(FrostSlime) + world.count(SparkLizard) +
+        world.count(ToxinToad);
       if (this.roomKind === 'boss') {
         if (this.bossSpawned && world.count(BossNanmir) === 0) return 'victory';
       } else if (enemiesLeft === 0 && this.pendingWaves === 0) {
@@ -166,7 +178,7 @@ export class RunManager {
     });
   }
 
-  /** 一波怪:按深度预算混合出怪 */
+  /** 一波怪:按深度预算,从解锁池加权抽取(深度越深元素怪越多) */
   private spawnWave(world: World): void {
     const night = clock.isNight();
     const budget = R.waveBudgetBase + this.depth * R.waveBudgetPerDepth;
@@ -174,21 +186,75 @@ export class RunManager {
       this.spawn(world, 'oakgolem', night);
       this.spawn(world, 'thornvine', night);
       this.spawn(world, 'blightwolf', night);
-      for (let i = 0; i < 4; i++) this.spawn(world, 'windbee', night);
+      this.spawn(world, 'emberimp', night);
+      this.spawn(world, 'emberimp', night);
+      for (let i = 0; i < 3; i++) this.spawn(world, 'windbee', night);
       return;
     }
+
+    // 出怪池: [kind, 权重, 预算消耗, 解锁深度]
+    const pool: Array<[SpawnKind, number, number, number]> = [
+      ['shroomling', 30, 1, 0],
+      ['windbee', 22, 1, 0],
+      ['frostslime', 16, 2, 1],
+      ['sparklizard', 14, 1, 1],
+      ['emberimp', 14, 2, 2],
+      ['toxintoad', 12, 2, 2],
+      ['thornvine', 10, 2, 2],
+      ['blightwolf', 12, 2, 3],
+    ];
+    const avail = pool.filter(([, , , minD]) => this.depth >= minD);
+    const totalW = avail.reduce((s, p) => s + p[1], 0);
     let left = budget;
-    while (left > 0) {
-      const roll = this.rng.next();
-      if (roll < 0.45) { this.spawn(world, 'shroomling', night); left -= 1; }
-      else if (roll < 0.75) { this.spawn(world, 'windbee', night); left -= 1; }
-      else if (roll < 0.9 && this.depth >= 2) { this.spawn(world, 'thornvine', night); left -= 2; }
-      else if (this.depth >= 3) { this.spawn(world, 'blightwolf', night); left -= 2; }
-      else { this.spawn(world, 'shroomling', night); left -= 1; }
+    let guard = 60;
+    while (left > 0 && guard-- > 0) {
+      let roll = this.rng.next() * totalW;
+      for (const [kind, wgt, cost] of avail) {
+        roll -= wgt;
+        if (roll <= 0) {
+          this.spawn(world, kind, night);
+          left -= cost;
+          break;
+        }
+      }
+    }
+
+    // 彩蛋:星尘精灵(每房最多1只,25%)
+    if (!this.spriteSpawned && this.rng.chance(R.spriteChance)) {
+      this.spriteSpawned = true;
+      this.spawn(world, 'stardustsprite', night);
+      world.emit(new ToastEvent('✨ 星尘精灵出现了!抓住它!', '#ffd94f'));
     }
   }
 
-  private spawn(world: World, kind: 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem', night: boolean): void {
+  /** 场景物件:树/岩石(碰撞)+ 灌木(装饰),避开入口与出口带 */
+  private scatterProps(world: World, kind: RoomKind): void {
+    const P = balance.props;
+    const counts: Array<['tree' | 'rock' | 'bush', number]> =
+      kind === 'boss' ? [['tree', 2], ['rock', 1]]
+      : kind === 'treasure' ? [['bush', 5], ['tree', 2]]
+      : [
+          ['tree', this.rng.int(P.tree.perRoomMin, P.tree.perRoomMax)],
+          ['rock', this.rng.int(P.rock.perRoomMin, P.rock.perRoomMax)],
+          ['bush', this.rng.int(P.bush.perRoomMin, P.bush.perRoomMax)],
+        ];
+    for (const [pk, n] of counts) {
+      for (let i = 0; i < n; i++) {
+        const x = this.rng.range(5, balance.arena.widthM - 4.5) * M;
+        const y = this.rng.range(1.6, balance.arena.heightM - 1.4) * M;
+        const e = world.create();
+        world.add(e, new Transform(x, y));
+        world.add(e, new PropObstacle(pk));
+        const radius = pk === 'tree' ? P.tree.bodyRadius : pk === 'rock' ? P.rock.bodyRadius : 0;
+        if (radius > 0) {
+          world.add(e, new Velocity()); // Body 需参与物理查询(速度恒 0)
+          world.add(e, new Body(radius, true));
+        }
+      }
+    }
+  }
+
+  private spawn(world: World, kind: SpawnKind, night: boolean): void {
     const cfg = balance.enemies[kind];
     const x = this.rng.range(8, balance.arena.widthM - 2) * M;
     const y = this.rng.range(1.5, balance.arena.heightM - 1.5) * M;
@@ -208,6 +274,11 @@ export class RunManager {
       case 'blightwolf': world.add(e, new BlightWolf()); break;
       case 'thornvine': world.add(e, new ThornVine()); break;
       case 'oakgolem': world.add(e, new OakGolem()); break;
+      case 'emberimp': world.add(e, new EmberImp()); break;
+      case 'frostslime': world.add(e, new FrostSlime()); break;
+      case 'sparklizard': world.add(e, new SparkLizard()); break;
+      case 'toxintoad': world.add(e, new ToxinToad()); break;
+      case 'stardustsprite': world.add(e, new StardustSprite(balance.enemies.stardustsprite.lifeS)); break;
     }
   }
 }

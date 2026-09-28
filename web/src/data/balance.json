@@ -10,84 +10,311 @@
     "accelTime": 0.08,
     "decelTime": 0.05,
     "bodyRadius": 0.32,
-    "dash": { "duration": 0.22, "distance": 2.8, "iframes": 0.35, "cooldown": 1.2 },
+    "dash": {
+      "duration": 0.22,
+      "distance": 2.8,
+      "iframes": 0.35,
+      "cooldown": 1.2
+    },
     "combo": {
-      "mults": [1.0, 1.0, 1.6],
+      "mults": [
+        1.0,
+        1.0,
+        1.6
+      ],
       "window": 0.6,
-      "attackTime": [0.2, 0.2, 0.28],
+      "attackTime": [
+        0.2,
+        0.2,
+        0.28
+      ],
       "range": 2.2,
       "arcDeg": 110,
       "knockback3": 6.0,
       "moveSlow": 0.35
     },
-    "regen": { "delay": 4.0, "ratePct": 0.06 },
-    "respawn": { "delay": 1.5, "invuln": 2.0 }
+    "regen": {
+      "delay": 4.0,
+      "ratePct": 0.06
+    },
+    "respawn": {
+      "delay": 1.5,
+      "invuln": 2.0
+    }
   },
   "feel": {
-    "hitstopMs": { "normal": 40, "crit": 70, "kill": 90 },
-    "shake": { "crit": { "amp": 2, "dur": 0.08 }, "kill": { "amp": 3, "dur": 0.1 }, "hurt": { "amp": 4, "dur": 0.15 } },
+    "hitstopMs": {
+      "normal": 40,
+      "crit": 70,
+      "kill": 90
+    },
+    "shake": {
+      "crit": {
+        "amp": 2,
+        "dur": 0.08
+      },
+      "kill": {
+        "amp": 3,
+        "dur": 0.1
+      },
+      "hurt": {
+        "amp": 4,
+        "dur": 0.15
+      }
+    },
     "flashSec": 0.09,
     "hurtVignetteSec": 0.25
   },
   "enemies": {
     "shroomling": {
-      "hp": 45, "atk": 8, "def": 2, "speed": 2.0, "bodyRadius": 0.28,
-      "aggroRange": 6.0, "touchCooldown": 0.8, "wanderSpeed": 0.7,
-      "spore": { "radiusM": 1.2, "lifeS": 2.0, "intervalS": 0.5, "mult": 0.5 }
+      "hp": 45,
+      "atk": 8,
+      "def": 2,
+      "speed": 2.0,
+      "bodyRadius": 0.28,
+      "aggroRange": 6.0,
+      "touchCooldown": 0.8,
+      "wanderSpeed": 0.7,
+      "spore": {
+        "radiusM": 1.2,
+        "lifeS": 2.0,
+        "intervalS": 0.5,
+        "mult": 0.5
+      }
     },
     "windbee": {
-      "hp": 18, "atk": 6, "def": 0, "speed": 5.5, "bodyRadius": 0.18,
-      "orbitRadiusM": 2.5, "diveSpeed": 7.0, "diveDur": 0.5,
-      "diveIntervalMin": 2.0, "diveIntervalMax": 3.5, "telegraphS": 0.4, "touchCooldown": 0.6
+      "hp": 18,
+      "atk": 6,
+      "def": 0,
+      "speed": 5.5,
+      "bodyRadius": 0.18,
+      "orbitRadiusM": 2.5,
+      "diveSpeed": 7.0,
+      "diveDur": 0.5,
+      "diveIntervalMin": 2.0,
+      "diveIntervalMax": 3.5,
+      "telegraphS": 0.4,
+      "touchCooldown": 0.6
     },
     "blightwolf": {
-      "hp": 90, "atk": 14, "def": 4, "speed": 4.8, "bodyRadius": 0.34,
-      "circleRadiusM": 3.5, "circleTimeMin": 2.0, "circleTimeMax": 4.0,
-      "growlS": 0.5, "pounceSpeed": 9.0, "pounceDur": 0.4, "recoverS": 0.8, "touchCooldown": 1.2
+      "hp": 90,
+      "atk": 14,
+      "def": 4,
+      "speed": 4.8,
+      "bodyRadius": 0.34,
+      "circleRadiusM": 3.5,
+      "circleTimeMin": 2.0,
+      "circleTimeMax": 4.0,
+      "growlS": 0.5,
+      "pounceSpeed": 9.0,
+      "pounceDur": 0.4,
+      "recoverS": 0.8,
+      "touchCooldown": 1.2
     },
     "thornvine": {
-      "hp": 70, "atk": 12, "def": 3, "bodyRadius": 0.3,
-      "idleS": 1.4, "telegraphS": 0.6, "spikeRadiusM": 1.0, "rangeM": 7.0
+      "hp": 70,
+      "atk": 12,
+      "def": 3,
+      "bodyRadius": 0.3,
+      "idleS": 1.4,
+      "telegraphS": 0.6,
+      "spikeRadiusM": 1.0,
+      "rangeM": 7.0
     },
     "oakgolem": {
-      "hp": 320, "atk": 18, "def": 8, "speed": 1.6, "bodyRadius": 0.5,
-      "slamRangeM": 2.2, "slamTelegraphS": 0.7, "slamRadiusM": 1.8, "slamCdS": 2.6,
+      "hp": 320,
+      "atk": 18,
+      "def": 8,
+      "speed": 1.6,
+      "bodyRadius": 0.5,
+      "slamRangeM": 2.2,
+      "slamTelegraphS": 0.7,
+      "slamRadiusM": 1.8,
+      "slamCdS": 2.6,
       "backstabMult": 2.0
+    },
+    "emberimp": {
+      "name": "烬火小鬼",
+      "hp": 34,
+      "atk": 9,
+      "def": 0,
+      "speed": 2.6,
+      "bodyRadius": 0.28,
+      "keepMinM": 3.2,
+      "keepMaxM": 5.5,
+      "fireball": {
+        "cd": 2.4,
+        "aimS": 0.5,
+        "speedM": 5.5,
+        "radiusM": 0.24,
+        "mult": 1.0,
+        "lifeS": 3.0
+      }
+    },
+    "frostslime": {
+      "name": "霜核史莱姆",
+      "hp": 60,
+      "atk": 8,
+      "def": 2,
+      "speed": 1.6,
+      "bodyRadius": 0.34,
+      "hop": {
+        "cd": 1.1,
+        "dur": 0.45,
+        "speedM": 3.6
+      },
+      "split": {
+        "count": 2,
+        "hpMult": 0.4,
+        "radiusMult": 0.62
+      },
+      "contactCd": 0.9
+    },
+    "sparklizard": {
+      "name": "雷纹蜥",
+      "hp": 26,
+      "atk": 10,
+      "def": 0,
+      "speed": 3.0,
+      "bodyRadius": 0.24,
+      "dash": {
+        "cd": 2.2,
+        "telegraphS": 0.35,
+        "speedM": 9.0,
+        "dur": 0.35
+      },
+      "contactCd": 0.8
+    },
+    "toxintoad": {
+      "name": "毒沼蟾",
+      "hp": 55,
+      "atk": 9,
+      "def": 1,
+      "speed": 1.2,
+      "bodyRadius": 0.34,
+      "lob": {
+        "cd": 3.2,
+        "aimS": 0.45,
+        "rangeM": 6.0,
+        "zoneRadiusM": 1.1,
+        "zoneLifeS": 3.0,
+        "tickS": 0.5,
+        "mult": 0.5
+      },
+      "hop": {
+        "cd": 1.4,
+        "dur": 0.5,
+        "speedM": 2.6
+      },
+      "contactCd": 0.9
+    },
+    "stardustsprite": {
+      "name": "星尘精灵",
+      "hp": 20,
+      "atk": 0,
+      "def": 0,
+      "speed": 4.4,
+      "bodyRadius": 0.22,
+      "lifeS": 9.0,
+      "bonusMin": 40,
+      "bonusMax": 80
     }
   },
   "boss": {
     "nanmir": {
       "name": "腐木巨像·南弥尔",
-      "hp": 4200, "atk": 18, "def": 8, "speed": 1.2, "bodyRadius": 0.7,
-      "phase2At": 0.65, "phase3At": 0.30, "staggerS": 2.0, "idleS": 1.2,
-      "sweep": { "telegraphS": 0.8, "radiusM": 1.3, "rangeM": 2.4, "mult": 1.2 },
-      "rootline": { "telegraphS": 0.5, "stepS": 0.08, "count": 6, "spacingM": 1.1, "radiusM": 0.9, "mult": 1.0 },
-      "spikegrid": { "telegraphS": 0.9, "count": 12, "spreadM": 4.5, "radiusM": 1.0, "mult": 1.1 },
+      "hp": 4200,
+      "atk": 18,
+      "def": 8,
+      "speed": 1.2,
+      "bodyRadius": 0.7,
+      "phase2At": 0.65,
+      "phase3At": 0.3,
+      "staggerS": 2.0,
+      "idleS": 1.2,
+      "sweep": {
+        "telegraphS": 0.8,
+        "radiusM": 1.3,
+        "rangeM": 2.4,
+        "mult": 1.2
+      },
+      "rootline": {
+        "telegraphS": 0.5,
+        "stepS": 0.08,
+        "count": 6,
+        "spacingM": 1.1,
+        "radiusM": 0.9,
+        "mult": 1.0
+      },
+      "spikegrid": {
+        "telegraphS": 0.9,
+        "count": 12,
+        "spreadM": 4.5,
+        "radiusM": 1.0,
+        "mult": 1.1
+      },
       "summonCount": 4,
-      "storm": { "telegraphS": 1.0, "rings": [1.6, 2.7, 3.8], "perRing": 10, "gapLanes": 2, "radiusM": 0.9, "mult": 1.0 }
+      "storm": {
+        "telegraphS": 1.0,
+        "rings": [
+          1.6,
+          2.7,
+          3.8
+        ],
+        "perRing": 10,
+        "gapLanes": 2,
+        "radiusM": 0.9,
+        "mult": 1.0
+      }
     }
   },
   "rooms": {
     "count": 8,
     "eliteIndex": 4,
-    "choiceAt": [2, 5],
+    "choiceAt": [
+      2,
+      5
+    ],
     "waveBudgetBase": 6,
     "waveBudgetPerDepth": 2,
     "wavesPerRoom": 2,
-    "treasureItems": 3
+    "treasureItems": 3,
+    "spriteChance": 0.25
   },
   "night": {
-    "cycleS": 360, "dayS": 240,
-    "hpMult": 1.25, "atkMult": 1.15, "lootMult": 2
+    "cycleS": 360,
+    "dayS": 240,
+    "hpMult": 1.25,
+    "atkMult": 1.15,
+    "lootMult": 2
   },
-  "scalingPerDepth": { "hp": 1.06, "atk": 1.04 },
+  "scalingPerDepth": {
+    "hp": 1.06,
+    "atk": 1.04
+  },
   "altar": {
-    "baseCost": 50, "costGrowth": 1.6, "maxLevel": 10,
-    "hpPerLvl": 0.03, "atkPerLvl": 0.03, "luckPerLvl": 3
+    "baseCost": 50,
+    "costGrowth": 1.6,
+    "maxLevel": 10,
+    "hpPerLvl": 0.03,
+    "atkPerLvl": 0.03,
+    "luckPerLvl": 3
   },
   "loot": {
-    "rarityWeights": { "common": 55, "fine": 30, "rare": 12, "epic": 2.7, "legendary": 0.3 },
-    "affixCount": { "common": 0, "fine": 1, "rare": 2, "epic": 3, "legendary": 3 },
+    "rarityWeights": {
+      "common": 55,
+      "fine": 30,
+      "rare": 12,
+      "epic": 2.7,
+      "legendary": 0.3
+    },
+    "affixCount": {
+      "common": 0,
+      "fine": 1,
+      "rare": 2,
+      "epic": 3,
+      "legendary": 3
+    },
     "dropEquip": 0.18,
     "dropPotion": 0.06,
     "stardustMin": 8,
@@ -97,29 +324,205 @@
     "pickupBaseM": 0.8,
     "potionHealPct": 0.4,
     "potionMax": 3,
-    "salvage": { "common": 5, "fine": 12, "rare": 30, "epic": 80, "legendary": 200 },
+    "salvage": {
+      "common": 5,
+      "fine": 12,
+      "rare": 30,
+      "epic": 80,
+      "legendary": 200
+    },
     "baseValues": {
-      "weapon": [[8,10],[10,13],[13,17],[17,22],[22,28]],
-      "helmet": [[10,14],[14,20],[20,28],[28,38],[38,50]],
-      "chest": [[12,16],[16,24],[24,32],[32,44],[44,60]],
-      "boots": [[2,3],[3,4],[4,6],[6,8],[8,10]],
-      "ring": [[1,2],[2,3],[3,4],[4,6],[6,8]],
-      "amulet": [[3,4],[4,6],[6,8],[8,11],[11,15]]
+      "weapon": [
+        [
+          8,
+          10
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          13,
+          17
+        ],
+        [
+          17,
+          22
+        ],
+        [
+          22,
+          28
+        ]
+      ],
+      "helmet": [
+        [
+          10,
+          14
+        ],
+        [
+          14,
+          20
+        ],
+        [
+          20,
+          28
+        ],
+        [
+          28,
+          38
+        ],
+        [
+          38,
+          50
+        ]
+      ],
+      "chest": [
+        [
+          12,
+          16
+        ],
+        [
+          16,
+          24
+        ],
+        [
+          24,
+          32
+        ],
+        [
+          32,
+          44
+        ],
+        [
+          44,
+          60
+        ]
+      ],
+      "boots": [
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          10
+        ]
+      ],
+      "ring": [
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "amulet": [
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          11
+        ],
+        [
+          11,
+          15
+        ]
+      ]
     }
   },
   "reactions": {
     "markDurS": 4.0,
     "chainDecay": 0.8,
     "maxDepth": 4,
-    "steam": { "radiusM": 2.0, "mult": 1.8 },
-    "overload": { "mult": 2.2, "knockM": 2.0 },
-    "miasma": { "radiusM": 1.5, "lifeS": 3.0, "intervalS": 0.5, "mult": 0.4 },
-    "chain": { "targets": 4, "rangeM": 4.0, "mult": 0.8, "slowPct": 0.4, "slowS": 2.0 },
-    "brittle": { "vulnS": 4.0, "pct": 0.25 },
-    "numb": { "stunS": 1.2 }
+    "steam": {
+      "radiusM": 2.0,
+      "mult": 1.8
+    },
+    "overload": {
+      "mult": 2.2,
+      "knockM": 2.0
+    },
+    "miasma": {
+      "radiusM": 1.5,
+      "lifeS": 3.0,
+      "intervalS": 0.5,
+      "mult": 0.4
+    },
+    "chain": {
+      "targets": 4,
+      "rangeM": 4.0,
+      "mult": 0.8,
+      "slowPct": 0.4,
+      "slowS": 2.0
+    },
+    "brittle": {
+      "vulnS": 4.0,
+      "pct": 0.25
+    },
+    "numb": {
+      "stunS": 1.2
+    }
   },
   "arena": {
-    "widthM": 28, "heightM": 16,
-    "dummyCount": 3, "shroomTarget": 8, "beeTarget": 5, "wolfTarget": 2, "spawnInterval": 1.2
+    "widthM": 28,
+    "heightM": 16,
+    "dummyCount": 3,
+    "shroomTarget": 8,
+    "beeTarget": 5,
+    "wolfTarget": 2,
+    "spawnInterval": 1.2
+  },
+  "props": {
+    "tree": {
+      "bodyRadius": 0.45,
+      "perRoomMin": 3,
+      "perRoomMax": 6
+    },
+    "rock": {
+      "bodyRadius": 0.4,
+      "perRoomMin": 2,
+      "perRoomMax": 4
+    },
+    "bush": {
+      "bodyRadius": 0,
+      "perRoomMin": 3,
+      "perRoomMax": 6
+    }
   }
 }

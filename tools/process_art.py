@@ -22,6 +22,16 @@ TARGETS = {
     "thornvine": 38,
     "oakgolem": 64,
     "boss_nanmir": 132,
+    # 第二批:元素系新怪 + 稀有怪
+    "emberimp": 28,
+    "frostslime": 26,
+    "sparklizard": 26,
+    "toxintoad": 30,
+    "stardustsprite": 24,
+    # 场景物件
+    "prop_tree": 112,
+    "prop_rock": 44,
+    "prop_bush": 34,
 }
 TILE = {"grass_tile": 96}
 DIST = 88  # 幕布色距阈值

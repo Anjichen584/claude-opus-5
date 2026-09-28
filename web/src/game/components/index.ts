@@ -249,6 +249,78 @@ export class TelegraphStrike {
 // ---------- 帧内事件 ----------
 
 /** 通用提示飘字(拾取/治疗/保底等) */
+/** 烬火小鬼:漂浮拉开距离,吐火球(火印记远程) */
+export class EmberImp {
+  state: 'drift' | 'aim' | 'recover' = 'drift';
+  t = 0;
+  cd = 1.2;
+  animT = Math.random() * 10;
+  strafeDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 霜核史莱姆:跳跃逼近,接触冰印记;死亡分裂成2只小史莱姆 */
+export class FrostSlime {
+  hopT = 0;
+  cdT = Math.random() * 0.8;
+  contactCd = 0;
+  animT = Math.random() * 10;
+
+  constructor(
+    /** 2=大只(死亡分裂), 1=分裂出的小只 */
+    public size: 1 | 2 = 2,
+  ) {}
+}
+
+/** 雷纹蜥:游走→抖动预警→高速冲撞(雷印记) */
+export class SparkLizard {
+  state: 'skitter' | 'telegraph' | 'dash' = 'skitter';
+  t = 0;
+  cd = 1.5;
+  contactCd = 0;
+  dashX = 0;
+  dashY = 0;
+  animT = Math.random() * 10;
+  zigDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 毒沼蟾:蛙跳逼近,朝玩家吐毒沼(毒区域) */
+export class ToxinToad {
+  state: 'idle' | 'hop' | 'aim' = 'idle';
+  t = 0;
+  lobCd = 1.5;
+  hopCd = 0.6;
+  contactCd = 0;
+  animT = Math.random() * 10;
+}
+
+/** 星尘精灵:稀有逃跑怪,击杀掉大量星尘,超时消失 */
+export class StardustSprite {
+  lifeT: number;
+  animT = Math.random() * 10;
+
+  constructor(lifeS: number) {
+    this.lifeT = lifeS;
+  }
+}
+
+/** 弹幕(敌我通用):直线飞行,命中对立阵营结算 */
+export class Projectile {
+  constructor(
+    public team: Team,
+    public atk: number,
+    public mult: number,
+    public element: Element | null,
+    public radiusPx: number,
+    public lifeS: number,
+    public color: string,
+  ) {}
+}
+
+/** 场景物件:树/岩石可碰撞,灌木纯装饰 */
+export class PropObstacle {
+  constructor(public kind: 'tree' | 'rock' | 'bush') {}
+}
+
 export class ToastEvent {
   constructor(public text: string, public color: string) {}
 }

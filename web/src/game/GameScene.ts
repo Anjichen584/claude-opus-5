@@ -7,9 +7,10 @@ import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
-  BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, Equipment, Faction, Health,
-  Inventory, OakGolem, Pickup, Player, Portal, Shroomling, Stats, TelegraphStrike, ThornVine,
-  ToastEvent, Transform, Velocity, WindBee, Zone,
+  BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
+  FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
+  Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent,
+  ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import {
@@ -20,6 +21,8 @@ import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem } from '@game/skills/SkillSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
+import { CritterSystem } from '@game/systems/CritterSystem';
+import { ProjectileSystem } from '@game/systems/ProjectileSystem';
 import { BossSystem } from '@game/systems/BossSystem';
 import { PhysicsSystem } from '@game/systems/PhysicsSystem';
 import { CombatSystem } from '@game/systems/CombatSystem';
@@ -94,8 +97,10 @@ export class GameScene {
       this.skills,
       new EnemySystem(),
       new EliteSystem(),
+      new CritterSystem(),
       new BossSystem(),
       new PhysicsSystem(),
+      new ProjectileSystem(),
       new CombatSystem(),
       new ZoneSystem(),
       new TelegraphSystem(),
@@ -404,6 +409,136 @@ export class GameScene {
           })) drawBossNanmir(ctx, ix, iy, boss.animT, h.flash, faceLeft, boss.phase, stag);
         } });
       }
+      // ---- 元素杂兵四件套 + 星尘精灵 ----
+      const blob = (x: number, y: number, r: number, color: string): void => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y - r, r, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      for (const e of w.query(EmberImp, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const imp = w.mustGet(e, EmberImp);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 8);
+          const hover = Math.sin(imp.animT * 6) * 3 - 6;
+          const jit = imp.state === 'aim' ? (Math.random() - 0.5) * 0.2 : 0;
+          if (!drawSprite(ctx, 'emberimp', ix, iy + hover, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: jit + Math.sin(imp.animT * 3) * 0.06,
+            sx: imp.state === 'aim' ? 1.12 : 1,
+          })) blob(ix, iy + hover, 12, '#ff9a6b');
+        } });
+      }
+      for (const e of w.query(FrostSlime, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const s = w.mustGet(e, FrostSlime);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          const small = s.size === 1;
+          drawShadow(ctx, ix, iy, small ? 7 : 11);
+          const jump = s.hopT > 0;
+          if (!drawSprite(ctx, 'frostslime', ix, iy, {
+            flash: h.flash, scale: small ? 0.62 : 1,
+            sy: jump ? 1.18 : 1 + Math.sin(s.animT * 5) * 0.08,
+            sx: jump ? 0.88 : 1 - Math.sin(s.animT * 5) * 0.06,
+          })) blob(ix, iy, small ? 8 : 13, '#8fdcff');
+        } });
+      }
+      for (const e of w.query(SparkLizard, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const lz = w.mustGet(e, SparkLizard);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 12);
+          const faceLeft = Math.cos(tr.face) < 0;
+          const jit = lz.state === 'telegraph' ? (Math.random() - 0.5) * 0.24 : 0;
+          const lean = lz.state === 'dash' ? (faceLeft ? 0.18 : -0.18) : 0;
+          if (!drawSprite(ctx, 'sparklizard', ix, iy, {
+            flash: h.flash, faceLeft, rot: jit + lean,
+            sx: lz.state === 'dash' ? 1.15 : 1,
+          })) blob(ix, iy, 10, '#ffe57a');
+        } });
+      }
+      for (const e of w.query(ToxinToad, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const td = w.mustGet(e, ToxinToad);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 12);
+          if (!drawSprite(ctx, 'toxintoad', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            sx: td.state === 'aim' ? 1.18 : 1,
+            sy: td.state === 'hop' ? 1.12 : 1 + Math.sin(td.animT * 3) * 0.04,
+          })) blob(ix, iy, 12, '#b8e878');
+        } });
+      }
+      for (const e of w.query(StardustSprite, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const sp = w.mustGet(e, StardustSprite);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 6);
+          const hover = Math.sin(sp.animT * 8) * 4 - 8;
+          const blink = sp.lifeT < 3 ? 0.4 + 0.5 * Math.abs(Math.sin(sp.animT * 10)) : 1;
+          if (!drawSprite(ctx, 'stardustsprite', ix, iy + hover, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: Math.sin(sp.animT * 4) * 0.1, alpha: blink,
+          })) blob(ix, iy + hover, 9, '#ffd94f');
+          // 星尘轨迹
+          ctx.globalAlpha = 0.5 * blink;
+          ctx.fillStyle = '#ffd94f';
+          for (let i = 1; i <= 3; i++) {
+            const t = sp.animT * 8 - i * 0.9;
+            ctx.fillRect(ix - Math.cos(tr.face) * i * 9 - 2, iy + Math.sin(t) * 4 - 22, 3, 3);
+          }
+          ctx.globalAlpha = 1;
+        } });
+      }
+
+      // ---- 场景物件 ----
+      for (const e of w.query(PropObstacle, Transform)) {
+        const tr = w.mustGet(e, Transform);
+        const pk = w.mustGet(e, PropObstacle).kind;
+        list.push({ y: tr.y, draw: () => {
+          if (pk === 'tree') drawShadow(ctx, tr.x, tr.y, 20);
+          if (!drawSprite(ctx, `prop_${pk}`, tr.x, tr.y + (pk === 'tree' ? 6 : 2))) {
+            blob(tr.x, tr.y, pk === 'tree' ? 22 : pk === 'rock' ? 14 : 10,
+              pk === 'rock' ? '#9aa3ad' : '#4f8a44');
+          }
+        } });
+      }
+
+      // ---- 弹幕 ----
+      for (const e of w.query(Projectile, Transform)) {
+        const pj = w.mustGet(e, Projectile);
+        const tr = w.mustGet(e, Transform);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy + 6, draw: () => {
+          ctx.save();
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = pj.color;
+          ctx.beginPath();
+          ctx.arc(ix, iy, pj.radiusPx * 1.9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.beginPath();
+          ctx.arc(ix, iy, pj.radiusPx, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ix, iy, pj.radiusPx * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } });
+      }
+
       for (const e of w.query(Portal, Transform)) {
         const tr = w.mustGet(e, Transform);
         const po = w.mustGet(e, Portal);

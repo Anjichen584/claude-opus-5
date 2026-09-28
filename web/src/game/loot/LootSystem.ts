@@ -26,6 +26,17 @@ export class LootSystem implements System {
     const lootMult = clock.isNight() ? balance.night.lootMult : 1; // 夜晚掉落翻倍(GDD §9)
     for (const kill of world.read(KillEvent)) {
       if (kill.kind === '') continue; // 非怪物死亡(保险)
+      // 星尘精灵:一大袋星尘弹出,不走普通掉落
+      if (kill.kind === 'stardustsprite') {
+        const cfg = balance.enemies.stardustsprite;
+        const total = this.rng.int(cfg.bonusMin, cfg.bonusMax) * lootMult;
+        const motes = 6;
+        for (let i = 0; i < motes; i++) {
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, Math.ceil(total / motes)));
+        }
+        world.emit(new ToastEvent(`✨ 星尘精灵!+${total} 星尘`, RARITY_COLORS.legendary));
+        continue;
+      }
       // 星尘(必掉,拆成 2~4 颗弹出)
       const dust = this.rng.int(L.stardustMin, L.stardustMax) * lootMult;
       const motes = this.rng.int(2, 4);

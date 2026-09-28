@@ -2,9 +2,10 @@ import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  BeamFxEvent, BlightWolf, BossNanmir, Buffs, Dummy, Element, ElementMarks, Faction, Health,
-  HitEvent, KillEvent, OakGolem, Player, ReactionEvent, RingFxEvent, Shroomling, Stats,
-  ThornVine, Transform, WindBee, Zone,
+  BeamFxEvent, BlightWolf, Body, BossNanmir, Buffs, Dummy, Element, ElementMarks, EmberImp,
+  Faction, FrostSlime, Health, HitEvent, KillEvent, OakGolem, Player, ReactionEvent,
+  RingFxEvent, Shroomling, SparkLizard, StardustSprite, Stats, ThornVine, ToxinToad,
+  Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
@@ -120,12 +121,18 @@ export function dealDamage(world: World, o: DealOpts): void {
       const srcHp = world.get(o.source, Health);
       if (srcHp && srcHp.hp > 0) srcHp.hp = Math.min(srcHp.max, srcHp.hp + 3);
     }
+    const slime = world.get(o.target, FrostSlime);
     const kind = shroom ? 'shroomling'
       : world.has(o.target, WindBee) ? 'windbee'
       : world.has(o.target, BlightWolf) ? 'blightwolf'
       : world.has(o.target, ThornVine) ? 'thornvine'
       : golem ? 'oakgolem'
       : world.has(o.target, BossNanmir) ? 'boss'
+      : world.has(o.target, EmberImp) ? 'emberimp'
+      : slime ? 'frostslime'
+      : world.has(o.target, SparkLizard) ? 'sparklizard'
+      : world.has(o.target, ToxinToad) ? 'toxintoad'
+      : world.has(o.target, StardustSprite) ? 'stardustsprite'
       : 'monster';
     world.emit(new KillEvent(tTr.x, tTr.y, kind));
     // 菇灵死亡孢子雾(毒,伤玩家)——教学元素机制(docs/01 §8)
@@ -134,6 +141,26 @@ export function dealDamage(world: World, o: DealOpts): void {
       const z = world.create();
       world.add(z, new Transform(tTr.x, tTr.y));
       world.add(z, new Zone(sp.radiusM * M, sp.lifeS, sp.intervalS, balance.enemies.shroomling.atk, sp.mult, 'toxin', 'enemy', elementColor('toxin')));
+    }
+    // 霜核史莱姆:大只死亡分裂成两只小只(继承缩放血量)
+    if (slime && slime.size === 2) {
+      const cfg = balance.enemies.frostslime;
+      const tHp = world.get(o.target, Health);
+      const tStats = world.get(o.target, Stats);
+      const tBody = world.get(o.target, Body);
+      for (let i = 0; i < cfg.split.count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const mini = world.create();
+        world.add(mini, new Transform(tTr.x + Math.cos(a) * 18, tTr.y + Math.sin(a) * 18));
+        world.add(mini, new Velocity());
+        world.add(mini, new Body((tBody?.radius ?? cfg.bodyRadius) * cfg.split.radiusMult));
+        world.add(mini, new Health(Math.max(1, Math.round((tHp?.max ?? cfg.hp) * cfg.split.hpMult))));
+        world.add(mini, new Stats(Math.round((tStats?.atk ?? cfg.atk) * 0.7), cfg.speed * 1.25, 0, 1, 0));
+        world.add(mini, new Faction('enemy'));
+        world.add(mini, new FrostSlime(1));
+        world.add(mini, new ElementMarks());
+        world.add(mini, new Buffs());
+      }
     }
     world.destroy(o.target);
   }
