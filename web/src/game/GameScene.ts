@@ -9,7 +9,8 @@ import balance from '@data/balance.json';
 import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
-  BlizzardHawk, BossVelsha, FrostMage, IceTurtle, SnowPuff,
+  BlizzardHawk, BossKazra, BossVelsha, CinderRat, DuneBeetle, DustStinger, FlameDancer,
+  FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
   ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
   ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
@@ -27,7 +28,9 @@ import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
 import { CritterSystem } from '@game/systems/CritterSystem';
 import { TundraSystem } from '@game/systems/TundraSystem';
+import { DesertSystem } from '@game/systems/DesertSystem';
 import { BlizzardTimerSystem, VelshaSystem } from '@game/systems/VelshaSystem';
+import { KazraSystem } from '@game/systems/KazraSystem';
 import { ProjectileSystem } from '@game/systems/ProjectileSystem';
 import { BossSystem } from '@game/systems/BossSystem';
 import { PhysicsSystem } from '@game/systems/PhysicsSystem';
@@ -128,8 +131,10 @@ export class GameScene {
       new EliteSystem(),
       new CritterSystem(),
       new TundraSystem(),
+      new DesertSystem(),
       new BossSystem(),
       new VelshaSystem(),
+      new KazraSystem(),
       new BlizzardTimerSystem(),
       new PhysicsSystem(),
       new ProjectileSystem(),
@@ -313,7 +318,7 @@ export class GameScene {
   render(alpha: number, rawDt: number): void {
     if (rawDt > 0) this.fps = this.fps * 0.95 + (1 / rawDt) * 0.05;
     // 草地贴图解码完成后重烘焙地面
-    if (!this.bgHasTile && sprites.get(this.run !== undefined && this.run.chapter === 2 ? 'snow_tile' : 'grass_tile')) {
+    if (!this.bgHasTile && sprites.get(this.run !== undefined && this.run.chapter === 3 ? 'sand_tile' : this.run !== undefined && this.run.chapter === 2 ? 'snow_tile' : 'grass_tile')) {
       this.bgHasTile = true;
       this.bg = this.bakeBackground();
     }
@@ -688,13 +693,113 @@ export class GameScene {
         } });
       }
 
+      // ---- 第三章:荒漠怪 ----
+      for (const e of w.query(CinderRat, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const r0 = w.mustGet(e, CinderRat);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 8);
+          if (!drawSprite(ctx, 'cinderrat', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: Math.sin(r0.animT * 14) * 0.1,
+          })) blob(ix, iy, 9, '#ff9a6b');
+        } });
+      }
+      for (const e of w.query(DuneBeetle, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const b = w.mustGet(e, DuneBeetle);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          if (b.state === 'burrow') {
+            // 地下:移动沙丘
+            ctx.fillStyle = 'rgba(90,70,40,0.45)';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy, 16, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(140,110,60,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy - 3, 10, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+          }
+          drawShadow(ctx, ix, iy, 14);
+          const jit = b.state === 'telegraph' ? (Math.random() - 0.5) * 0.24 : 0;
+          if (!drawSprite(ctx, 'dunebeetle', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0, rot: jit,
+            sy: 1 + Math.sin(b.animT * 3) * 0.04,
+          })) blob(ix, iy, 14, '#c9a063');
+        } });
+      }
+      for (const e of w.query(FlameDancer, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const d = w.mustGet(e, FlameDancer);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 8);
+          const hover = Math.sin(d.animT * 5) * 3 - 8;
+          const jit = d.state === 'aim' ? (Math.random() - 0.5) * 0.18 : 0;
+          if (!drawSprite(ctx, 'flamedancer', ix, iy + hover, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: jit + Math.sin(d.animT * 4) * 0.1,
+            sx: d.state === 'aim' ? 1.12 : 1,
+          })) blob(ix, iy + hover, 10, '#ff9a6b');
+        } });
+      }
+      for (const e of w.query(DustStinger, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const s = w.mustGet(e, DustStinger);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 12);
+          if (!drawSprite(ctx, 'duststinger', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            sx: s.state === 'aim' ? 1.15 : 1,
+            sy: s.state === 'hop' ? 1.1 : 1 + Math.sin(s.animT * 3) * 0.04,
+          })) blob(ix, iy, 12, '#e8c07a');
+        } });
+      }
+      for (const e of w.query(BossKazra, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const boss = w.mustGet(e, BossKazra);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          if (boss.state !== 'walk') {
+            // 地下:巨大流沙涡
+            ctx.fillStyle = 'rgba(90,60,30,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy, 34, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,154,107,0.6)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(ix, iy, 22 + Math.sin(boss.animT * 8) * 4, 10, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            return;
+          }
+          drawShadow(ctx, ix, iy, 30);
+          if (!drawSprite(ctx, 'boss_kazra', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: Math.sin(boss.animT * 1.6) * 0.03,
+            sy: 1 + Math.sin(boss.animT * 2.6) * 0.025 + (boss.phase === 3 ? 0.03 : 0),
+          })) blob(ix, iy, 32, '#ff9a6b');
+        } });
+      }
+
       // ---- 场景物件 ----
       for (const e of w.query(PropObstacle, Transform)) {
         const tr = w.mustGet(e, Transform);
         const pk = w.mustGet(e, PropObstacle).kind;
         list.push({ y: tr.y, draw: () => {
           if (pk === 'tree') drawShadow(ctx, tr.x, tr.y, 20);
-          const propSprite = this.run.chapter === 2
+          const propSprite = this.run.chapter === 3
+            ? ({ tree: 'prop_cactus', rock: 'prop_sandrock', bush: 'prop_tumble' } as const)[pk]
+            : this.run.chapter === 2
             ? ({ tree: 'prop_pine', rock: 'prop_icerock', bush: 'prop_crystal' } as const)[pk]
             : `prop_${pk}`;
           if (!drawSprite(ctx, propSprite, tr.x, tr.y + (pk === 'tree' ? 6 : 2))) {
@@ -990,6 +1095,10 @@ export class GameScene {
       const boss = this.world.mustGet(e, BossVelsha);
       drawBossBar(this.world.mustGet(e, Health), balance.enemies.boss_velsha.name, boss.phase, false, '#5fa8d9');
     }
+    for (const e of this.world.query(BossKazra, Health)) {
+      const boss = this.world.mustGet(e, BossKazra);
+      drawBossBar(this.world.mustGet(e, Health), balance.enemies.boss_kazra.name, boss.phase, false, '#d97a3c');
+    }
 
     // 左下:翻滚冷却
     const cdRatio = p.dashCd > 0 ? 1 - p.dashCd / balance.player.dash.cooldown : 1;
@@ -1092,8 +1201,9 @@ export class GameScene {
     const ctx = cv.getContext('2d')!;
     const rng = new Rng(20231124);
 
-    const ch2 = this.run !== undefined && this.run.chapter === 2;
-    const tile = sprites.get(ch2 ? 'snow_tile' : 'grass_tile');
+    const ch = this.run !== undefined ? this.run.chapter : 1;
+    const ch2 = ch === 2;
+    const tile = sprites.get(ch === 3 ? 'sand_tile' : ch === 2 ? 'snow_tile' : 'grass_tile');
     if (tile) {
       // 正式地面贴图(无缝平铺,按章节切换)
       ctx.imageSmoothingEnabled = false;
@@ -1103,9 +1213,9 @@ export class GameScene {
         ctx.fillRect(0, 0, wPx, hPx);
       }
     } else {
-      const colA = ch2 ? '#d7e6ee' : FOREST.grassA;
-      const colB = ch2 ? '#c9dce8' : FOREST.grassB;
-      const colC = ch2 ? '#eef6fa' : FOREST.grassC;
+      const colA = ch === 3 ? '#e8d9a8' : ch2 ? '#d7e6ee' : FOREST.grassA;
+      const colB = ch === 3 ? '#dfcd96' : ch2 ? '#c9dce8' : FOREST.grassB;
+      const colC = ch === 3 ? '#f2e8c0' : ch2 ? '#eef6fa' : FOREST.grassC;
       for (let ty = 0; ty < balance.arena.heightM; ty++) {
         for (let tx = 0; tx < balance.arena.widthM; tx++) {
           ctx.fillStyle = (tx + ty) % 2 === 0 ? colA : colB;

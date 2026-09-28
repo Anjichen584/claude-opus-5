@@ -49,8 +49,17 @@ TARGETS = {
     "blizzardhawk": 26,
     "frostmage": 32,
     "boss_velsha": 128,
+    # 第三章「烬语荒漠」
+    "cinderrat": 22,
+    "dunebeetle": 36,
+    "flamedancer": 34,
+    "duststinger": 32,
+    "boss_kazra": 130,
+    "prop_cactus": 60,
+    "prop_sandrock": 48,
+    "prop_tumble": 32,
 }
-TILE = {"grass_tile": 96, "snow_tile": 96}
+TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
 DIST = 88  # 幕布色距阈值
 
 

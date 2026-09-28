@@ -51,13 +51,22 @@ describe('balance.json 完整性', () => {
     expect(balance.classes.warden.combo.mults.length).toBe(3);
   });
 
-  it('章节配置:第二章更难更富,解锁条件递进', () => {
-    const c1 = balance.chapters['1'];
-    const c2 = balance.chapters['2'];
-    expect(c2.statMult).toBeGreaterThan(c1.statMult);
-    expect(c2.lootMult).toBeGreaterThan(c1.lootMult);
-    expect(c2.lanternCost).toBeGreaterThan(c1.lanternCost);
-    expect(c2.unlockClears).toBeGreaterThan(c1.unlockClears);
+  it('三章配置:难度/收益/解锁条件严格递进', () => {
+    const cs = [balance.chapters['1'], balance.chapters['2'], balance.chapters['3']];
+    for (let i = 1; i < cs.length; i++) {
+      expect(cs[i].statMult).toBeGreaterThan(cs[i - 1].statMult);
+      expect(cs[i].lootMult).toBeGreaterThan(cs[i - 1].lootMult);
+      expect(cs[i].lanternCost).toBeGreaterThan(cs[i - 1].lanternCost);
+      expect(cs[i].unlockClears).toBeGreaterThan(cs[i - 1].unlockClears);
+    }
+  });
+
+  it('三 Boss 血量递进,均有三阶段', () => {
+    const bosses = [balance.boss.nanmir.hp, balance.enemies.boss_velsha.hp, balance.enemies.boss_kazra.hp];
+    expect(bosses[1]).toBeGreaterThan(bosses[0]);
+    expect(bosses[2]).toBeGreaterThan(bosses[1]);
+    expect(balance.enemies.boss_kazra.phase2At).toBeGreaterThan(balance.enemies.boss_kazra.phase3At);
+    expect(balance.enemies.boss_kazra.burrow.dives).toBeGreaterThan(0);
   });
 
   it('第二章 Boss 薇尔莎三阶段配置', () => {

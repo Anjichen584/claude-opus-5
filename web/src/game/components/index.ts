@@ -413,6 +413,56 @@ export class BossVelsha {
   animT = 0;
 }
 
+/** ===== 第三章「烬语荒漠」怪物 ===== */
+
+/** 烬鼠:高速 Z 字贴脸群怪 */
+export class CinderRat {
+  contactCd = 0;
+  animT = Math.random() * 10;
+  zigDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 沙暴甲虫:钻地移动 → 脚下预警钻出 AOE → 地面追击 */
+export class DuneBeetle {
+  state: 'burrow' | 'telegraph' | 'surface' = 'burrow';
+  t = 0;
+  contactCd = 0;
+  animT = Math.random() * 10;
+}
+
+/** 火舞妖:短距瞬跳走位 + 双火球 */
+export class FlameDancer {
+  state: 'drift' | 'aim' | 'recover' = 'drift';
+  t = 0;
+  cd = 1.4;
+  hopCd = 1.8;
+  animT = Math.random() * 10;
+  strafeDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 岩尾蝎:蝎尾抛毒沼 + 蟹步逼近 */
+export class DustStinger {
+  state: 'idle' | 'hop' | 'aim' = 'idle';
+  t = 0;
+  lobCd = 1.6;
+  hopCd = 0.5;
+  contactCd = 0;
+  animT = Math.random() * 10;
+}
+
+/** 第三章 Boss:熔核蝎皇·卡兹拉(火弹散射/钻地突袭/熔痕/召唤烬鼠) */
+export class BossKazra {
+  phase: 1 | 2 | 3 = 1;
+  state: 'walk' | 'burrowing' | 'emergeTele' = 'walk';
+  t = 0;
+  volleyCd = 2.0;
+  burrowCd = 5.0;
+  summonCd = 7.0;
+  trailT = 0;
+  divesLeft = 0;
+  animT = 0;
+}
+
 export class ToastEvent {
   constructor(public text: string, public color: string) {}
 }

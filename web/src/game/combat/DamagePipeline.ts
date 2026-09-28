@@ -2,10 +2,11 @@ import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  BeamFxEvent, BlightWolf, BlizzardHawk, Body, BossNanmir, BossVelsha, Buffs, Dummy, Element,
-  ElementMarks, EmberImp, Faction, FrostMage, FrostSlime, Health, HitEvent, IceTurtle,
-  KillEvent, OakGolem, Player, ReactionEvent, RingFxEvent, Shroomling, SnowPuff, SparkLizard,
-  StardustSprite, Stats, ThornVine, ToxinToad, Transform, Velocity, WindBee, Zone,
+  BeamFxEvent, BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs,
+  CinderRat, Dummy, DuneBeetle, DustStinger, Element, ElementMarks, EmberImp, Faction,
+  FlameDancer, FrostMage, FrostSlime, Health, HitEvent, IceTurtle, KillEvent, OakGolem,
+  Player, ReactionEvent, RingFxEvent, Shroomling, SnowPuff, SparkLizard, StardustSprite,
+  Stats, ThornVine, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
@@ -133,6 +134,11 @@ export function dealDamage(world: World, o: DealOpts): void {
       : golem ? 'oakgolem'
       : world.has(o.target, BossNanmir) ? 'boss'
       : world.has(o.target, BossVelsha) ? 'boss'
+      : world.has(o.target, BossKazra) ? 'boss'
+      : world.has(o.target, CinderRat) ? 'cinderrat'
+      : world.has(o.target, DuneBeetle) ? 'dunebeetle'
+      : world.has(o.target, FlameDancer) ? 'flamedancer'
+      : world.has(o.target, DustStinger) ? 'duststinger'
       : world.has(o.target, SnowPuff) ? 'snowpuff'
       : world.has(o.target, IceTurtle) ? 'iceturtle'
       : world.has(o.target, BlizzardHawk) ? 'blizzardhawk'

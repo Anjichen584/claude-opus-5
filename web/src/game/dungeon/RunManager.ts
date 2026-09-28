@@ -3,8 +3,9 @@ import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import { M, RARITY_COLORS } from '@game/constants';
 import {
-  BlightWolf, BlizzardHawk, Body, BossNanmir, BossVelsha, Buffs, ElementMarks, EmberImp,
-  EventTotem, Faction, FrostMage, FrostSlime, Health, IceTurtle, SnowPuff,
+  BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
+  DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
+  FrostMage, FrostSlime, Health, IceTurtle, SnowPuff,
   OakGolem, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
@@ -19,7 +20,8 @@ export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'even
 type SpawnKind =
   | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem'
   | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite'
-  | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage';
+  | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage'
+  | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger';
 
 const R = balance.rooms;
 
@@ -38,12 +40,12 @@ export class RunManager {
   private portalsSpawned = false;
   private spriteSpawned = false;
   /** 当前章节(GameScene.startRun 设置) */
-  chapter: 1 | 2 = 1;
+  chapter: 1 | 2 | 3 = 1;
   private rng = new Rng(Date.now() >>> 0);
 
   /** 章节配置 */
   get chapterCfg(): (typeof balance.chapters)['1'] {
-    return this.chapter === 2 ? balance.chapters['2'] : balance.chapters['1'];
+    return this.chapter === 3 ? balance.chapters['3'] : this.chapter === 2 ? balance.chapters['2'] : balance.chapters['1'];
   }
 
   constructor(private readonly factory: ItemFactory) {}
@@ -141,7 +143,9 @@ export class RunManager {
       case 'boss': {
         this.pendingWaves = 0;
         const mul = this.chapterCfg.statMult;
-        const cfg = this.chapter === 2
+        const cfg = this.chapter === 3
+          ? balance.enemies.boss_kazra
+          : this.chapter === 2
           ? balance.enemies.boss_velsha
           : balance.boss.nanmir;
         const night = clock.isNight();
@@ -149,15 +153,17 @@ export class RunManager {
         world.add(e, new Transform((balance.arena.widthM - 6) * M, (balance.arena.heightM / 2) * M));
         world.add(e, new Velocity());
         world.add(e, new Body(cfg.bodyRadius, false));
-        world.add(e, new Health(Math.round(scaleHp(cfg.hp, 0, night) * (this.chapter === 2 ? 1 : mul))));
-        world.add(e, new Stats(Math.round(scaleAtk(cfg.atk, 0, night) * (this.chapter === 2 ? 1 : mul)), cfg.speed, 0, 1, cfg.def));
+        const bossOwnTuned = this.chapter >= 2; // 二三章 Boss 血攻已按章调好,不再乘章节系数
+        world.add(e, new Health(Math.round(scaleHp(cfg.hp, 0, night) * (bossOwnTuned ? 1 : mul))));
+        world.add(e, new Stats(Math.round(scaleAtk(cfg.atk, 0, night) * (bossOwnTuned ? 1 : mul)), cfg.speed, 0, 1, cfg.def));
         world.add(e, new Faction('enemy'));
-        if (this.chapter === 2) world.add(e, new BossVelsha());
+        if (this.chapter === 3) world.add(e, new BossKazra());
+        else if (this.chapter === 2) world.add(e, new BossVelsha());
         else world.add(e, new BossNanmir());
         world.add(e, new ElementMarks());
         world.add(e, new Buffs());
         this.bossSpawned = true;
-        world.emit(new ToastEvent(cfg.name, this.chapter === 2 ? '#8fdcff' : '#e05f5f'));
+        world.emit(new ToastEvent(cfg.name, this.chapter === 3 ? '#ff9a6b' : this.chapter === 2 ? '#8fdcff' : '#e05f5f'));
         world.emit(new SfxEvent('ult'));
         break;
       }
@@ -182,9 +188,11 @@ export class RunManager {
         world.count(ThornVine) + world.count(OakGolem) + world.count(BossNanmir) +
         world.count(EmberImp) + world.count(FrostSlime) + world.count(SparkLizard) +
         world.count(ToxinToad) + world.count(SnowPuff) + world.count(IceTurtle) +
-        world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha);
+        world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha) +
+        world.count(CinderRat) + world.count(DuneBeetle) + world.count(FlameDancer) +
+        world.count(DustStinger) + world.count(BossKazra);
       if (this.roomKind === 'boss') {
-        if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) === 0) return 'victory';
+        if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) + world.count(BossKazra) === 0) return 'victory';
       } else if (enemiesLeft === 0 && this.pendingWaves === 0) {
         this.cleared = true;
         world.emit(new ToastEvent('房间清空!前往出口 →', '#5FD068'));
@@ -241,7 +249,13 @@ export class RunManager {
     const night = clock.isNight();
     const budget = R.waveBudgetBase + this.depth * R.waveBudgetPerDepth;
     if (this.roomKind === 'elite') {
-      if (this.chapter === 2) {
+      if (this.chapter === 3) {
+        this.spawn(world, 'dunebeetle', night);
+        this.spawn(world, 'dunebeetle', night);
+        this.spawn(world, 'flamedancer', night);
+        this.spawn(world, 'duststinger', night);
+        for (let i = 0; i < 4; i++) this.spawn(world, 'cinderrat', night);
+      } else if (this.chapter === 2) {
         this.spawn(world, 'iceturtle', night);
         this.spawn(world, 'iceturtle', night);
         this.spawn(world, 'frostmage', night);
@@ -259,7 +273,16 @@ export class RunManager {
     }
 
     // 出怪池: [kind, 权重, 预算消耗, 解锁深度](按章节切换)
-    const pool: Array<[SpawnKind, number, number, number]> = this.chapter === 2
+    const pool: Array<[SpawnKind, number, number, number]> = this.chapter === 3
+      ? [
+          ['cinderrat', 30, 1, 0],
+          ['duststinger', 18, 2, 0],
+          ['flamedancer', 16, 2, 1],
+          ['sparklizard', 12, 1, 1], // 荒漠雷蜥(雷,与火组成超载连锁)
+          ['dunebeetle', 16, 2, 2],
+          ['frostslime', 10, 2, 3], // 绿洲史莱姆(冰,反差连锁)
+        ]
+      : this.chapter === 2
       ? [
           ['snowpuff', 30, 1, 0],
           ['blizzardhawk', 20, 1, 0],
@@ -395,6 +418,10 @@ export class RunManager {
       case 'iceturtle': world.add(e, new IceTurtle()); break;
       case 'blizzardhawk': world.add(e, new BlizzardHawk()); break;
       case 'frostmage': world.add(e, new FrostMage()); break;
+      case 'cinderrat': world.add(e, new CinderRat()); break;
+      case 'dunebeetle': world.add(e, new DuneBeetle()); break;
+      case 'flamedancer': world.add(e, new FlameDancer()); break;
+      case 'duststinger': world.add(e, new DustStinger()); break;
     }
   }
 }
