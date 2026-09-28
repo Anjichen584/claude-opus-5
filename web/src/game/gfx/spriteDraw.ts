@@ -65,4 +65,5 @@ export const SPRITE_NAMES = [
   'shroomling', 'windbee', 'blightwolf', 'thornvine', 'oakgolem', 'boss_nanmir', 'grass_tile',
   'emberimp', 'frostslime', 'sparklizard', 'toxintoad', 'stardustsprite',
   'prop_tree', 'prop_rock', 'prop_bush',
+  'snowpuff', 'iceturtle', 'blizzardhawk', 'frostmage', 'boss_velsha', 'snow_tile',
 ] as const;

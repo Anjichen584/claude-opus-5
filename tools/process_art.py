@@ -35,8 +35,14 @@ TARGETS = {
     "prop_tree": 112,
     "prop_rock": 44,
     "prop_bush": 34,
+    # 第二章「霜语冰原」
+    "snowpuff": 26,
+    "iceturtle": 40,
+    "blizzardhawk": 26,
+    "frostmage": 32,
+    "boss_velsha": 128,
 }
-TILE = {"grass_tile": 96}
+TILE = {"grass_tile": 96, "snow_tile": 96}
 DIST = 88  # 幕布色距阈值
 
 
@@ -73,6 +79,16 @@ def key_out(img: Image.Image) -> Image.Image:
             if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and is_bg(px[nx, ny]):
                 seen[ny * w + nx] = 1
                 q.append((nx, ny))
+
+    # 品红幕布:封闭孔洞里的残留(洪泛够不到)按纯色距直接清除
+    # (品红几乎不会出现在角色本体上,安全;绿幕不做全局清除以保护绿色生物)
+    magenta_bg = br > 180 and bb > 180 and bg < 120
+    if magenta_bg:
+        for y in range(h):
+            for x in range(w):
+                p = px[x, y]
+                if p[3] > 0 and p[0] > 165 and p[2] > 165 and p[1] < 110 and abs(p[0] - p[2]) < 70:
+                    px[x, y] = (0, 0, 0, 0)
 
     # 去色溢:紧邻透明区的像素,压制幕布主导通道
     green_bg = bg > br and bg > bb

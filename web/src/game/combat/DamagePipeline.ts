@@ -2,10 +2,10 @@ import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  BeamFxEvent, BlightWolf, Body, BossNanmir, Buffs, Dummy, Element, ElementMarks, EmberImp,
-  Faction, FrostSlime, Health, HitEvent, KillEvent, OakGolem, Player, ReactionEvent,
-  RingFxEvent, Shroomling, SparkLizard, StardustSprite, Stats, ThornVine, ToxinToad,
-  Transform, Velocity, WindBee, Zone,
+  BeamFxEvent, BlightWolf, BlizzardHawk, Body, BossNanmir, BossVelsha, Buffs, Dummy, Element,
+  ElementMarks, EmberImp, Faction, FrostMage, FrostSlime, Health, HitEvent, IceTurtle,
+  KillEvent, OakGolem, Player, ReactionEvent, RingFxEvent, Shroomling, SnowPuff, SparkLizard,
+  StardustSprite, Stats, ThornVine, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
@@ -60,6 +60,10 @@ export function dealDamage(world: World, o: DealOpts): void {
   const golem = world.get(o.target, OakGolem);
   if (golem && Math.cos(o.hitAngle - tTr.face) > 0.35) {
     backstab = balance.enemies.oakgolem.backstabMult;
+  }
+  // 冰壳龟正面减伤:从正面命中 ×(1-frontDR)(绕后打屁股)
+  if (world.has(o.target, IceTurtle) && Math.cos(o.hitAngle - tTr.face) < -0.35) {
+    backstab *= 1 - balance.enemies.iceturtle.frontDR;
   }
 
   const amount = finalDamage(atk, o.mult * elemBonus * backstab * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
@@ -128,6 +132,11 @@ export function dealDamage(world: World, o: DealOpts): void {
       : world.has(o.target, ThornVine) ? 'thornvine'
       : golem ? 'oakgolem'
       : world.has(o.target, BossNanmir) ? 'boss'
+      : world.has(o.target, BossVelsha) ? 'boss'
+      : world.has(o.target, SnowPuff) ? 'snowpuff'
+      : world.has(o.target, IceTurtle) ? 'iceturtle'
+      : world.has(o.target, BlizzardHawk) ? 'blizzardhawk'
+      : world.has(o.target, FrostMage) ? 'frostmage'
       : world.has(o.target, EmberImp) ? 'emberimp'
       : slime ? 'frostslime'
       : world.has(o.target, SparkLizard) ? 'sparklizard'

@@ -51,6 +51,22 @@ describe('balance.json 完整性', () => {
     expect(balance.classes.warden.combo.mults.length).toBe(3);
   });
 
+  it('章节配置:第二章更难更富,解锁条件递进', () => {
+    const c1 = balance.chapters['1'];
+    const c2 = balance.chapters['2'];
+    expect(c2.statMult).toBeGreaterThan(c1.statMult);
+    expect(c2.lootMult).toBeGreaterThan(c1.lootMult);
+    expect(c2.lanternCost).toBeGreaterThan(c1.lanternCost);
+    expect(c2.unlockClears).toBeGreaterThan(c1.unlockClears);
+  });
+
+  it('第二章 Boss 薇尔莎三阶段配置', () => {
+    const b = balance.enemies.boss_velsha;
+    expect(b.phase2At).toBeGreaterThan(b.phase3At);
+    expect(b.volley.count).toBeGreaterThanOrEqual(6);
+    expect(b.summon.count).toBeGreaterThan(0);
+  });
+
   it('图纸系统参数合法', () => {
     expect(balance.blueprint.craftCost).toBeGreaterThan(0);
     expect(balance.blueprint.shardsPerBoss).toBeGreaterThan(0);

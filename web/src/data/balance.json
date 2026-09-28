@@ -218,6 +218,107 @@
       "lifeS": 9.0,
       "bonusMin": 40,
       "bonusMax": 80
+    },
+    "snowpuff": {
+      "name": "雪绒球",
+      "hp": 30,
+      "atk": 9,
+      "def": 0,
+      "speed": 3.2,
+      "bodyRadius": 0.26,
+      "roll": {
+        "cd": 1.6,
+        "dur": 0.6,
+        "speedM": 5.0
+      },
+      "contactCd": 0.8
+    },
+    "iceturtle": {
+      "name": "冰壳龟",
+      "hp": 110,
+      "atk": 12,
+      "def": 4,
+      "speed": 1.0,
+      "bodyRadius": 0.4,
+      "spin": {
+        "cd": 3.5,
+        "telegraphS": 0.6,
+        "dur": 1.0,
+        "speedM": 4.5
+      },
+      "frontDR": 0.5,
+      "contactCd": 0.9
+    },
+    "blizzardhawk": {
+      "name": "风雪隼",
+      "hp": 34,
+      "atk": 11,
+      "def": 0,
+      "speed": 3.4,
+      "bodyRadius": 0.26,
+      "dive": {
+        "cd": 2.6,
+        "telegraphS": 0.45,
+        "speedM": 10.0,
+        "dur": 0.4
+      },
+      "contactCd": 0.8
+    },
+    "frostmage": {
+      "name": "霜语法师",
+      "hp": 40,
+      "atk": 10,
+      "def": 1,
+      "speed": 2.2,
+      "bodyRadius": 0.28,
+      "keepMinM": 3.5,
+      "keepMaxM": 6.0,
+      "bolt": {
+        "cd": 2.8,
+        "aimS": 0.55,
+        "speedM": 6.0,
+        "radiusM": 0.22,
+        "mult": 1.0,
+        "lifeS": 2.5
+      }
+    },
+    "boss_velsha": {
+      "name": "霜语女妖·薇尔莎",
+      "hp": 5200,
+      "atk": 16,
+      "def": 3,
+      "speed": 2.0,
+      "bodyRadius": 0.55,
+      "phase2At": 0.65,
+      "phase3At": 0.3,
+      "volley": {
+        "cd": 3.2,
+        "count": 8,
+        "speedM": 5.5,
+        "radiusM": 0.2,
+        "mult": 0.9,
+        "lifeS": 3.0
+      },
+      "blizzard": {
+        "cd": 4.0,
+        "count": 3,
+        "radiusM": 1.3,
+        "telegraphS": 0.9,
+        "mult": 1.2,
+        "zoneLifeS": 2.5,
+        "tickS": 0.5,
+        "zoneMult": 0.4
+      },
+      "summon": {
+        "cd": 8.0,
+        "count": 2
+      },
+      "charge": {
+        "cd": 5.0,
+        "telegraphS": 0.6,
+        "speedM": 9.0,
+        "dur": 0.5
+      }
     }
   },
   "boss": {
@@ -617,5 +718,23 @@
     "shardsPerBoss": 1,
     "nightBonus": 1,
     "craftCost": 5
+  },
+  "chapters": {
+    "1": {
+      "name": "翠语林地",
+      "tile": "grass_tile",
+      "statMult": 1.0,
+      "lootMult": 1.0,
+      "lanternCost": 120,
+      "unlockClears": 0
+    },
+    "2": {
+      "name": "霜语冰原",
+      "tile": "snow_tile",
+      "statMult": 1.35,
+      "lootMult": 1.3,
+      "lanternCost": 156,
+      "unlockClears": 1
+    }
   }
 }

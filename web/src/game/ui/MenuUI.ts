@@ -26,6 +26,9 @@ type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
 export class MenuUI {
   /** 出战职业(职业卡选择,startRun 读取) */
   selectedClass: Klass = 'blade';
+  /** 出战章节 */
+  selectedChapter: 1 | 2 = 1;
+  private chapterRects: Array<{ rect: Rect; ch: 1 | 2 }> = [];
   private startRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private altarRects: Array<{ rect: Rect; key: 'hp' | 'atk' | 'luck' }> = [];
   private classRects: Array<{ rect: Rect; klass: Klass }> = [];
@@ -45,6 +48,12 @@ export class MenuUI {
       }
       for (const cr of this.classRects) {
         if (inside(cr.rect, mx, my)) this.selectedClass = cr.klass;
+      }
+      for (const ch of this.chapterRects) {
+        if (inside(ch.rect, mx, my)) {
+          const cfg = ch.ch === 2 ? balance.chapters['2'] : balance.chapters['1'];
+          if (meta.data.stats.clears >= cfg.unlockClears) this.selectedChapter = ch.ch;
+        }
       }
       // 星辉铸台:5 碎片 → 预订下局开局橙装
       if (inside(this.craftRect, mx, my)) {
@@ -111,10 +120,36 @@ export class MenuUI {
       this.classRects.push({ rect: { x, y, w: cw, h: ch }, klass: c.klass });
     });
 
+    // 章节选择(通关第一章解锁第二章)
+    this.chapterRects = [];
+    const chs: Array<{ ch: 1 | 2; cfg: (typeof balance.chapters)['1'] }> = [
+      { ch: 1, cfg: balance.chapters['1'] },
+      { ch: 2, cfg: balance.chapters['2'] },
+    ];
+    const pw = 210;
+    chs.forEach((c, i) => {
+      const x = w / 2 - pw - 10 + i * (pw + 20);
+      const y = h * 0.345;
+      const locked = meta.data.stats.clears < c.cfg.unlockClears;
+      const sel = this.selectedChapter === c.ch;
+      ctx.fillStyle = sel ? '#2a3147' : UI.panel;
+      ctx.fillRect(x, y, pw, 24);
+      ctx.strokeStyle = sel ? UI.gold : '#3a4154';
+      ctx.lineWidth = sel ? 2 : 1;
+      ctx.strokeRect(x, y, pw, 24);
+      ctx.fillStyle = locked ? UI.dim : sel ? UI.gold : UI.text;
+      ctx.font = '12px monospace';
+      ctx.fillText(
+        locked ? `🔒 第${c.ch}章 ${c.cfg.name}(通关第一章解锁)` : `第${c.ch}章 · ${c.cfg.name}`,
+        x + pw / 2, y + 16,
+      );
+      this.chapterRects.push({ rect: { x, y, w: pw, h: 24 }, ch: c.ch });
+    });
+
     // 开始按钮
     const bw = 240;
     const bh = 52;
-    this.startRect = { x: w / 2 - bw / 2, y: h * 0.38, w: bw, h: bh };
+    this.startRect = { x: w / 2 - bw / 2, y: h * 0.40, w: bw, h: bh };
     const hov = inside(this.startRect, this.input.mouseX, this.input.mouseY);
     ctx.fillStyle = hov ? '#2a3147' : UI.panel;
     ctx.fillRect(this.startRect.x, this.startRect.y, bw, bh);

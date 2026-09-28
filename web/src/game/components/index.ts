@@ -357,6 +357,62 @@ export class EventTotem {
   constructor(public kind: 'blood' | 'blessing' | 'fountain') {}
 }
 
+/** ===== 第二章「霜语冰原」怪物 ===== */
+
+/** 雪绒球:滚动冲撞的蓬松雪球(冰接触) */
+export class SnowPuff {
+  rollT = 0;
+  cdT = Math.random() * 1.2;
+  contactCd = 0;
+  animT = Math.random() * 10;
+}
+
+/** 冰壳龟:正面减伤,周期性旋壳冲撞 */
+export class IceTurtle {
+  state: 'crawl' | 'telegraph' | 'spin' = 'crawl';
+  t = 0;
+  cd = 2.0;
+  contactCd = 0;
+  spinX = 0;
+  spinY = 0;
+  animT = Math.random() * 10;
+}
+
+/** 风雪隼:悬空盘旋 → 俯冲直线突袭 */
+export class BlizzardHawk {
+  state: 'hover' | 'telegraph' | 'dive' = 'hover';
+  t = 0;
+  cd = 1.4;
+  contactCd = 0;
+  diveX = 0;
+  diveY = 0;
+  animT = Math.random() * 10;
+  circleDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 霜语法师:风筝远程,吟唱冰弹 */
+export class FrostMage {
+  state: 'drift' | 'aim' | 'recover' = 'drift';
+  t = 0;
+  cd = 1.5;
+  animT = Math.random() * 10;
+  strafeDir = Math.random() < 0.5 ? 1 : -1;
+}
+
+/** 第二章 Boss:霜语女妖·薇尔莎(三阶段:冰弹环/暴风雪+召唤/冲锋强化) */
+export class BossVelsha {
+  phase: 1 | 2 | 3 = 1;
+  state: 'float' | 'chargeTele' | 'charge' = 'float';
+  t = 0;
+  volleyCd = 2.0;
+  blizzardCd = 5.0;
+  summonCd = 6.0;
+  chargeCd = 7.0;
+  dashX = 0;
+  dashY = 0;
+  animT = 0;
+}
+
 export class ToastEvent {
   constructor(public text: string, public color: string) {}
 }
