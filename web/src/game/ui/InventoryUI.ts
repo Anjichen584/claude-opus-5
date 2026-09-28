@@ -41,7 +41,7 @@ export class InventoryUI {
 
   /** 每帧调用(即使暂停)。返回 true 表示本帧消费了输入。 */
   handleInput(world: World, pe: Entity): boolean {
-    if (this.input.wasPressed('Tab') || this.input.wasPressed('KeyB')) {
+    if (this.input.wasPressed('Tab') || this.input.wasPressed('KeyB') || this.input.wasPressed('PadBack')) {
       this.open = !this.open;
     }
     if (!this.open) return false;

@@ -40,7 +40,7 @@ export class ShopSystem implements System {
       }
     }
     this.nearbyStand = best;
-    if (best === null || !this.input.wasPressed('KeyF')) return;
+    if (best === null || !(this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) return;
 
     const stand = world.mustGet(best, ShopStand);
     if (p.stardust < stand.price) {

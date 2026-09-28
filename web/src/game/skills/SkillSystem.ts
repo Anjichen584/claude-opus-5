@@ -101,9 +101,9 @@ export class SkillSystem implements System {
     if (p.cdR > 0) p.cdR -= dt;
     if (p.respawnT > 0 || p.dashT > 0) return;
 
-    if (this.input.wasPressed('KeyQ') && p.cdQ <= 0) this.castQ(world, pe, p, tr);
-    if (this.input.wasPressed('KeyE') && p.cdE <= 0) this.castE(world, pe, p, tr);
-    if (this.input.wasPressed('KeyR') && p.cdR <= 0) this.castR(world, pe, p, tr);
+    if ((this.input.wasPressed('KeyQ') || this.input.wasPressed('PadLB')) && p.cdQ <= 0) this.castQ(world, pe, p, tr);
+    if ((this.input.wasPressed('KeyE') || this.input.wasPressed('PadRB')) && p.cdE <= 0) this.castE(world, pe, p, tr);
+    if ((this.input.wasPressed('KeyR') || this.input.wasPressed('PadY')) && p.cdR <= 0) this.castR(world, pe, p, tr);
   }
 
   // ---- Q:剑士裂空斩 / 猎手瞬影三连 ----

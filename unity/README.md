@@ -28,6 +28,18 @@
    `Data/Balance.cs` 为手工镜像的核心子集,改数值时两边一起改
    (完整同步可后续用 codegen 从 JSON 生成)。
 
+## 渲染层(Assets/Scripts/Unity,依赖 UnityEngine)
+
+| 文件 | 内容 |
+|---|---|
+| `Unity/GameBootstrap.cs` | **挂到空物体即可玩**:自动建场地/主角/波次循环,驱动 GameClock,接 OnReaction 回调 |
+| `Unity/PlayerController.cs` | WASD 指数趋近移动 / 鼠标瞄准 / 左键三段连击(锥形判定走 DamagePipeline)/ 空格翻滚无敌帧 |
+| `Unity/EnemyAgent.cs` | 追击+接触伤害+受击闪白/击退,复用 CombatUnit 计时器 |
+| `Unity/CameraFollow.cs` | 顶视角指数平滑跟随 |
+
+> 占位渲染用原色几何体;正式像素美术把 `web/public/sprites/*.png`
+> 以 Point(no filter)+ Sprite 模式导入,替换 primitive 即可。
+
 ## 尚未镜像(Web 端已有)
 
 - 技能执行器(四职业 Q/E/R)与符文池 36 枚

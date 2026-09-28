@@ -38,7 +38,7 @@ export class MenuUI {
 
   /** 主菜单。返回 'start' | null */
   updateMenu(): 'start' | null {
-    if (this.input.wasPressed('Enter')) return 'start';
+    if (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart')) return 'start';
     if (this.input.mousePressed) {
       const mx = this.input.mouseX;
       const my = this.input.mouseY;
@@ -236,7 +236,7 @@ export class MenuUI {
 
   /** 结算页。返回 'menu' | null */
   updateResults(): 'menu' | null {
-    if (this.input.wasPressed('Enter') || this.input.mousePressed) return 'menu';
+    if (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart') || this.input.mousePressed) return 'menu';
     return null;
   }
 

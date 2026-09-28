@@ -44,13 +44,24 @@ export class PlayerSystem implements System {
         continue;
       }
 
-      // ---- 瞄准(鼠标世界坐标) ----
-      const mw = this.renderer.mouseWorld(this.input.mouseX, this.input.mouseY);
-      const dx = mw.x - tr.x;
-      const dy = mw.y - tr.y;
-      const len = Math.hypot(dx, dy) || 1;
-      p.aimX = dx / len;
-      p.aimY = dy / len;
+      // ---- 瞄准(手柄右摇杆优先,否则鼠标世界坐标) ----
+      if (Math.hypot(this.input.padRX, this.input.padRY) > 0.3) {
+        const rlen = Math.hypot(this.input.padRX, this.input.padRY);
+        p.aimX = this.input.padRX / rlen;
+        p.aimY = this.input.padRY / rlen;
+      } else if (this.input.padActive && (this.input.padLX !== 0 || this.input.padLY !== 0)) {
+        // 手柄模式无右摇杆输入:朝移动方向
+        const mlen = Math.hypot(this.input.padLX, this.input.padLY);
+        p.aimX = this.input.padLX / mlen;
+        p.aimY = this.input.padLY / mlen;
+      } else if (!this.input.padActive) {
+        const mw = this.renderer.mouseWorld(this.input.mouseX, this.input.mouseY);
+        const dx = mw.x - tr.x;
+        const dy = mw.y - tr.y;
+        const len = Math.hypot(dx, dy) || 1;
+        p.aimX = dx / len;
+        p.aimY = dy / len;
+      }
       tr.face = Math.atan2(p.aimY, p.aimX);
 
       // ---- 计时器 ----
@@ -86,7 +97,7 @@ export class PlayerSystem implements System {
           }
         }
       } else {
-        if (this.input.wasPressed('Space') && p.dashCd <= 0) {
+        if ((this.input.wasPressed('Space') || this.input.wasPressed('PadA')) && p.dashCd <= 0) {
           // 翻滚方向:优先移动输入,否则朝向
           const hasMove = axis.x !== 0 || axis.y !== 0;
           p.dashDirX = hasMove ? axis.x : p.aimX;
@@ -115,7 +126,7 @@ export class PlayerSystem implements System {
         vel.vy += (targetVy - vel.vy) * k;
 
         // ---- 普攻:近战连击(剑士/守卫) / 连射(猎手箭·秘术师法球) ----
-        if ((this.input.mouseDown || this.input.isDown('KeyJ')) && p.attackT <= 0) {
+        if ((this.input.mouseDown || this.input.isDown('KeyJ') || this.input.isDown('PadX') || this.input.isDown('PadRT')) && p.attackT <= 0) {
           if (p.klass === 'ranger' || p.klass === 'arcanist') {
             const bow = p.klass === 'ranger' ? balance.classes.ranger.bow : balance.classes.arcanist.bow;
             p.comboStage = (p.comboStage % bow.heavyEvery) + 1;
@@ -161,7 +172,7 @@ export class PlayerSystem implements System {
       }
 
       // ---- 药剂([1] 键,恢复 40% 最大生命) ----
-      if (this.input.wasPressed('Digit1') && p.potionCharges > 0 && hp.hp < hp.max && hp.hp > 0) {
+      if ((this.input.wasPressed('Digit1') || this.input.wasPressed('PadUp')) && p.potionCharges > 0 && hp.hp < hp.max && hp.hp > 0) {
         p.potionCharges--;
         const heal = Math.round(hp.max * balance.loot.potionHealPct);
         hp.hp = Math.min(hp.max, hp.hp + heal);

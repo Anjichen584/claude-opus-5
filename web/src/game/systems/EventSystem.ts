@@ -45,7 +45,7 @@ export class EventSystem implements System {
       if (d < bestD) { bestD = d; best = e; }
     }
     this.nearbyTotem = best;
-    if (best === null || !this.input.wasPressed('KeyF')) return;
+    if (best === null || !(this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) return;
 
     const totem = world.mustGet(best, EventTotem);
     const tr = world.mustGet(best, Transform);

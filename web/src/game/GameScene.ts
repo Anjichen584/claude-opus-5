@@ -212,6 +212,7 @@ export class GameScene {
   update(dt: number): void {
     this.menuT += dt;
 
+    this.input.pollGamepad(dt);
     if (this.state === 'menu') {
       if (this.menuUI.updateMenu() === 'start') this.startRun();
       this.input.endFrame();
@@ -230,8 +231,8 @@ export class GameScene {
       return;
     }
 
-    // ---- 暂停菜单(Esc;背包打开时 Esc 优先关背包) ----
-    if (this.input.wasPressed('Escape')) this.paused = !this.paused;
+    // ---- 暂停菜单(Esc/手柄Start;背包打开时 Esc 优先关背包) ----
+    if (this.input.wasPressed('Escape') || this.input.wasPressed('PadStart')) this.paused = !this.paused;
     if (this.paused) {
       if (this.input.wasPressed('KeyM')) {
         this.muted = !this.muted;
@@ -252,7 +253,7 @@ export class GameScene {
       this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!([L] 星灯买断)' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
     }
     // 星灯:花星尘立即天亮(vs 冒险赚双倍掉落——风险决策)
-    if (night && this.input.wasPressed('KeyL')) {
+    if (night && (this.input.wasPressed('KeyL') || this.input.wasPressed('PadDown'))) {
       const p0 = this.world.mustGet(this.playerE, Player);
       const cost = this.run.chapterCfg.lanternCost;
       if (p0.stardust >= cost) {
@@ -693,7 +694,10 @@ export class GameScene {
         const pk = w.mustGet(e, PropObstacle).kind;
         list.push({ y: tr.y, draw: () => {
           if (pk === 'tree') drawShadow(ctx, tr.x, tr.y, 20);
-          if (!drawSprite(ctx, `prop_${pk}`, tr.x, tr.y + (pk === 'tree' ? 6 : 2))) {
+          const propSprite = this.run.chapter === 2
+            ? ({ tree: 'prop_pine', rock: 'prop_icerock', bush: 'prop_crystal' } as const)[pk]
+            : `prop_${pk}`;
+          if (!drawSprite(ctx, propSprite, tr.x, tr.y + (pk === 'tree' ? 6 : 2))) {
             blob(tr.x, tr.y, pk === 'tree' ? 22 : pk === 'rock' ? 14 : 10,
               pk === 'rock' ? '#9aa3ad' : '#4f8a44');
           }
@@ -880,7 +884,10 @@ export class GameScene {
                 rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
                 sx = 1 + punch * 0.08;
               }
-              const ok = drawSprite(ctx, KLASS_SPRITE[p.klass], ix, iy, {
+              // 双帧走路动画:移动时以 8fps 切换迈步帧(未加载则回落站立帧)
+              const base = KLASS_SPRITE[p.klass];
+              const stride = p.moving && Math.floor(clock.runTime * 8) % 2 === 1 && sprites.get(`${base}_walk`) !== null;
+              const ok = drawSprite(ctx, stride ? `${base}_walk` : base, ix, iy, {
                 flash: h.flash, faceLeft, rot, sx, sy,
                 alpha: p.dashT > 0 ? 0.7 : p.iframes > 0 ? 0.85 : 1,
               });

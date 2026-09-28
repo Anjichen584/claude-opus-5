@@ -35,7 +35,15 @@ TARGETS = {
     "prop_tree": 112,
     "prop_rock": 44,
     "prop_bush": 34,
+    # 主角迈步帧(双帧走路动画)
+    "knight_walk": 46,
+    "ranger_walk": 46,
+    "arcanist_walk": 46,
+    "warden_walk": 48,
     # 第二章「霜语冰原」
+    "prop_pine": 116,
+    "prop_icerock": 44,
+    "prop_crystal": 40,
     "snowpuff": 26,
     "iceturtle": 40,
     "blizzardhawk": 26,
