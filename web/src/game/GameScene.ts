@@ -9,16 +9,16 @@ import balance from '@data/balance.json';
 import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
-  BlizzardHawk, BossKazra, BossVelsha, CinderRat, DuneBeetle, DustStinger, FlameDancer,
-  FrostMage, IceTurtle, SnowPuff,
+  BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
+  FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
   ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
   ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import {
-  drawBlightWolf, drawBossNanmir, drawKnight, drawOakGolem, drawPickup, drawPortal,
-  drawShadow, drawShroomling, drawThornVine, drawWindBee,
+  drawBlightWolf, drawBossNanmir, drawDummy, drawKnight, drawOakGolem, drawPickup,
+  drawPortal, drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
@@ -42,6 +42,7 @@ import { FeedbackSystem } from '@game/systems/FeedbackSystem';
 import { InventoryUI } from '@game/ui/InventoryUI';
 import { MenuUI, RunStats } from '@game/ui/MenuUI';
 import { TouchControls } from '@game/ui/TouchControls';
+import { CampUI } from '@game/ui/CampUI';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
@@ -69,7 +70,7 @@ const TOTEM_INFO: Record<string, { icon: string; name: string; desc: string; col
   fountain: { icon: '⛲', name: '星尘涌泉', desc: '+80~150 星尘', color: '#8fd4c8' },
 };
 
-type GameState = 'menu' | 'run' | 'results';
+type GameState = 'menu' | 'camp' | 'run' | 'results';
 
 /**
  * 主场景状态机:menu → run(8房+Boss)→ results → menu。
@@ -90,6 +91,8 @@ export class GameScene {
   private inventoryUI: InventoryUI;
   private menuUI: MenuUI;
   private touch: TouchControls;
+  private campUI: CampUI;
+  private campNearE: number | null = null;
   private quitRect = { x: 0, y: 0, w: 0, h: 0 };
   private playerE = 0;
   private bg: HTMLCanvasElement;
@@ -108,6 +111,10 @@ export class GameScene {
     this.inventoryUI = new InventoryUI(input);
     this.menuUI = new MenuUI(input);
     this.touch = new TouchControls(input);
+    this.campUI = new CampUI(input);
+    // 营地渲染依赖 run.chapter/loot 存在,先建默认实例(startRun 会重建)
+    this.loot = new LootSystem();
+    this.run = new RunManager(this.loot.factory);
     this.bg = this.bakeBackground();
     this.renderer.camera.snap((balance.arena.widthM / 2) * M, (balance.arena.heightM / 2) * M);
   }
@@ -116,9 +123,8 @@ export class GameScene {
 
   private startRun(): void {
     this.paused = false;
-    const klass = this.menuUI.selectedClass;
-    this.run.chapter = this.menuUI.selectedChapter;
-    this.bgHasTile = false; // 章节切换重烘焙地面
+    const klass = this.campUI.selectedClass;
+    const chapter = this.campUI.selectedChapter;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
     this.skills = new SkillSystem(this.input, klass, this.renderer);
@@ -128,6 +134,8 @@ export class GameScene {
     this.shop = new ShopSystem(this.input);
     this.events = new EventSystem(this.input, this.loot.factory);
     this.run = new RunManager(this.loot.factory);
+    this.run.chapter = chapter;
+    this.bgHasTile = false;
     this.systems = [
       new PlayerSystem(this.input, this.renderer),
       this.skills,
@@ -194,6 +202,223 @@ export class GameScene {
     this.state = 'run';
   }
 
+  // ---------- 星陨营地(主城) ----------
+
+  /** 进入营地:可行走大厅 + 木桩试招 + 四功能建筑 */
+  private enterCamp(): void {
+    this.paused = false;
+    this.state = 'camp';
+    this.bgHasTile = false;
+    const klass = this.campUI.selectedClass;
+    this.world = new World();
+    this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
+    this.skills = new SkillSystem(this.input, klass, this.renderer);
+    this.systems = [
+      new PlayerSystem(this.input, this.renderer),
+      this.skills,
+      new PhysicsSystem(),
+      new ProjectileSystem(),
+      new CombatSystem(),
+      new ZoneSystem(),
+      this.feedback,
+    ];
+
+    const w = this.world;
+    const B = balance.player;
+    const W = balance.arena.widthM;
+    const H = balance.arena.heightM;
+
+    // 主角
+    this.playerE = w.create();
+    w.add(this.playerE, new Transform((W / 2 - 4) * M, (H / 2) * M));
+    w.add(this.playerE, new Velocity());
+    w.add(this.playerE, new Body(B.bodyRadius));
+    w.add(this.playerE, new Health(B.hp));
+    w.add(this.playerE, new Stats(B.atk, B.moveSpeed, B.critRate, B.critDmg));
+    w.add(this.playerE, new Faction('player'));
+    const pc = new Player();
+    pc.klass = klass;
+    w.add(this.playerE, pc);
+    w.add(this.playerE, new Inventory());
+    w.add(this.playerE, new Equipment());
+    recompute(w, this.playerE);
+    // 营地里怒气拉满,随便放大招试手感
+    pc.rage = 100;
+
+    // 功能建筑
+    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick', label: string, icon: string, x: number, y: number): void => {
+      const e = w.create();
+      w.add(e, new Transform(x * M, y * M));
+      w.add(e, new CampStation(kind, label, icon));
+    };
+    station('expedition', '远征传送门', '🌀', W - 3.2, H / 2);
+    station('altar', '星陨祭坛', '⭐', 4.6, 3.0);
+    station('forge', '星辉铸台', '📜', 4.6, H - 3.0);
+    station('classpick', '职业试炼场', '🏵', W / 2, 2.2);
+
+    // 训练木桩 ×2(不死,DPS 计)
+    for (const dy of [-2.2, 2.2]) {
+      const e = w.create();
+      w.add(e, new Transform((W / 2 + 3.5) * M, (H / 2 + dy) * M));
+      w.add(e, new Velocity());
+      w.add(e, new Body(0.35, true));
+      w.add(e, new Health(99999));
+      w.add(e, new Stats(0, 0, 0, 1, 0));
+      w.add(e, new Faction('enemy'));
+      w.add(e, new Dummy());
+      w.add(e, new ElementMarks());
+      w.add(e, new Buffs());
+    }
+
+    // 营地装饰
+    const deco = (kind: 'tree' | 'rock' | 'bush', x: number, y: number): void => {
+      const e = w.create();
+      w.add(e, new Transform(x * M, y * M));
+      w.add(e, new PropObstacle(kind));
+      if (kind !== 'bush') {
+        w.add(e, new Velocity());
+        w.add(e, new Body(kind === 'tree' ? 0.45 : 0.4, true));
+      }
+    };
+    deco('tree', 2.0, 1.6);
+    deco('tree', W - 2.0, 1.8);
+    deco('tree', 2.2, H - 1.6);
+    deco('tree', W - 5.5, H - 1.8);
+    deco('bush', 8, 2.0);
+    deco('bush', W - 8, H - 2.0);
+    deco('bush', 9, H - 2.4);
+    deco('rock', W / 2 - 5, H - 2.6);
+
+    this.renderer.camera.snap((W / 2) * M, (H / 2) * M);
+    this.world.emit(new ToastEvent('🏕 星陨营地:打木桩试招,走近建筑按 F', UI.gold));
+  }
+
+  /** 最近的可交互建筑(<1.3m) */
+  private campNear(): number | null {
+    const ptr = this.world.get(this.playerE, Transform);
+    if (!ptr) return null;
+    let best: number | null = null;
+    let bd = 1.3 * M;
+    for (const e of this.world.query(CampStation, Transform)) {
+      const tr = this.world.mustGet(e, Transform);
+      const d = Math.hypot(ptr.x - tr.x, ptr.y - tr.y);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+
+  private updateCamp(dt: number): void {
+    this.campNearE = this.campNear();
+    this.touch.update(this.renderer.width, this.renderer.height, {
+      interact: this.campNearE !== null, night: false,
+    });
+
+    // 面板层优先消费输入(本帧开着就整帧消费,防 Esc/F 穿透)
+    const panelWasOpen = this.campUI.panel !== 'none';
+    const act = this.campUI.update();
+    if (act === 'start') {
+      this.startRun();
+      this.input.endFrame();
+      return;
+    }
+    if (act === 'classChanged') {
+      this.enterCamp();
+      this.input.endFrame();
+      return;
+    }
+    if (panelWasOpen) {
+      this.input.endFrame();
+      return;
+    }
+
+    // Esc 回标题
+    if (this.input.wasPressed('Escape')) {
+      this.state = 'menu';
+      this.input.endFrame();
+      return;
+    }
+
+    // F 交互
+    if (this.campNearE !== null && (this.input.wasPressed('KeyF') || this.input.wasPressed('PadB'))) {
+      const st = this.world.mustGet(this.campNearE, CampStation);
+      if (st.kind === 'forge') this.forgeInteract();
+      else this.campUI.open(st.kind);
+    }
+
+    for (const s of this.systems) s.update(this.world, dt);
+
+    // 计时器衰减(受击闪白/印记/木桩晃动)
+    for (const e of this.world.query(Health)) {
+      const h = this.world.mustGet(e, Health);
+      if (h.flash > 0) h.flash -= dt;
+    }
+    for (const e of this.world.query(ElementMarks)) {
+      const m = this.world.mustGet(e, ElementMarks);
+      for (const el of Object.keys(m.marks) as Element[]) {
+        const left = (m.marks[el] ?? 0) - dt;
+        if (left <= 0) delete m.marks[el];
+        else m.marks[el] = left;
+      }
+    }
+    for (const e of this.world.query(Dummy)) {
+      const d = this.world.mustGet(e, Dummy);
+      d.wobble = Math.max(0, d.wobble - dt * 2.2);
+      d.wobblePhase += dt * (2 + d.wobble * 14);
+      const hp = this.world.mustGet(e, Health);
+      hp.hp = hp.max; // 木桩不死
+    }
+
+    const ptr = this.world.mustGet(this.playerE, Transform);
+    this.renderer.camera.follow(ptr.x, ptr.y, dt);
+    this.renderer.camera.update(dt);
+    this.world.clearEvents();
+    this.world.flushDestroyed();
+    this.input.endFrame();
+  }
+
+  private renderCampHud(): void {
+    const ctx = this.renderer.ctx;
+    const width = this.renderer.width;
+    const height = this.renderer.height;
+    ctx.save();
+    ctx.fillStyle = UI.panel;
+    ctx.fillRect(14, 14, 330, 30);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'left';
+    const kls = balance.classes[this.campUI.selectedClass];
+    ctx.fillText(`🏕 星陨营地 · ${kls.hero}·${kls.name}`, 24, 34);
+    ctx.textAlign = 'right';
+    ctx.fillText(`✦ ${meta.data.stardust} · 📜 ${meta.data.blueprintShards}/${balance.blueprint.craftCost}${meta.data.craftQueued ? '(已预订)' : ''}`, width - 20, 34);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText(
+      this.input.touchActive
+        ? '打木桩试招 · 走近建筑点 F 钮 · 🌀传送门出征'
+        : '打木桩试招(怒气已满可放R) · 走近建筑按 [F] · 🌀传送门出征 · [Esc]回标题',
+      width / 2, height - 12,
+    );
+    ctx.restore();
+  }
+
+  /** 星辉铸台:即时交互 */
+  private forgeInteract(): void {
+    const bp = balance.blueprint;
+    if (meta.data.craftQueued) {
+      this.world.emit(new ToastEvent('📜 已预订:下局开局自带传奇装备!', UI.gold));
+      return;
+    }
+    if (meta.data.blueprintShards >= bp.craftCost) {
+      meta.data.blueprintShards -= bp.craftCost;
+      meta.data.craftQueued = true;
+      meta.save();
+      this.world.emit(new ToastEvent('📜 铸造完成!下局开局自带随机橙装', RARITY_COLORS.legendary));
+    } else {
+      this.world.emit(new ToastEvent(`碎片不足:${meta.data.blueprintShards}/${bp.craftCost}(Boss 掉落,夜战翻倍)`, UI.dim));
+    }
+  }
+
   private endRun(victory: boolean): void {
     const p = this.world.mustGet(this.playerE, Player);
     this.lastStats = {
@@ -224,13 +449,17 @@ export class GameScene {
     this.input.pollGamepad(dt);
     this.input.tickTouch(dt);
     if (this.state === 'menu') {
-      if (this.menuUI.updateMenu() === 'start') this.startRun();
+      if (this.menuUI.updateMenu() === 'start') this.enterCamp();
       this.input.endFrame();
       return;
     }
     if (this.state === 'results') {
-      if (this.menuUI.updateResults() === 'menu') this.state = 'menu';
+      if (this.menuUI.updateResults() === 'menu') this.enterCamp();
       this.input.endFrame();
+      return;
+    }
+    if (this.state === 'camp') {
+      this.updateCamp(dt);
       return;
     }
 
@@ -357,7 +586,7 @@ export class GameScene {
         ctx.globalAlpha = 1;
       });
       // 主角立绘(呼吸摇摆,跟随所选职业)
-      drawSprite(r.ctx, KLASS_SPRITE[this.menuUI.selectedClass], r.width / 2 - 240, r.height * 0.30, {
+      drawSprite(r.ctx, KLASS_SPRITE[this.campUI.selectedClass], r.width / 2 - 240, r.height * 0.30, {
         scale: 3.2, rot: Math.sin(this.menuT * 1.6) * 0.03, sy: 1 + Math.sin(this.menuT * 3.2) * 0.015,
       });
       drawSprite(r.ctx, 'boss_nanmir', r.width / 2 + 265, r.height * 0.33, {
@@ -368,6 +597,13 @@ export class GameScene {
     }
 
     this.renderWorld(alpha);
+
+    if (this.state === 'camp') {
+      this.renderCampHud();
+      this.touch.render(r.ctx, r.width, r.height);
+      this.campUI.render(r.ctx, r.width, r.height);
+      return;
+    }
 
     if (this.state === 'results') {
       this.menuUI.renderResults(r.ctx, r.width, r.height, this.lastStats);
@@ -842,6 +1078,64 @@ export class GameScene {
           if (!drawSprite(ctx, propSprite, tr.x, tr.y + (pk === 'tree' ? 6 : 2))) {
             blob(tr.x, tr.y, pk === 'tree' ? 22 : pk === 'rock' ? 14 : 10,
               pk === 'rock' ? '#9aa3ad' : '#4f8a44');
+          }
+        } });
+      }
+
+      // ---- 营地:功能建筑 + 训练木桩 ----
+      for (const e of w.query(CampStation, Transform)) {
+        const st = w.mustGet(e, CampStation);
+        const tr = w.mustGet(e, Transform);
+        const near = this.campNearE === e;
+        list.push({ y: tr.y, draw: () => {
+          drawShadow(ctx, tr.x, tr.y, 18);
+          // 石台
+          ctx.fillStyle = '#5d6673';
+          ctx.fillRect(tr.x - 24, tr.y - 14, 48, 14);
+          ctx.fillStyle = '#7a8494';
+          ctx.fillRect(tr.x - 20, tr.y - 40, 40, 28);
+          ctx.strokeStyle = '#2a3040';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(tr.x - 20, tr.y - 40, 40, 28);
+          // 图标(悬浮脉动)
+          const bob = Math.sin(st.animT * 2.5) * 3;
+          ctx.font = 'bold 24px monospace';
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = 0.85 + 0.15 * Math.sin(st.animT * 3);
+          ctx.fillText(st.icon, tr.x, tr.y - 52 + bob);
+          ctx.globalAlpha = 1;
+          ctx.font = 'bold 11px monospace';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#0d0f1a';
+          ctx.strokeText(st.label, tr.x, tr.y + 14);
+          ctx.fillStyle = near ? UI.gold : UI.text;
+          ctx.fillText(st.label, tr.x, tr.y + 14);
+          if (near) {
+            ctx.fillStyle = '#8fd4c8';
+            ctx.strokeText('[F] 交互', tr.x, tr.y + 28);
+            ctx.fillText('[F] 交互', tr.x, tr.y + 28);
+          }
+          st.animT += 0.016;
+        } });
+      }
+      for (const e of w.query(Dummy, Transform, Health)) {
+        const d = w.mustGet(e, Dummy);
+        const tr = w.mustGet(e, Transform);
+        list.push({ y: tr.y, draw: () => {
+          drawShadow(ctx, tr.x, tr.y, 12);
+          drawDummy(ctx, tr.x, tr.y, d.wobble, d.wobblePhase);
+          // DPS 计(近 3 秒)
+          const now = performance.now();
+          d.hits = d.hits.filter(([t]) => now - t < 3000);
+          const sum = d.hits.reduce((s, [, v]) => s + v, 0);
+          if (sum > 0) {
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#0d0f1a';
+            ctx.strokeText(`DPS ${(sum / 3).toFixed(0)}`, tr.x, tr.y - 58);
+            ctx.fillStyle = UI.gold;
+            ctx.fillText(`DPS ${(sum / 3).toFixed(0)}`, tr.x, tr.y - 58);
           }
         } });
       }

@@ -463,6 +463,17 @@ export class BossKazra {
   animT = 0;
 }
 
+/** 星陨营地功能建筑(F 交互) */
+export class CampStation {
+  animT = Math.random() * 10;
+
+  constructor(
+    public kind: 'expedition' | 'altar' | 'forge' | 'classpick',
+    public label: string,
+    public icon: string,
+  ) {}
+}
+
 export class ToastEvent {
   constructor(public text: string, public color: string) {}
 }
