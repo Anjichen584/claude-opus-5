@@ -60,7 +60,85 @@ export class Input {
     this.padPrev = cur;
   }
 
+  // ---- 触屏 ----
+  /** 最近 3s 内有触摸(切换触屏 UI/自动瞄准) */
+  touchActive = false;
+  private touchActiveT = 0;
+  /** 活跃触点:id → 当前/起始位置 */
+  private touchPts = new Map<number, { x: number; y: number; sx: number; sy: number; claimed: string | null }>();
+  /** 本帧新落下的触点 id */
+  private touchStarted: number[] = [];
+  /** 虚拟按住键(触屏按钮注入,每帧由 TouchControls 重设) */
+  private virtualDown = new Set<string>();
+
+  /** 触点快照(TouchControls 读取) */
+  touches(): Array<{ id: number; x: number; y: number; sx: number; sy: number; claimed: string | null; started: boolean }> {
+    const out: Array<{ id: number; x: number; y: number; sx: number; sy: number; claimed: string | null; started: boolean }> = [];
+    for (const [id, t] of this.touchPts) {
+      out.push({ id, x: t.x, y: t.y, sx: t.sx, sy: t.sy, claimed: t.claimed, started: this.touchStarted.includes(id) });
+    }
+    return out;
+  }
+
+  /** 触屏按钮认领触点(该触点不再当摇杆) */
+  claimTouch(id: number, owner: string): void {
+    const t = this.touchPts.get(id);
+    if (t) t.claimed = owner;
+  }
+
+  /** 注入一次"按下"(触屏按钮 → 复用键盘语义) */
+  injectPress(code: string): void {
+    this.pressed.add(code);
+  }
+
+  /** 设置虚拟按住状态(如触屏普攻钮按住 → KeyJ) */
+  setVirtualDown(code: string, held: boolean): void {
+    if (held) this.virtualDown.add(code);
+    else this.virtualDown.delete(code);
+  }
+
+  /** 触屏时钟推进(GameScene 每帧调用) */
+  tickTouch(dt: number): void {
+    this.touchActiveT -= dt;
+    this.touchActive = this.touchActiveT > 0;
+  }
+
   attach(target: HTMLElement): void {
+    // ---- 触屏事件 ----
+    const touchPos = (t: Touch): { x: number; y: number } => ({ x: t.clientX, y: t.clientY });
+    target.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.touchActiveT = 3;
+      this.touchActive = true;
+      for (const t of Array.from(e.changedTouches)) {
+        const p = touchPos(t);
+        this.touchPts.set(t.identifier, { x: p.x, y: p.y, sx: p.x, sy: p.y, claimed: null });
+        this.touchStarted.push(t.identifier);
+        // 触点也作为 UI 点击(菜单/背包)
+        this.mouseX = p.x;
+        this.mouseY = p.y;
+        this.mousePressed = true;
+      }
+    }, { passive: false });
+    target.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      this.touchActiveT = 3;
+      for (const t of Array.from(e.changedTouches)) {
+        const pt = this.touchPts.get(t.identifier);
+        if (pt) {
+          const p = touchPos(t);
+          pt.x = p.x;
+          pt.y = p.y;
+        }
+      }
+    }, { passive: false });
+    const endTouch = (e: TouchEvent): void => {
+      e.preventDefault();
+      for (const t of Array.from(e.changedTouches)) this.touchPts.delete(t.identifier);
+    };
+    target.addEventListener('touchend', endTouch, { passive: false });
+    target.addEventListener('touchcancel', endTouch, { passive: false });
+
     window.addEventListener('keydown', (e) => {
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);
@@ -89,7 +167,32 @@ export class Input {
   }
 
   isDown(code: string): boolean {
-    return this.down.has(code);
+    return this.down.has(code) || this.virtualDown.has(code);
+  }
+
+  /** 触屏浮动摇杆向量(未认领的、落点在左侧 60% 屏幕的触点) */
+  private touchJoy(): { x: number; y: number } | null {
+    for (const t of this.touchPts.values()) {
+      if (t.claimed !== null) continue;
+      if (t.sx > window.innerWidth * 0.6) continue;
+      const dx = t.x - t.sx;
+      const dy = t.y - t.sy;
+      const d = Math.hypot(dx, dy);
+      if (d < 8) return { x: 0, y: 0 }; // 死区:按住不动=站定
+      const cl = Math.min(d, 56) / 56;
+      return { x: (dx / d) * cl, y: (dy / d) * cl };
+    }
+    return null;
+  }
+
+  /** 摇杆渲染数据(TouchControls 用) */
+  joyVisual(): { ax: number; ay: number; x: number; y: number } | null {
+    for (const t of this.touchPts.values()) {
+      if (t.claimed !== null) continue;
+      if (t.sx > window.innerWidth * 0.6) continue;
+      return { ax: t.sx, ay: t.sy, x: t.x, y: t.y };
+    }
+    return null;
   }
 
   wasPressed(code: string): boolean {
@@ -104,6 +207,10 @@ export class Input {
     if (this.isDown('KeyD') || this.isDown('ArrowRight')) x += 1;
     if (this.isDown('KeyW') || this.isDown('ArrowUp')) y -= 1;
     if (this.isDown('KeyS') || this.isDown('ArrowDown')) y += 1;
+    if (x === 0 && y === 0) {
+      const joy = this.touchJoy();
+      if (joy && (joy.x !== 0 || joy.y !== 0)) return joy;
+    }
     if (x === 0 && y === 0 && (this.padLX !== 0 || this.padLY !== 0)) {
       // 摇杆:模拟量直通(带死区),支持缓走
       const mag = Math.min(1, Math.hypot(this.padLX, this.padLY));
@@ -122,5 +229,6 @@ export class Input {
   endFrame(): void {
     this.pressed.clear();
     this.mousePressed = false;
+    this.touchStarted.length = 0;
   }
 }

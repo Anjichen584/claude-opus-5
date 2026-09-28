@@ -41,6 +41,7 @@ import { LootSystem } from '@game/loot/LootSystem';
 import { FeedbackSystem } from '@game/systems/FeedbackSystem';
 import { InventoryUI } from '@game/ui/InventoryUI';
 import { MenuUI, RunStats } from '@game/ui/MenuUI';
+import { TouchControls } from '@game/ui/TouchControls';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
@@ -88,6 +89,8 @@ export class GameScene {
   private run!: RunManager;
   private inventoryUI: InventoryUI;
   private menuUI: MenuUI;
+  private touch: TouchControls;
+  private quitRect = { x: 0, y: 0, w: 0, h: 0 };
   private playerE = 0;
   private bg: HTMLCanvasElement;
   private fps = 60;
@@ -104,6 +107,7 @@ export class GameScene {
     for (const n of SPRITE_NAMES) sprites.load(n, `${import.meta.env.BASE_URL}sprites/${n}.png`);
     this.inventoryUI = new InventoryUI(input);
     this.menuUI = new MenuUI(input);
+    this.touch = new TouchControls(input);
     this.bg = this.bakeBackground();
     this.renderer.camera.snap((balance.arena.widthM / 2) * M, (balance.arena.heightM / 2) * M);
   }
@@ -218,6 +222,7 @@ export class GameScene {
     this.menuT += dt;
 
     this.input.pollGamepad(dt);
+    this.input.tickTouch(dt);
     if (this.state === 'menu') {
       if (this.menuUI.updateMenu() === 'start') this.startRun();
       this.input.endFrame();
@@ -230,6 +235,11 @@ export class GameScene {
     }
 
     // ---- run ----
+    // 触屏按钮先注入(复用键盘语义,后续逻辑零改动)
+    this.touch.update(this.renderer.width, this.renderer.height, {
+      interact: this.shop.nearbyStand !== null || this.events.nearbyTotem !== null,
+      night: clock.isNight(),
+    });
     const uiConsumed = this.inventoryUI.handleInput(this.world, this.playerE);
     if (uiConsumed) {
       this.input.endFrame();
@@ -246,6 +256,20 @@ export class GameScene {
       if (this.input.wasPressed('Backspace')) {
         this.paused = false;
         this.endRun(false);
+        this.input.endFrame();
+        return;
+      }
+      // 触屏:点"放弃"按钮退出,点其他任意处继续
+      if (this.input.mousePressed) {
+        const mx = this.input.mouseX;
+        const my = this.input.mouseY;
+        const q = this.quitRect;
+        if (mx >= q.x && mx <= q.x + q.w && my >= q.y && my <= q.y + q.h) {
+          this.paused = false;
+          this.endRun(false);
+        } else {
+          this.paused = false;
+        }
       }
       this.input.endFrame();
       return;
@@ -351,6 +375,7 @@ export class GameScene {
     }
 
     this.renderHud();
+    this.touch.render(r.ctx, r.width, r.height);
     this.feedback.renderScreen(r.ctx, r.width, r.height);
     this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
 
@@ -366,15 +391,27 @@ export class GameScene {
       ctx.fillText('⏸ 暂停', r.width / 2, r.height * 0.36);
       ctx.fillStyle = UI.text;
       ctx.font = '14px monospace';
-      const lines = [
-        '[Esc] 继续战斗',
-        `[M] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
-        '[Backspace] 放弃本局(结算)',
-        '',
-        'WASD移动 · 左键普攻 · 空格翻滚 · Q/E/R技能',
-        'Tab背包/符文 · 1药剂 · F交互 · L星灯(夜)',
-      ];
+      const lines = this.input.touchActive
+        ? ['点击屏幕任意处继续', `[M键] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`, '', '左半屏拖动=移动(自动瞄准)', '右下按钮=普攻/翻滚/技能']
+        : [
+            '[Esc] 继续战斗',
+            `[M] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
+            '[Backspace] 放弃本局(结算)',
+            '',
+            'WASD移动 · 左键普攻 · 空格翻滚 · Q/E/R技能',
+            'Tab背包/符文 · 1药剂 · F交互 · L星灯(夜)',
+          ];
       lines.forEach((l, i) => ctx.fillText(l, r.width / 2, r.height * 0.46 + i * 26));
+      // 放弃按钮(触屏/鼠标可点)
+      this.quitRect = { x: r.width / 2 - 90, y: r.height * 0.46 + lines.length * 26 + 18, w: 180, h: 38 };
+      ctx.fillStyle = '#2a1a1f';
+      ctx.fillRect(this.quitRect.x, this.quitRect.y, this.quitRect.w, this.quitRect.h);
+      ctx.strokeStyle = UI.hpLow;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(this.quitRect.x, this.quitRect.y, this.quitRect.w, this.quitRect.h);
+      ctx.fillStyle = UI.hpLow;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('🏳 放弃本局', r.width / 2, this.quitRect.y + 25);
       ctx.restore();
     }
   }
@@ -1185,7 +1222,9 @@ export class GameScene {
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(232,232,232,0.5)';
     ctx.font = '12px monospace';
-    const hint = clock.isNight()
+    const hint = this.input.touchActive
+      ? (clock.isNight() ? `🌙 掉落×2 · 🏮钮花✦${this.run.chapterCfg.lanternCost}买天亮 · 🎒镶符文` : '清房踩传送门 · 异元素连击触发连锁 · 靠近摊位按 F 钮')
+      : clock.isNight()
       ? `🌙 夜间掉落×2 · [L] 星灯 ✦${this.run.chapterCfg.lanternCost} 立即天亮 · [Tab]背包镶符文`
       : '清空房间踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包/符文 · 商店按[F]买';
     ctx.fillText(hint, width / 2, height - 12);

@@ -4,8 +4,8 @@ import type { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { M, UI } from '@game/constants';
 import {
-  DashGhostEvent, Health, MeleeSweep, Player, PlayerHurtEvent, Projectile, SfxEvent,
-  SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
+  DashGhostEvent, Faction, Health, MeleeSweep, Player, PlayerHurtEvent, Projectile,
+  SfxEvent, SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
 
 const B = balance.player;
@@ -54,6 +54,28 @@ export class PlayerSystem implements System {
         const mlen = Math.hypot(this.input.padLX, this.input.padLY);
         p.aimX = this.input.padLX / mlen;
         p.aimY = this.input.padLY / mlen;
+      } else if (this.input.touchActive) {
+        // 触屏:自动瞄准最近敌人(8m 内),否则朝移动方向
+        let best: { x: number; y: number } | null = null;
+        let bd = 8 * M;
+        for (const t of world.query(Faction, Transform, Health)) {
+          if (world.mustGet(t, Faction).team !== 'enemy') continue;
+          const ttr = world.mustGet(t, Transform);
+          const d = Math.hypot(ttr.x - tr.x, ttr.y - tr.y);
+          if (d < bd) { bd = d; best = ttr; }
+        }
+        if (best) {
+          const d = Math.hypot(best.x - tr.x, best.y - tr.y) || 1;
+          p.aimX = (best.x - tr.x) / d;
+          p.aimY = (best.y - tr.y) / d;
+        } else {
+          const ax2 = this.input.axis();
+          if (ax2.x !== 0 || ax2.y !== 0) {
+            const m2 = Math.hypot(ax2.x, ax2.y);
+            p.aimX = ax2.x / m2;
+            p.aimY = ax2.y / m2;
+          }
+        }
       } else if (!this.input.padActive) {
         const mw = this.renderer.mouseWorld(this.input.mouseX, this.input.mouseY);
         const dx = mw.x - tr.x;
