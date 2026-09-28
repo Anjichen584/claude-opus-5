@@ -12,18 +12,22 @@ const VALID_SKILLS = [...BLADE_SKILLS, ...OTHER_SKILLS];
 const VALID_ELEMENTS = ['fire', 'ice', 'bolt', 'toxin'];
 
 describe('符文池', () => {
-  it('共 18 枚,id 唯一', () => {
-    expect(pool.runes.length).toBe(18);
+  it('共 36 枚,id 唯一', () => {
+    expect(pool.runes.length).toBe(36);
     const ids = new Set(pool.runes.map((r) => r.id));
-    expect(ids.size).toBe(18);
+    expect(ids.size).toBe(36);
   });
 
-  it('剑士每技能 3 枚;其余职业每技能 1 枚(首发)', () => {
-    for (const skill of BLADE_SKILLS) {
-      expect(pool.runes.filter((r) => r.skill === skill).length).toBe(3);
+  it('全 12 技能每技能 3 枚(四职业满配)', () => {
+    for (const skill of VALID_SKILLS) {
+      expect(pool.runes.filter((r) => r.skill === skill).length, skill).toBe(3);
     }
-    for (const skill of OTHER_SKILLS) {
-      expect(pool.runes.filter((r) => r.skill === skill).length).toBe(1);
+  });
+
+  it('每技能 3 枚符文元素互不重复(流派差异)', () => {
+    for (const skill of VALID_SKILLS) {
+      const els = pool.runes.filter((r) => r.skill === skill).map((r) => r.element);
+      expect(new Set(els).size, skill).toBe(3);
     }
   });
 

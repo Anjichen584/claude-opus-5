@@ -7,6 +7,10 @@ export interface SaveData {
   stardust: number;
   altar: { hp: number; atk: number; luck: number };
   pity: number;
+  /** 图纸碎片(Boss 掉落,集齐后铸造开局橙装) */
+  blueprintShards: number;
+  /** 已预订铸造:下局开局自带随机橙装 */
+  craftQueued: boolean;
   stats: { runs: number; clears: number; totalKills: number; bestTimeS: number };
 }
 
@@ -18,6 +22,8 @@ function defaults(): SaveData {
     stardust: 0,
     altar: { hp: 0, atk: 0, luck: 0 },
     pity: 0,
+    blueprintShards: 0,
+    craftQueued: false,
     stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0 },
   };
 }

@@ -1,6 +1,7 @@
 import { World } from '@engine/ecs/World';
 import type { System } from '@engine/ecs/World';
 import { GameLoop } from '@engine/core/GameLoop';
+import { sfx } from '@engine/audio/Sfx';
 import { Rng } from '@engine/core/Rng';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
@@ -69,6 +70,8 @@ type GameState = 'menu' | 'run' | 'results';
  */
 export class GameScene {
   private state: GameState = 'menu';
+  private paused = false;
+  private muted = false;
   private world = new World();
   private systems: System[] = [];
   private feedback!: FeedbackSystem;
@@ -102,6 +105,7 @@ export class GameScene {
   // ---------- run 生命周期 ----------
 
   private startRun(): void {
+    this.paused = false;
     const klass = this.menuUI.selectedClass;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
@@ -143,7 +147,17 @@ export class GameScene {
     playerComp.klass = klass;
     w.add(this.playerE, playerComp);
     w.add(this.playerE, new Inventory());
-    w.add(this.playerE, new Equipment());
+    const equip = new Equipment();
+    // 星辉铸台:预订的开局橙装
+    if (meta.data.craftQueued) {
+      meta.data.craftQueued = false;
+      meta.save();
+      const slots = ['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const;
+      const gift = this.loot.factory.make(slots[Math.floor(Math.random() * slots.length)], 'legendary');
+      equip.slots[gift.slot] = gift;
+      w.emit(new ToastEvent(`📜 铸台出品:${gift.name}!`, RARITY_COLORS.legendary));
+    }
+    w.add(this.playerE, equip);
     recompute(w, this.playerE);
 
     // 开局赠 1 枚本职业随机符文(已镶嵌)——每局元素流派不同
@@ -204,6 +218,21 @@ export class GameScene {
     // ---- run ----
     const uiConsumed = this.inventoryUI.handleInput(this.world, this.playerE);
     if (uiConsumed) {
+      this.input.endFrame();
+      return;
+    }
+
+    // ---- 暂停菜单(Esc;背包打开时 Esc 优先关背包) ----
+    if (this.input.wasPressed('Escape')) this.paused = !this.paused;
+    if (this.paused) {
+      if (this.input.wasPressed('KeyM')) {
+        this.muted = !this.muted;
+        sfx.volume = this.muted ? 0 : 0.35;
+      }
+      if (this.input.wasPressed('Backspace')) {
+        this.paused = false;
+        this.endRun(false);
+      }
       this.input.endFrame();
       return;
     }
@@ -310,6 +339,30 @@ export class GameScene {
     this.renderHud();
     this.feedback.renderScreen(r.ctx, r.width, r.height);
     this.inventoryUI.render(r.ctx, this.world, this.playerE, r.width, r.height);
+
+    // ---- 暂停遮罩 ----
+    if (this.paused) {
+      const ctx = r.ctx;
+      ctx.save();
+      ctx.fillStyle = 'rgba(13,15,26,0.78)';
+      ctx.fillRect(0, 0, r.width, r.height);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = UI.gold;
+      ctx.font = 'bold 30px monospace';
+      ctx.fillText('⏸ 暂停', r.width / 2, r.height * 0.36);
+      ctx.fillStyle = UI.text;
+      ctx.font = '14px monospace';
+      const lines = [
+        '[Esc] 继续战斗',
+        `[M] 音效:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
+        '[Backspace] 放弃本局(结算)',
+        '',
+        'WASD移动 · 左键普攻 · 空格翻滚 · Q/E/R技能',
+        'Tab背包/符文 · 1药剂 · F交互 · L星灯(夜)',
+      ];
+      lines.forEach((l, i) => ctx.fillText(l, r.width / 2, r.height * 0.46 + i * 26));
+      ctx.restore();
+    }
   }
 
   private renderWorld(alpha: number): void {

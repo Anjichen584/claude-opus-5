@@ -29,6 +29,7 @@ export class MenuUI {
   private startRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private altarRects: Array<{ rect: Rect; key: 'hp' | 'atk' | 'luck' }> = [];
   private classRects: Array<{ rect: Rect; klass: Klass }> = [];
+  private craftRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   constructor(private readonly input: Input) {}
 
@@ -44,6 +45,15 @@ export class MenuUI {
       }
       for (const cr of this.classRects) {
         if (inside(cr.rect, mx, my)) this.selectedClass = cr.klass;
+      }
+      // 星辉铸台:5 碎片 → 预订下局开局橙装
+      if (inside(this.craftRect, mx, my)) {
+        const bp = balance.blueprint;
+        if (!meta.data.craftQueued && meta.data.blueprintShards >= bp.craftCost) {
+          meta.data.blueprintShards -= bp.craftCost;
+          meta.data.craftQueued = true;
+          meta.save();
+        }
       }
     }
     return null;
@@ -155,6 +165,27 @@ export class MenuUI {
       ctx.fillText(maxed ? '已满级' : `升级 ✦${cost}`, btn.x + btn.w / 2, btn.y + 16);
       this.altarRects.push({ rect: btn, key: b.key });
     });
+
+    // 星辉铸台(图纸系统)
+    const bp = balance.blueprint;
+    const shards = meta.data.blueprintShards;
+    const queued = meta.data.craftQueued;
+    const canCraft = !queued && shards >= bp.craftCost;
+    const cbw = 340;
+    this.craftRect = { x: w / 2 - cbw / 2, y: ay + 170, w: cbw, h: 26 };
+    ctx.fillStyle = canCraft ? '#2a3147' : UI.panel;
+    ctx.fillRect(this.craftRect.x, this.craftRect.y, cbw, 26);
+    ctx.strokeStyle = canCraft ? UI.gold : '#3a4154';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(this.craftRect.x, this.craftRect.y, cbw, 26);
+    ctx.textAlign = 'center';
+    ctx.font = '12px monospace';
+    ctx.fillStyle = queued ? UI.gold : canCraft ? UI.gold : UI.dim;
+    ctx.fillText(
+      queued ? '📜 铸造完成:下局开局自带传奇装备!'
+        : `📜 星辉铸台:图纸 ${shards}/${bp.craftCost}${canCraft ? ' · 点击铸造(下局开局橙装)' : '(Boss 掉落,夜战翻倍)'}`,
+      w / 2, this.craftRect.y + 18,
+    );
 
     // 战绩与操作说明
     const s = meta.data.stats;

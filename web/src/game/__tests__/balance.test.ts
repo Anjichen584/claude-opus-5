@@ -51,6 +51,12 @@ describe('balance.json 完整性', () => {
     expect(balance.classes.warden.combo.mults.length).toBe(3);
   });
 
+  it('图纸系统参数合法', () => {
+    expect(balance.blueprint.craftCost).toBeGreaterThan(0);
+    expect(balance.blueprint.shardsPerBoss).toBeGreaterThan(0);
+    expect(balance.blueprint.nightBonus).toBeGreaterThanOrEqual(0);
+  });
+
   it('秘境事件参数合法', () => {
     expect(balance.events.bloodHpMult).toBeGreaterThan(0.5);
     expect(balance.events.bloodHpMult).toBeLessThan(1);

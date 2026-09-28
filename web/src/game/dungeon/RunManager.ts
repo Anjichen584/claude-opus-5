@@ -271,29 +271,65 @@ export class RunManager {
     }
   }
 
-  /** 场景物件:树/岩石(碰撞)+ 灌木(装饰),避开入口与出口带 */
+  /** 场景物件:按地形模板布置(战斗房 4 模板随机,走位差异化) */
   private scatterProps(world: World, kind: RoomKind): void {
     const P = balance.props;
-    const counts: Array<['tree' | 'rock' | 'bush', number]> =
-      kind === 'boss' ? [['tree', 2], ['rock', 1]]
-      : kind === 'treasure' ? [['bush', 5], ['tree', 2]]
-      : [
-          ['tree', this.rng.int(P.tree.perRoomMin, P.tree.perRoomMax)],
-          ['rock', this.rng.int(P.rock.perRoomMin, P.rock.perRoomMax)],
-          ['bush', this.rng.int(P.bush.perRoomMin, P.bush.perRoomMax)],
-        ];
-    for (const [pk, n] of counts) {
-      for (let i = 0; i < n; i++) {
-        const x = this.rng.range(5, balance.arena.widthM - 4.5) * M;
-        const y = this.rng.range(1.6, balance.arena.heightM - 1.4) * M;
-        const e = world.create();
-        world.add(e, new Transform(x, y));
-        world.add(e, new PropObstacle(pk));
-        const radius = pk === 'tree' ? P.tree.bodyRadius : pk === 'rock' ? P.rock.bodyRadius : 0;
-        if (radius > 0) {
-          world.add(e, new Velocity()); // Body 需参与物理查询(速度恒 0)
-          world.add(e, new Body(radius, true));
+    const W = balance.arena.widthM;
+    const H = balance.arena.heightM;
+    const put = (pk: 'tree' | 'rock' | 'bush', xM: number, yM: number): void => {
+      const e = world.create();
+      world.add(e, new Transform(xM * M, yM * M));
+      world.add(e, new PropObstacle(pk));
+      const radius = pk === 'tree' ? P.tree.bodyRadius : pk === 'rock' ? P.rock.bodyRadius : 0;
+      if (radius > 0) {
+        world.add(e, new Velocity()); // Body 需参与物理查询(速度恒 0)
+        world.add(e, new Body(radius, true));
+      }
+    };
+    const rnd = (pk: 'tree' | 'rock' | 'bush', n: number): void => {
+      for (let i = 0; i < n; i++) put(pk, this.rng.range(5, W - 4.5), this.rng.range(1.6, H - 1.4));
+    };
+
+    if (kind === 'boss') { put('tree', 6, 2); put('tree', W - 5, H - 2); put('rock', W / 2, 1.8); return; }
+    if (kind === 'treasure' || kind === 'shop' || kind === 'event') { rnd('bush', 5); rnd('tree', 2); return; }
+
+    // 战斗/精英:地形模板(精英偏好石柱阵)
+    const tpl = kind === 'elite'
+      ? 'pillars'
+      : this.rng.pick(['scatter', 'pillars', 'grove', 'lane'] as const);
+    switch (tpl) {
+      case 'scatter': {
+        rnd('tree', this.rng.int(P.tree.perRoomMin, P.tree.perRoomMax));
+        rnd('rock', this.rng.int(P.rock.perRoomMin, P.rock.perRoomMax));
+        rnd('bush', this.rng.int(P.bush.perRoomMin, P.bush.perRoomMax));
+        break;
+      }
+      case 'pillars': { // 石柱阵:3×2 网格岩石,卡怪走位
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 2; j++) {
+            put('rock', 7 + i * (W - 12) / 2 + this.rng.range(-0.5, 0.5), 3 + j * (H - 6) + this.rng.range(-0.4, 0.4));
+          }
         }
+        rnd('bush', 3);
+        break;
+      }
+      case 'grove': { // 密林四角:树丛占角,中场开阔
+        const corners: Array<[number, number]> = [[6, 2.2], [W - 5, 2.2], [6, H - 2.2], [W - 5, H - 2.2]];
+        for (const [cx, cy] of corners) {
+          put('tree', cx, cy);
+          put('tree', cx + this.rng.range(-1.4, 1.4), cy + this.rng.range(-0.8, 0.8));
+        }
+        rnd('bush', 4);
+        break;
+      }
+      case 'lane': { // 林荫走廊:两排树夹出中路
+        for (let i = 0; i < 4; i++) {
+          const x = 7 + i * (W - 11) / 3;
+          put('tree', x, 2.0);
+          put('tree', x + 1.2, H - 2.0);
+        }
+        rnd('bush', 3);
+        break;
       }
     }
   }

@@ -8,6 +8,7 @@ import {
 import { ItemFactory } from './Items';
 import { salvage } from './Equip';
 import { clock } from '@game/dungeon/Clock';
+import { meta } from '@game/meta/Save';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 
 const L = balance.loot;
@@ -47,6 +48,14 @@ export class LootSystem implements System {
       // 装备:精英必掉蓝起步,Boss 必掉紫+30%橙(docs/03 §6)
       const isElite = kill.kind === 'oakgolem';
       const isBoss = kill.kind === 'boss';
+      // 图纸碎片:Boss 必掉(夜战 +1),局外货币立即入账
+      if (isBoss) {
+        const bp = balance.blueprint;
+        const gain = bp.shardsPerBoss + (clock.isNight() ? bp.nightBonus : 0);
+        meta.data.blueprintShards += gain;
+        meta.save();
+        world.emit(new ToastEvent(`📜 图纸碎片 +${gain}(共 ${meta.data.blueprintShards})`, '#e8c07a'));
+      }
       const rolls = isBoss ? 2 : 1;
       for (let r = 0; r < rolls * lootMult; r++) {
         if (isBoss && r === 0) {

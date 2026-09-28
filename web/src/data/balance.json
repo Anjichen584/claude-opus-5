@@ -612,5 +612,10 @@
     "blessingSpeed": 0.1,
     "fountainMin": 80,
     "fountainMax": 150
+  },
+  "blueprint": {
+    "shardsPerBoss": 1,
+    "nightBonus": 1,
+    "craftCost": 5
   }
 }
