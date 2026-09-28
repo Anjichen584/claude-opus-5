@@ -33,6 +33,8 @@ import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
+import { sprites } from '@engine/render/Sprites';
+import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 
 const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   battle: { color: '#dfe8f2', label: '战斗' },
@@ -63,12 +65,14 @@ export class GameScene {
   private menuT = 0;
   private wasNight = false;
   private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0 };
+  private bgHasTile = false;
 
   constructor(
     private readonly renderer: Renderer,
     private readonly input: Input,
     private readonly loop: GameLoop,
   ) {
+    for (const n of SPRITE_NAMES) sprites.load(n, `/sprites/${n}.png`);
     this.inventoryUI = new InventoryUI(input);
     this.menuUI = new MenuUI(input);
     this.bg = this.bakeBackground();
@@ -221,6 +225,11 @@ export class GameScene {
 
   render(alpha: number, rawDt: number): void {
     if (rawDt > 0) this.fps = this.fps * 0.95 + (1 / rawDt) * 0.05;
+    // 草地贴图解码完成后重烘焙地面
+    if (!this.bgHasTile && sprites.get('grass_tile')) {
+      this.bgHasTile = true;
+      this.bg = this.bakeBackground();
+    }
     const r = this.renderer;
     r.clear('#131a12');
 
@@ -230,6 +239,13 @@ export class GameScene {
         ctx.globalAlpha = 0.35;
         ctx.drawImage(this.bg, 0, 0);
         ctx.globalAlpha = 1;
+      });
+      // 主角立绘(呼吸摇摆)
+      drawSprite(r.ctx, 'knight', r.width / 2 - 240, r.height * 0.30, {
+        scale: 3.2, rot: Math.sin(this.menuT * 1.6) * 0.03, sy: 1 + Math.sin(this.menuT * 3.2) * 0.015,
+      });
+      drawSprite(r.ctx, 'boss_nanmir', r.width / 2 + 265, r.height * 0.33, {
+        scale: 1.35, faceLeft: true, alpha: 0.85, sy: 1 + Math.sin(this.menuT * 2.2) * 0.02,
       });
       this.menuUI.renderMenu(r.ctx, r.width, r.height, this.menuT);
       return;
@@ -304,41 +320,89 @@ export class GameScene {
         const s = w.mustGet(e, Shroomling);
         const h = w.mustGet(e, Health);
         const [ix, iy] = lerp(tr);
-        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 11); drawShroomling(ctx, ix, iy, s.animT, h.flash, s.state === 'chase'); } });
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 11);
+          const walk = s.state === 'chase' ? 10 : 5;
+          if (!drawSprite(ctx, 'shroomling', ix, iy, {
+            flash: h.flash, rot: Math.sin(s.animT * walk) * 0.07,
+            sy: 1 + Math.sin(s.animT * walk * 2) * 0.05,
+          })) drawShroomling(ctx, ix, iy, s.animT, h.flash, s.state === 'chase');
+        } });
       }
       for (const e of w.query(WindBee, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const b = w.mustGet(e, WindBee);
         const h = w.mustGet(e, Health);
+        const vel = w.get(e, Velocity);
         const [ix, iy] = lerp(tr);
-        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 7); drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph'); } });
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 7);
+          const jitter = b.state === 'telegraph' ? (Math.random() - 0.5) * 0.3 : 0;
+          if (!drawSprite(ctx, 'windbee', ix, iy - 10 + Math.sin(b.animT * 9) * 3, {
+            flash: h.flash, faceLeft: (vel?.vx ?? 0) < 0, rot: jitter + Math.sin(b.animT * 5) * 0.08,
+          })) drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph');
+        } });
       }
       for (const e of w.query(BlightWolf, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const wf = w.mustGet(e, BlightWolf);
         const h = w.mustGet(e, Health);
         const [ix, iy] = lerp(tr);
-        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 16); drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, Math.cos(tr.face) < 0, wf.state === 'growl', wf.state === 'pounce'); } });
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 16);
+          const faceLeft = Math.cos(tr.face) < 0;
+          const lean = wf.state === 'pounce' ? (faceLeft ? 0.16 : -0.16) : 0;
+          const growl = wf.state === 'growl' ? (Math.random() - 0.5) * 0.12 : 0;
+          if (!drawSprite(ctx, 'blightwolf', ix, iy, {
+            flash: h.flash, faceLeft, rot: lean + growl,
+            sy: 1 + Math.sin(wf.animT * 12) * 0.03,
+          })) drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, faceLeft, wf.state === 'growl', wf.state === 'pounce');
+        } });
       }
       for (const e of w.query(ThornVine, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const v = w.mustGet(e, ThornVine);
         const h = w.mustGet(e, Health);
-        list.push({ y: tr.y, draw: () => { drawShadow(ctx, tr.x, tr.y, 12); drawThornVine(ctx, tr.x, tr.y, v.animT, h.flash, v.state === 'telegraph'); } });
+        list.push({ y: tr.y, draw: () => {
+          drawShadow(ctx, tr.x, tr.y, 12);
+          const cast = v.state === 'telegraph';
+          if (!drawSprite(ctx, 'thornvine', tr.x, tr.y, {
+            flash: h.flash, rot: Math.sin(v.animT * 2) * 0.05,
+            sy: cast ? 1.08 + Math.sin(v.animT * 18) * 0.03 : 1,
+          })) drawThornVine(ctx, tr.x, tr.y, v.animT, h.flash, cast);
+        } });
       }
       for (const e of w.query(OakGolem, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const g = w.mustGet(e, OakGolem);
         const h = w.mustGet(e, Health);
         const [ix, iy] = lerp(tr);
-        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 18); drawOakGolem(ctx, ix, iy, g.animT, h.flash, Math.cos(tr.face) < 0, g.state === 'windup'); } });
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 18);
+          const faceLeft = Math.cos(tr.face) < 0;
+          const windup = g.state === 'windup';
+          if (!drawSprite(ctx, 'oakgolem', ix, iy, {
+            flash: h.flash, faceLeft,
+            rot: windup ? (faceLeft ? 0.12 : -0.12) : Math.sin(g.animT * 4) * 0.03,
+            sy: windup ? 1.06 : 1 + Math.sin(g.animT * 8) * 0.02,
+          })) drawOakGolem(ctx, ix, iy, g.animT, h.flash, faceLeft, windup);
+        } });
       }
       for (const e of w.query(BossNanmir, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const boss = w.mustGet(e, BossNanmir);
         const h = w.mustGet(e, Health);
         const [ix, iy] = lerp(tr);
-        list.push({ y: iy, draw: () => { drawShadow(ctx, ix, iy, 34); drawBossNanmir(ctx, ix, iy, boss.animT, h.flash, Math.cos(tr.face) < 0, boss.phase, boss.state === 'stagger'); } });
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 34);
+          const faceLeft = Math.cos(tr.face) < 0;
+          const stag = boss.state === 'stagger';
+          if (!drawSprite(ctx, 'boss_nanmir', ix, iy, {
+            flash: h.flash, faceLeft,
+            rot: stag ? 0.12 : Math.sin(boss.animT * 1.8) * 0.02,
+            sy: 1 + Math.sin(boss.animT * 2.2) * 0.02 + (boss.phase === 3 ? 0.03 : 0),
+          })) drawBossNanmir(ctx, ix, iy, boss.animT, h.flash, faceLeft, boss.phase, stag);
+        } });
       }
       for (const e of w.query(Portal, Transform)) {
         const tr = w.mustGet(e, Transform);
@@ -364,10 +428,30 @@ export class GameScene {
             y: iy,
             draw: () => {
               drawShadow(ctx, ix, iy, 13);
-              drawKnight(ctx, ix, iy, {
-                t: p.animT, moving: p.moving, faceLeft: p.aimX < 0,
-                attackStage: p.attackT > 0 ? p.comboStage : 0,
-                attackProg: p.attackDur > 0 ? 1 - p.attackT / p.attackDur : 0,
+              const faceLeft = p.aimX < 0;
+              const attacking = p.attackT > 0;
+              const prog = p.attackDur > 0 ? 1 - p.attackT / p.attackDur : 0;
+              // 程序动画:跑步摇摆 / 攻击前倾脉冲 / 翻滚残影感
+              let rot = 0;
+              let sy = 1;
+              let sx = 1;
+              if (p.moving) {
+                rot = Math.sin(p.animT * 13) * 0.06;
+                sy = 1 + Math.sin(p.animT * 26) * 0.03;
+              }
+              if (attacking) {
+                const punch = Math.sin(prog * Math.PI);
+                rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
+                sx = 1 + punch * 0.08;
+              }
+              const ok = drawSprite(ctx, 'knight', ix, iy, {
+                flash: h.flash, faceLeft, rot, sx, sy,
+                alpha: p.dashT > 0 ? 0.7 : p.iframes > 0 ? 0.85 : 1,
+              });
+              if (!ok) drawKnight(ctx, ix, iy, {
+                t: p.animT, moving: p.moving, faceLeft,
+                attackStage: attacking ? p.comboStage : 0,
+                attackProg: prog,
                 dashing: p.dashT > 0, flash: h.flash,
                 invuln: p.iframes > 0 && p.dashT <= 0,
               });
@@ -549,13 +633,24 @@ export class GameScene {
     const ctx = cv.getContext('2d')!;
     const rng = new Rng(20231124);
 
-    for (let ty = 0; ty < balance.arena.heightM; ty++) {
-      for (let tx = 0; tx < balance.arena.widthM; tx++) {
-        ctx.fillStyle = (tx + ty) % 2 === 0 ? FOREST.grassA : FOREST.grassB;
-        ctx.fillRect(tx * M, ty * M, M, M);
-        if (rng.chance(0.18)) {
-          ctx.fillStyle = FOREST.grassC;
-          ctx.fillRect(tx * M + rng.int(4, 30), ty * M + rng.int(4, 30), 8, 5);
+    const tile = sprites.get('grass_tile');
+    if (tile) {
+      // 正式草地贴图(无缝平铺)
+      ctx.imageSmoothingEnabled = false;
+      const pat = ctx.createPattern(tile, 'repeat');
+      if (pat) {
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, wPx, hPx);
+      }
+    } else {
+      for (let ty = 0; ty < balance.arena.heightM; ty++) {
+        for (let tx = 0; tx < balance.arena.widthM; tx++) {
+          ctx.fillStyle = (tx + ty) % 2 === 0 ? FOREST.grassA : FOREST.grassB;
+          ctx.fillRect(tx * M, ty * M, M, M);
+          if (rng.chance(0.18)) {
+            ctx.fillStyle = FOREST.grassC;
+            ctx.fillRect(tx * M + rng.int(4, 30), ty * M + rng.int(4, 30), 8, 5);
+          }
         }
       }
     }
