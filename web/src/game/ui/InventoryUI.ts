@@ -8,6 +8,7 @@ import type { Item, Slot } from '@game/loot/Items';
 import { SLOTS } from '@game/loot/Items';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { elementColor } from '@game/combat/Elements';
+import { drawElementIcon } from '@game/gfx/draw';
 import { bindOf } from '@game/meta/Bindings';
 import type { Element } from '@game/components';
 
@@ -174,10 +175,13 @@ export class InventoryUI {
       ctx.strokeStyle = equipped ? UI.gold : col;
       ctx.lineWidth = equipped ? 2.5 : 1.5;
       ctx.strokeRect(x + 1, runeY + 1, rc - 2, rc - 2);
-      ctx.fillStyle = col;
       ctx.font = 'bold 17px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('◈', x + rc / 2, runeY + 22);
+      // 有元素 → 画元素图标;无元素或用图未就绪 → 回退菱形字形
+      if (!(rune.element && drawElementIcon(ctx, rune.element, x + rc / 2, runeY + 17, 21))) {
+        ctx.fillStyle = col;
+        ctx.fillText('◈', x + rc / 2, runeY + 22);
+      }
       ctx.font = 'bold 10px monospace';
       ctx.fillStyle = equipped ? UI.gold : UI.dim;
       ctx.fillText(SKILL_KEY[rune.skill] ?? '?', x + rc / 2, runeY + 37);
@@ -196,7 +200,8 @@ export class InventoryUI {
         ctx.strokeRect(tx, ty - 18, 320, 58);
         ctx.fillStyle = rune.element ? elementColor(rune.element as Element) : UI.text;
         ctx.font = 'bold 13px monospace';
-        ctx.fillText(`◈ ${rune.name} [${SKILL_KEY[rune.skill] ?? '?'}技能]`, tx + 10, ty + 2);
+        const iconOk = rune.element ? drawElementIcon(ctx, rune.element, tx + 19, ty - 3, 18) : false;
+        ctx.fillText(`◈ ${rune.name} [${SKILL_KEY[rune.skill] ?? '?'}技能]`, tx + (iconOk ? 32 : 10), ty + 2);
         ctx.fillStyle = UI.text;
         ctx.font = '11px monospace';
         ctx.fillText(rune.desc, tx + 10, ty + 20);

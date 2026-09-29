@@ -18,7 +18,7 @@ import {
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
 import {
-  drawBlightWolf, drawBossNanmir, drawDummy, drawKnight, drawOakGolem, drawPickup,
+  drawBlightWolf, drawBossNanmir, drawDummy, drawElementIcon, drawKnight, drawOakGolem, drawPickup,
   drawPortal, drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
@@ -1470,7 +1470,9 @@ export class GameScene {
         const tr = w.mustGet(e, Transform);
         const baseY = tr.y - (w.has(e, BossNanmir) ? 110 : 32);
         els.forEach((el, i) => {
-          const x = tr.x + (i - (els.length - 1) / 2) * 10;
+          const x = tr.x + (i - (els.length - 1) / 2) * 12;
+          // 元素图标贴图优先,未就绪回退色块
+          if (drawElementIcon(ctx, el, x, baseY, 15)) return;
           ctx.fillStyle = elementColor(el);
           ctx.fillRect(x - 3, baseY - 3, 6, 6);
           ctx.strokeStyle = '#0d0f1a';

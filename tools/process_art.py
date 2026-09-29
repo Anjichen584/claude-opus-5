@@ -63,6 +63,16 @@ TARGETS = {
     "prop_cactus": 60,
     "prop_sandrock": 48,
     "prop_tumble": 32,
+    # 第三批:拾取物 / 传送门 / 元素图标(2026-09-29)
+    "pickup_chest": 30,
+    "pickup_stardust": 24,
+    "pickup_potion": 26,
+    "pickup_rune": 26,
+    "portal_gate": 88,
+    "elem_fire": 20,
+    "elem_ice": 20,
+    "elem_lightning": 20,
+    "elem_poison": 20,
 }
 TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
 

@@ -72,4 +72,7 @@ export const SPRITE_NAMES = [
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',
   'shroomling_f2', 'windbee_f2', 'blightwolf_f2', 'cinderrat_f2',
+  // 第三批:拾取物 / 传送门 / 元素图标
+  'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',
+  'elem_fire', 'elem_ice', 'elem_lightning', 'elem_poison',
 ] as const;
