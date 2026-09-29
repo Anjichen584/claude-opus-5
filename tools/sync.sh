@@ -83,7 +83,16 @@ else
 fi
 
 # ---- 3. 推送(密钥走 ~/.ssh/config)----
-if git push origin main >/dev/null 2>/tmp/push_err; then
+# 重试一次:沙箱里遇到过 known_hosts 首次写入 / 网络抖动导致的瞬时失败(2026-09-29 实见),
+# 提交已经做好了,不该因为一次握手失败就让人工介入
+pushed=0
+for attempt in 1 2; do
+  if git push origin main >/dev/null 2>/tmp/push_err; then pushed=1; break; fi
+  echo "⚠️  第 $attempt 次推送失败,3 秒后重试…"
+  sed -n '1,3p' /tmp/push_err
+  sleep 3
+done
+if [ "$pushed" = 1 ]; then
   echo "🚀 已推送 origin/main"
 else
   cat /tmp/push_err; echo "❌ 推送失败(原因见上)—— 检查密钥/网络后重试:git push origin main"
