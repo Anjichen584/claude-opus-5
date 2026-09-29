@@ -135,9 +135,10 @@
 - 沙箱工作区快照不含 node_modules,新环境要重新 `npm install`
 - **沙箱快照上限 ~128 MB**:大文件(源图/临时大图)不许留在仓库;提交前先看 `du -sh`
 - 环境可能被重建(已发生三次):`.git`/`node_modules` 会丢,恢复即 `git clone --depth 1` + `npm install`
-- **沙箱快照可能把 `.git` 回滚到更早的提交**(工作树是新的、历史却落后,实测发生过):
-  恢复后先 `git fetch origin main` 对齐,再用 `git reset --soft origin/main` 把工作树接回远程 HEAD 再提交,
-  直接 push 会因 non-fast-forward 被拒。
+- **沙箱快照会回滚 `.git`**(连续两轮实测:`.git/config` 被当敏感路径剥离 → origin 丢失;`.git` 历史落后于远程,
+  工作树却是最新的)。`tools/sync.sh` 现在自带自愈:先 `fetch` → 若远程领先且本地没有独有提交,
+  自动 `git reset --soft origin/main` 再提交(fast-forward 推送);提交前若相对远程出现删除会告警(工作树可能缺文件)。
+  自愈路径用 `--mixed` 回滚的模拟仓库验证过(正常回滚不误报、真删除会报)。
 - 美术生成后必须过 64 色板量化,否则风格会花(见 04 §4)
 - 伤害数字禁止硬编码,全走 balance.json(架构文档 §5 铁律)
 - **改技能/符文数值必须两边同改**:web JSON 是权威,C# `Skills/*` 里的 const + `Parity` 字典要跟着改,否则 `bash unity/Tests/run.sh` 会红(CI 也跑)

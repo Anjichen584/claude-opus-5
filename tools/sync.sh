@@ -41,36 +41,41 @@ if [ ! -f "$HOME/.ssh/github_deploy" ]; then
   echo "⚠️  缺少部署密钥 ~/.ssh/github_deploy —— 请重新放置后再推送(见 docs/07-CONTRIBUTING.md)"
 fi
 
-# ---- 1. 提交 ----
-git add -A
-if git diff --cached --quiet; then
-  echo "ℹ️  没有需要提交的改动"
-else
-  git -c user.name="Arena Agent" -c user.email="agent@arena.ai" commit -q -m "$MSG"
-  echo "📝 已提交:$(git log --oneline -1)"
-fi
-
-# ---- 2. 推送(密钥走 ~/.ssh/config)----
-# 先取一次远程状态:快照可能把 .git 历史回滚(工作树却是新的),那样 push 必被拒。
-git fetch origin main -q 2>/dev/null || true
+# ---- 1. 取远程 + 历史对齐(必须在提交之前!)----
+# 顺序很关键:如果先提交再对齐,本地会永远"领先一个提交",自愈分支就进不去了(实测踩到过)。
+# 场景:快照把 .git 历史回滚到更早的提交,工作树却是最新的 —— 此时 push 必被 non-fast-forward 拒绝。
+git fetch origin main -q 2>/dev/null || echo "ℹ️  取远程失败(离线?),继续尝试本地提交"
 if git rev-parse --verify -q origin/main >/dev/null; then
   if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
-    # 远程领先(本地历史被回滚)。若本地 HEAD 没有"远程没有的提交",就能安全对齐。
     LOCAL_ONLY=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l | tr -d ' ')
     if [ "$LOCAL_ONLY" = "0" ]; then
+      # 本地历史整体是远程的祖先 → 把 HEAD 挪到远程,工作树原样保留,后面的提交就能 fast-forward
       git reset --soft origin/main
-      if ! git diff --cached --quiet; then
-        git -c user.name="Arena Agent" -c user.email="agent@arena.ai" commit -q -m "$MSG"
-        echo "🔄 已对齐远程历史(本地 .git 被快照回滚)并重新提交:$(git log --oneline -1)"
-      else
-        echo "🔄 已对齐远程历史(本地 .git 被快照回滚,工作树与远程一致)"
-      fi
+      echo "🔄 已对齐远程历史(本地 .git 被快照回滚,工作树保留)"
     else
-      echo "⚠️  本地有 $LOCAL_ONLY 个远程没有的提交且远程领先 —— 需要人工 rebase,不要自动处理"
+      echo "⚠️  本地有 $LOCAL_ONLY 个远程没有的提交,且远程已领先 —— 需要人工 rebase,脚本不自动处理"
     fi
   fi
 fi
 
+# ---- 2. 提交 ----
+git add -A
+if git diff --cached --quiet; then
+  echo "ℹ️  没有需要提交的改动"
+else
+  # 守卫:此处索引 = 工作树,若相对远程仍出现删除,通常是工作树真的缺了文件(快照回滚的副作用),
+  # 提交前告警,让人工确认 —— 不是自动拦截,正常删文件仍然放行。
+  if git rev-parse --verify -q origin/main >/dev/null; then
+    DELETED=$(git diff --cached --name-status origin/main 2>/dev/null | awk '$1=="D"{print $2}' | head -5 | tr '\n' ' ')
+    if [ -n "$DELETED" ]; then
+      echo "⚠️  相对远程存在删除,请确认是否有意为之: $DELETED"
+    fi
+  fi
+  git -c user.name="Arena Agent" -c user.email="agent@arena.ai" commit -q -m "$MSG"
+  echo "📝 已提交:$(git log --oneline -1)"
+fi
+
+# ---- 3. 推送(密钥走 ~/.ssh/config)----
 if git push origin main >/dev/null 2>/tmp/push_err; then
   echo "🚀 已推送 origin/main"
 else
@@ -78,7 +83,7 @@ else
   exit 1
 fi
 
-# ---- 3. 清沙箱 ----
+# ---- 4. 清沙箱 ----
 rm -f "$HOME"/*.png "$HOME"/*.jpg 2>/dev/null || true   # 临时预览拼图
 rm -rf "$ROOT/web/dist" "$ROOT/unity/Tests/bin" "$ROOT/unity/Tests/obj" /tmp/refs /tmp/gh 2>/dev/null || true
 SIZE=$(du -sm --exclude=node_modules --exclude=dist --exclude=.git "$ROOT" 2>/dev/null | cut -f1)
