@@ -98,6 +98,13 @@ tools/sync.sh "提交信息"     # 提交 → 推送 → 清沙箱,一条命令�
    git config branch.main.remote origin && git config branch.main.merge refs/heads/main
    ```
 2. **`/tmp` 会被清空**。部署密钥曾放 `/tmp/gh/`,每次重建都要重放;现已改到 `~/.ssh/github_deploy`。
+3. **文件权限位不随快照保留**。表现为两个迷惑症状:① `ssh` 报 `Permission denied (publickey)`
+   但其实密钥还在(只是变回了 644,ssh 会拒绝过宽的私钥权限);② `tools/sync.sh: Permission denied`
+   其实是丢了 `+x`。`tools/sync.sh` 已在开头自愈这两处权限,手动修复:
+   ```bash
+   chmod 600 ~/.ssh/github_deploy && chmod +x tools/sync.sh
+   ```
+   稳妥起见也可以用 `bash tools/sync.sh "..."` 调用,不依赖执行位。
 
 ### 环境被重建后的恢复步骤
 
