@@ -827,7 +827,8 @@
         "arcDeg": 110,
         "knockback3": 6.0,
         "moveSlow": 0.35,
-        "lungeM": 0.6
+        "lungeM": 0.6,
+        "vulnOnHitS": 0
       }
     },
     "ranger": {
@@ -844,7 +845,10 @@
         "lifeS": 0.9,
         "heavyEvery": 4,
         "heavyMult": 1.35,
-        "pierce": 1
+        "pierce": 1,
+        "splashM": 0,
+        "splashMult": 0.6,
+        "moveSlowPct": 1
       }
     },
     "arcanist": {
@@ -862,7 +866,9 @@
         "heavyEvery": 3,
         "heavyMult": 1.4,
         "splashM": 0.9,
-        "moveSlowPct": 0.55
+        "moveSlowPct": 0.55,
+        "pierce": 0,
+        "splashMult": 0.6
       }
     },
     "warden": {

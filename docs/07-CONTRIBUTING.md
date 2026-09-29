@@ -49,6 +49,17 @@ AI 选现有行为树模板或在 `game/ai/behaviors/` 新写节点 →
 
 **改平衡**: 只动 `balance.json` + 03-NUMBERS.md,同 commit。
 
+### 4.0 改 balance 里的敌人/职业数值后,必须重新生成 C# 数据层
+
+```bash
+python3 tools/gen_bestiary.py     # balance.json → unity/Assets/Scripts/Data/Bestiary.cs(含 BestiaryKlass)
+bash unity/Tests/run.sh           # parity 会逐键双向比对,漏生成/改一边立刻红
+```
+
+生成物带 `⚠ 请勿手改` 头注释;**不要手动编辑 `Bestiary.cs` / `BestiaryKlass`** ——
+手抄 300+ 个数值叶子必错,这就是当初引入 codegen 的原因。新增职业普攻字段时:
+先在 `balance.classes.<k>` 补齐字段(显式 0 优于缺省,生成器与 parity 都更简单)→ 重新生成 → 跑双端测试。
+
 ### 4.1 随机数必须播种(踩过的坑)
 
 逻辑层里**任何** `new Random()` / `rand()` 都必须给固定种子,否则输出不可复现,测试会偶发变红

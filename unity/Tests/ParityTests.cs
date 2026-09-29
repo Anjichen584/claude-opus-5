@@ -35,6 +35,7 @@ namespace StarfallKnights.Tests
             CheckChallenges(check, near, root);
             CheckPixelFont(check, near, root);
             CheckLeaderboard(check, near, root);
+            CheckClassBasics(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -371,6 +372,74 @@ namespace StarfallKnights.Tests
             foreach (var ch in PixelFont.Glyphs.Keys) if (!glyphs.ContainsKey(ch)) extra.Add(ch);
             check(extra.Count == 0, $"C# 没有多余字模(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(",", extra) : "")})");
             check(bad == 0, $"font.json → PixelFont.cs 逐字符逐行一致({glyphs.Count} 个字模)");
+        }
+
+        /// <summary>四职业普攻档案 parity:balance.classes.* 的 combo/bow 段 vs BestiaryKlass(生成)。</summary>
+        private static void CheckClassBasics(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var classes = MiniJson.Opt(doc, "classes");
+            if (classes == null) { check(false, "balance.json 有 classes 段"); return; }
+
+            // 收集 classes.<k>.combo|bow 下的全部数值叶子(与 gen_bestiary.py 同一套路径规则)
+            var leaves = new Dictionary<string, double>();
+            void Walk(object o, string prefix)
+            {
+                if (o is Dictionary<string, object> d)
+                {
+                    foreach (var kv in d)
+                    {
+                        if (kv.Key.StartsWith("$")) continue;
+                        Walk(kv.Value, $"{prefix}.{kv.Key}");
+                    }
+                }
+                else if (o is List<object> arr)
+                {
+                    for (int i = 0; i < arr.Count; i++) Walk(arr[i], $"{prefix}.{i}");
+                }
+                else if (o is double num)
+                {
+                    leaves[prefix] = num;
+                }
+            }
+            foreach (var kv in classes)
+            {
+                var row = MiniJson.Obj(kv.Value);
+                foreach (var sect in new[] { "combo", "bow" })
+                {
+                    if (row.ContainsKey(sect)) Walk(row[sect], $"classes.{kv.Key}.{sect}");
+                }
+            }
+
+            int mismatches = 0, matched = 0;
+            foreach (var kv in leaves)
+            {
+                if (!BestiaryKlass.Parity.TryGetValue(kv.Key, out float csVal))
+                {
+                    mismatches++;
+                    check(false, $"职业档案常量缺失:{kv.Key}(JSON={kv.Value})");
+                    continue;
+                }
+                matched++;
+                if (Math.Abs(csVal - kv.Value) > Tol)
+                {
+                    mismatches++;
+                    check(false, $"职业档案数值不一致:{kv.Key}(JSON={kv.Value} vs C#={csVal})");
+                }
+            }
+            var extra = new List<string>();
+            foreach (var k in BestiaryKlass.Parity.Keys) if (!leaves.ContainsKey(k)) extra.Add(k);
+            check(extra.Count == 0, $"职业档案无多余键(多出 {extra.Count} 个)");
+            check(mismatches == 0, $"balance.json → BestiaryKlass 逐键一致({matched} 个数值键)");
+
+            // 形态与顺序:近战两职业 combo、远程两职业 bow(顺序错了玩法就变了)
+            check(BasicAttack.KindOf(HeroClass.Blade) == BasicAttack.Kind.Combo, "剑士 = 近战组合技");
+            check(BasicAttack.KindOf(HeroClass.Warden) == BasicAttack.Kind.Combo, "守卫 = 近战组合技");
+            check(BasicAttack.KindOf(HeroClass.Ranger) == BasicAttack.Kind.Shot, "猎手 = 远程射击");
+            check(BasicAttack.KindOf(HeroClass.Arcanist) == BasicAttack.Kind.Shot, "秘术师 = 远程射击");
+            check(Meta.Leaderboard.Boards.Length == 4, "四条榜仍在(回归保护)");
         }
 
         /// <summary>排行榜配置 parity:balance.json 的 leaderboard 段 vs Meta/Leaderboard.cs。</summary>

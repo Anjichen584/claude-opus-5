@@ -119,6 +119,77 @@ def main() -> int:
             fmt(ch[c]['lanternCost']), int(ch[c]['unlockClears']))
         for c in ('1', '2', '3'))
 
+    # ---- 四职业普攻档案(classes.* 段):同样生成,不手抄 ----
+    cls_consts, cls_parity, cls_used = [], [], set()
+
+    def add_cls(name: str, key: str, val) -> str:
+        if name in cls_used:
+            i = 2
+            while f'{name}{i}' in cls_used:
+                i += 1
+            name = f'{name}{i}'
+        cls_used.add(name)
+        cls_consts.append((name, fmt(val), key))
+        cls_parity.append((key, name))
+        return name
+
+    def walk_cls(data, json_path: str, name_prefix: str) -> None:
+        for k, v in data.items():
+            if k.startswith('$') or isinstance(v, (str, bool)):
+                continue
+            nm = name_prefix + pascal(k)
+            if isinstance(v, dict):
+                walk_cls(v, f'{json_path}.{k}', nm)
+            elif isinstance(v, list):
+                for i, x in enumerate(v):
+                    add_cls(f'Klass{nm}{i}', f'{json_path}.{k}.{i}', x)
+            elif isinstance(v, (int, float)):
+                add_cls(f'Klass{nm}', f'{json_path}.{k}', v)
+            else:
+                raise SystemExit(f'未处理的职业字段类型 {type(v)} @ {json_path}.{k}')
+
+    class_paths = []  # 只取普攻档案(combo/bow),职业的 name/hero/hpMult 等不进 parity(它们是展示与乘区,另有归属)
+    for klass, kv in b['classes'].items():
+        for sect in ('combo', 'bow'):
+            if sect in kv:
+                walk_cls(kv[sect], f'classes.{klass}.{sect}', pascal(klass) + pascal(sect))
+                class_paths.append((klass, sect))
+
+    def arr(klass: str, sect: str, field: str) -> str:
+        # 数组元素按 JSON 索引顺序收集(遍历即为顺序),不再按名字排序
+        items = [n for n, _v, k in cls_consts if k.startswith(f'classes.{klass}.{sect}.{field}.')]
+        body = ', '.join(items)
+        name = f'Klass{pascal(klass)}{pascal(sect)}{pascal(field)}S'
+        return f'        public static readonly float[] {name} = {{ {body} }};'
+
+    cls_array_lines = '\n'.join(
+        arr(klass, sect, field)
+        for klass, sect in class_paths
+        for field in ('attackTime', 'mults')
+        if any(k.startswith(f'classes.{klass}.{sect}.{field}.') for _n, _v, k in cls_consts)
+    )
+    cls_const_lines = '\n'.join(
+        f'        /// <summary>{key}</summary>\n        public const float {n} = {v};' for n, v, key in cls_consts)
+    cls_parity_lines = '\n'.join(f'            {{ "{k}", {n} }},' for k, n in cls_parity)
+    cls_block = f"""
+    /// <summary>
+    /// 四职业普攻档案(web: game/combat/BasicAttack.ts)。同样由生成器产出:
+    /// 段数/倍率/前冲/破甲/穿透/溅射这些**行为参数**一旦两边漂移,玩法就不一样了,所以逐键 parity。
+    /// </summary>
+    public static class BestiaryKlass
+    {{
+{cls_const_lines}
+{cls_array_lines}
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {{
+{cls_parity_lines}
+        }};
+    }}
+"""
+    out_marker = "\n    }}\n}}\n"
+
+
     out = f'''using System.Collections.Generic;
 using StarfallKnights.Core;
 
@@ -182,10 +253,12 @@ namespace StarfallKnights.Data
 {parity_lines}
         }};
     }}
+{cls_block}
 }}
 '''
     DST.write_text(out)
-    print(f'✅ 生成 {DST.relative_to(ROOT)}:{len(consts)} 个数值常量 / {len(rows)} 行图鉴 / {len(parity)} 个 parity 键')
+    print(f'✅ 生成 {DST.relative_to(ROOT)}:{len(consts)} 个数值常量 / {len(rows)} 行图鉴 / {len(parity)} 个 parity 键 '
+          f'+ 职业普攻档案 {len(cls_consts)} 键')
     return 0
 
 

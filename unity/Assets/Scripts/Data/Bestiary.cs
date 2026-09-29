@@ -993,4 +993,165 @@ namespace StarfallKnights.Data
             { "chapters.3.unlockClears", Ch3UnlockClears },
         };
     }
+
+    /// <summary>
+    /// 四职业普攻档案(web: game/combat/BasicAttack.ts)。同样由生成器产出:
+    /// 段数/倍率/前冲/破甲/穿透/溅射这些**行为参数**一旦两边漂移,玩法就不一样了,所以逐键 parity。
+    /// </summary>
+    public static class BestiaryKlass
+    {
+        /// <summary>classes.blade.combo.mults.0</summary>
+        public const float KlassBladeComboMults0 = 1f;
+        /// <summary>classes.blade.combo.mults.1</summary>
+        public const float KlassBladeComboMults1 = 1f;
+        /// <summary>classes.blade.combo.mults.2</summary>
+        public const float KlassBladeComboMults2 = 1.6f;
+        /// <summary>classes.blade.combo.window</summary>
+        public const float KlassBladeComboWindow = 0.6f;
+        /// <summary>classes.blade.combo.attackTime.0</summary>
+        public const float KlassBladeComboAttackTime0 = 0.2f;
+        /// <summary>classes.blade.combo.attackTime.1</summary>
+        public const float KlassBladeComboAttackTime1 = 0.2f;
+        /// <summary>classes.blade.combo.attackTime.2</summary>
+        public const float KlassBladeComboAttackTime2 = 0.28f;
+        /// <summary>classes.blade.combo.range</summary>
+        public const float KlassBladeComboRange = 2.2f;
+        /// <summary>classes.blade.combo.arcDeg</summary>
+        public const float KlassBladeComboArcDeg = 110f;
+        /// <summary>classes.blade.combo.knockback3</summary>
+        public const float KlassBladeComboKnockback3 = 6f;
+        /// <summary>classes.blade.combo.moveSlow</summary>
+        public const float KlassBladeComboMoveSlow = 0.35f;
+        /// <summary>classes.blade.combo.lungeM</summary>
+        public const float KlassBladeComboLungeM = 0.6f;
+        /// <summary>classes.blade.combo.vulnOnHitS</summary>
+        public const float KlassBladeComboVulnOnHitS = 0f;
+        /// <summary>classes.ranger.bow.rateS</summary>
+        public const float KlassRangerBowRateS = 0.38f;
+        /// <summary>classes.ranger.bow.mult</summary>
+        public const float KlassRangerBowMult = 0.6f;
+        /// <summary>classes.ranger.bow.speedM</summary>
+        public const float KlassRangerBowSpeedM = 11f;
+        /// <summary>classes.ranger.bow.radiusM</summary>
+        public const float KlassRangerBowRadiusM = 0.12f;
+        /// <summary>classes.ranger.bow.lifeS</summary>
+        public const float KlassRangerBowLifeS = 0.9f;
+        /// <summary>classes.ranger.bow.heavyEvery</summary>
+        public const float KlassRangerBowHeavyEvery = 4f;
+        /// <summary>classes.ranger.bow.heavyMult</summary>
+        public const float KlassRangerBowHeavyMult = 1.35f;
+        /// <summary>classes.ranger.bow.pierce</summary>
+        public const float KlassRangerBowPierce = 1f;
+        /// <summary>classes.ranger.bow.splashM</summary>
+        public const float KlassRangerBowSplashM = 0f;
+        /// <summary>classes.ranger.bow.splashMult</summary>
+        public const float KlassRangerBowSplashMult = 0.6f;
+        /// <summary>classes.ranger.bow.moveSlowPct</summary>
+        public const float KlassRangerBowMoveSlowPct = 1f;
+        /// <summary>classes.arcanist.bow.rateS</summary>
+        public const float KlassArcanistBowRateS = 0.5f;
+        /// <summary>classes.arcanist.bow.mult</summary>
+        public const float KlassArcanistBowMult = 0.85f;
+        /// <summary>classes.arcanist.bow.speedM</summary>
+        public const float KlassArcanistBowSpeedM = 9f;
+        /// <summary>classes.arcanist.bow.radiusM</summary>
+        public const float KlassArcanistBowRadiusM = 0.18f;
+        /// <summary>classes.arcanist.bow.lifeS</summary>
+        public const float KlassArcanistBowLifeS = 1.1f;
+        /// <summary>classes.arcanist.bow.heavyEvery</summary>
+        public const float KlassArcanistBowHeavyEvery = 3f;
+        /// <summary>classes.arcanist.bow.heavyMult</summary>
+        public const float KlassArcanistBowHeavyMult = 1.4f;
+        /// <summary>classes.arcanist.bow.splashM</summary>
+        public const float KlassArcanistBowSplashM = 0.9f;
+        /// <summary>classes.arcanist.bow.moveSlowPct</summary>
+        public const float KlassArcanistBowMoveSlowPct = 0.55f;
+        /// <summary>classes.arcanist.bow.pierce</summary>
+        public const float KlassArcanistBowPierce = 0f;
+        /// <summary>classes.arcanist.bow.splashMult</summary>
+        public const float KlassArcanistBowSplashMult = 0.6f;
+        /// <summary>classes.warden.combo.attackTime.0</summary>
+        public const float KlassWardenComboAttackTime0 = 0.42f;
+        /// <summary>classes.warden.combo.attackTime.1</summary>
+        public const float KlassWardenComboAttackTime1 = 0.42f;
+        /// <summary>classes.warden.combo.attackTime.2</summary>
+        public const float KlassWardenComboAttackTime2 = 0.6f;
+        /// <summary>classes.warden.combo.mults.0</summary>
+        public const float KlassWardenComboMults0 = 1.2f;
+        /// <summary>classes.warden.combo.mults.1</summary>
+        public const float KlassWardenComboMults1 = 1.2f;
+        /// <summary>classes.warden.combo.mults.2</summary>
+        public const float KlassWardenComboMults2 = 2f;
+        /// <summary>classes.warden.combo.arcDeg</summary>
+        public const float KlassWardenComboArcDeg = 130f;
+        /// <summary>classes.warden.combo.range</summary>
+        public const float KlassWardenComboRange = 2f;
+        /// <summary>classes.warden.combo.knockback3</summary>
+        public const float KlassWardenComboKnockback3 = 2.5f;
+        /// <summary>classes.warden.combo.moveSlow</summary>
+        public const float KlassWardenComboMoveSlow = 0.3f;
+        /// <summary>classes.warden.combo.window</summary>
+        public const float KlassWardenComboWindow = 0.9f;
+        /// <summary>classes.warden.combo.lungeM</summary>
+        public const float KlassWardenComboLungeM = 0.25f;
+        /// <summary>classes.warden.combo.vulnOnHitS</summary>
+        public const float KlassWardenComboVulnOnHitS = 2f;
+        public static readonly float[] KlassBladeComboAttackTimeS = { KlassBladeComboAttackTime0, KlassBladeComboAttackTime1, KlassBladeComboAttackTime2 };
+        public static readonly float[] KlassBladeComboMultsS = { KlassBladeComboMults0, KlassBladeComboMults1, KlassBladeComboMults2 };
+        public static readonly float[] KlassWardenComboAttackTimeS = { KlassWardenComboAttackTime0, KlassWardenComboAttackTime1, KlassWardenComboAttackTime2 };
+        public static readonly float[] KlassWardenComboMultsS = { KlassWardenComboMults0, KlassWardenComboMults1, KlassWardenComboMults2 };
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {
+            { "classes.blade.combo.mults.0", KlassBladeComboMults0 },
+            { "classes.blade.combo.mults.1", KlassBladeComboMults1 },
+            { "classes.blade.combo.mults.2", KlassBladeComboMults2 },
+            { "classes.blade.combo.window", KlassBladeComboWindow },
+            { "classes.blade.combo.attackTime.0", KlassBladeComboAttackTime0 },
+            { "classes.blade.combo.attackTime.1", KlassBladeComboAttackTime1 },
+            { "classes.blade.combo.attackTime.2", KlassBladeComboAttackTime2 },
+            { "classes.blade.combo.range", KlassBladeComboRange },
+            { "classes.blade.combo.arcDeg", KlassBladeComboArcDeg },
+            { "classes.blade.combo.knockback3", KlassBladeComboKnockback3 },
+            { "classes.blade.combo.moveSlow", KlassBladeComboMoveSlow },
+            { "classes.blade.combo.lungeM", KlassBladeComboLungeM },
+            { "classes.blade.combo.vulnOnHitS", KlassBladeComboVulnOnHitS },
+            { "classes.ranger.bow.rateS", KlassRangerBowRateS },
+            { "classes.ranger.bow.mult", KlassRangerBowMult },
+            { "classes.ranger.bow.speedM", KlassRangerBowSpeedM },
+            { "classes.ranger.bow.radiusM", KlassRangerBowRadiusM },
+            { "classes.ranger.bow.lifeS", KlassRangerBowLifeS },
+            { "classes.ranger.bow.heavyEvery", KlassRangerBowHeavyEvery },
+            { "classes.ranger.bow.heavyMult", KlassRangerBowHeavyMult },
+            { "classes.ranger.bow.pierce", KlassRangerBowPierce },
+            { "classes.ranger.bow.splashM", KlassRangerBowSplashM },
+            { "classes.ranger.bow.splashMult", KlassRangerBowSplashMult },
+            { "classes.ranger.bow.moveSlowPct", KlassRangerBowMoveSlowPct },
+            { "classes.arcanist.bow.rateS", KlassArcanistBowRateS },
+            { "classes.arcanist.bow.mult", KlassArcanistBowMult },
+            { "classes.arcanist.bow.speedM", KlassArcanistBowSpeedM },
+            { "classes.arcanist.bow.radiusM", KlassArcanistBowRadiusM },
+            { "classes.arcanist.bow.lifeS", KlassArcanistBowLifeS },
+            { "classes.arcanist.bow.heavyEvery", KlassArcanistBowHeavyEvery },
+            { "classes.arcanist.bow.heavyMult", KlassArcanistBowHeavyMult },
+            { "classes.arcanist.bow.splashM", KlassArcanistBowSplashM },
+            { "classes.arcanist.bow.moveSlowPct", KlassArcanistBowMoveSlowPct },
+            { "classes.arcanist.bow.pierce", KlassArcanistBowPierce },
+            { "classes.arcanist.bow.splashMult", KlassArcanistBowSplashMult },
+            { "classes.warden.combo.attackTime.0", KlassWardenComboAttackTime0 },
+            { "classes.warden.combo.attackTime.1", KlassWardenComboAttackTime1 },
+            { "classes.warden.combo.attackTime.2", KlassWardenComboAttackTime2 },
+            { "classes.warden.combo.mults.0", KlassWardenComboMults0 },
+            { "classes.warden.combo.mults.1", KlassWardenComboMults1 },
+            { "classes.warden.combo.mults.2", KlassWardenComboMults2 },
+            { "classes.warden.combo.arcDeg", KlassWardenComboArcDeg },
+            { "classes.warden.combo.range", KlassWardenComboRange },
+            { "classes.warden.combo.knockback3", KlassWardenComboKnockback3 },
+            { "classes.warden.combo.moveSlow", KlassWardenComboMoveSlow },
+            { "classes.warden.combo.window", KlassWardenComboWindow },
+            { "classes.warden.combo.lungeM", KlassWardenComboLungeM },
+            { "classes.warden.combo.vulnOnHitS", KlassWardenComboVulnOnHitS },
+        };
+    }
+
 }

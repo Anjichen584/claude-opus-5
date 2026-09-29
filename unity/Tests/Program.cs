@@ -508,6 +508,63 @@ namespace StarfallKnights.Tests
                 "每日/周常徽标能认出键");
         }
 
+        // ---------------- 四职业普攻档案(镜像 web combat/BasicAttack.ts)----------------
+        private static void TestBasicAttack()
+        {
+            Suite("四职业普攻(形态 / 终结段 / 穿透 / 溅射 / 破甲 / 减速)");
+
+            // 形态
+            Check(BasicAttack.KindOf(HeroClass.Blade) == BasicAttack.Kind.Combo, "剑士走组合技");
+            Check(BasicAttack.KindOf(HeroClass.Ranger) == BasicAttack.Kind.Shot, "猎手走射击");
+
+            // 剑士:三段循环 + 只有终结段带击退/前冲,不破甲
+            var blade = BasicAttack.ComboOf(HeroClass.Blade);
+            Check(blade.Mults.Length == 3, $"剑士 3 段(实际 {blade.Mults.Length})");
+            Check(BasicAttack.ComboStage(0, 0f, 3) == 1 && BasicAttack.ComboStage(1, 0.5f, 3) == 2
+                  && BasicAttack.ComboStage(3, 0.5f, 3) == 1 && BasicAttack.ComboStage(2, 0f, 3) == 1,
+                "连招推进:窗口内递增、超时回 1、到顶循环");
+            var s1 = BasicAttack.ResolveCombo(blade, 0, 0f);
+            var s3 = BasicAttack.ResolveCombo(blade, 2, 0.5f);
+            Check(s1.KnockbackM == 0f && s1.LungeM == 0f, "常规段不带击退与前冲");
+            Check(s3.KnockbackM > 0f && s3.LungeM > 0f && s3.VulnS == 0f, "终结段:击退 + 前冲,但不破甲");
+            float imp = BasicAttack.LungeImpulse(s3);
+            Near(imp * 0.12f, s3.LungeM * BasicAttack.PxPerM, 0.5f, "前冲是可量化的速度脉冲(距离 = v·t)");
+
+            // 守卫:更重、会破甲、位移更小、出招更黏
+            var warden = BasicAttack.ComboOf(HeroClass.Warden);
+            var w3 = BasicAttack.ResolveCombo(warden, 2, 0.5f);
+            Check(w3.VulnS > 0f, $"守卫终结段破甲(实际 {w3.VulnS}s)");
+            Check(w3.Mult > s3.Mult, "守卫终结段倍率高于剑士");
+            Check(w3.LungeM < s3.LungeM, "守卫位移小于剑士(重甲)");
+            Check(BasicAttack.MoveSlowOf(HeroClass.Warden) < BasicAttack.MoveSlowOf(HeroClass.Blade), "守卫出招更黏");
+
+            // 猎手:走射 + 每第 4 发强化并穿透;溅射为 0
+            var ranger = BasicAttack.ShotOf(HeroClass.Ranger);
+            var shots = new List<BasicAttack.ShotStep>();
+            for (int i = 0; i < 4; i++) shots.Add(BasicAttack.ResolveShot(ranger, i));
+            Check(shots[3].Heavy && !shots[0].Heavy && !shots[1].Heavy && !shots[2].Heavy, "每第 4 发强化");
+            Check(shots[0].Pierce == 0 && shots[3].Pierce > 0, "只有强化发穿透");
+            Check(shots[3].Mult > shots[0].Mult, "强化发伤害更高");
+            Check(BasicAttack.MoveSlowOf(HeroClass.Ranger) >= 1f, "猎手可走射");
+            Check(ranger.SplashM == 0f, "猎手不溅射(溅射是秘术师的特权)");
+
+            // 秘术师:每一发都溅射 + 施法减速 + 弹速慢于猎手
+            var arcanist = BasicAttack.ShotOf(HeroClass.Arcanist);
+            Check(arcanist.SplashM > 0f, $"秘术师溅射(实际 {arcanist.SplashM}m)");
+            Check(BasicAttack.ResolveShot(arcanist, 0).SplashM == arcanist.SplashM, "普通发也溅射");
+            Check(BasicAttack.MoveSlowOf(HeroClass.Arcanist) < 1f, "秘术师施法减速");
+            Check(arcanist.SpeedM < ranger.SpeedM, "法球慢于箭矢");
+
+            // 展示文案:四句互不相同,且提到各自特征
+            var d0 = BasicAttack.Describe(HeroClass.Blade);
+            var d1 = BasicAttack.Describe(HeroClass.Warden);
+            var d2 = BasicAttack.Describe(HeroClass.Ranger);
+            var d3 = BasicAttack.Describe(HeroClass.Arcanist);
+            Check(d0.Contains("3 段") && d1.Contains("破甲") && d2.Contains("穿透") && d3.Contains("溅射"),
+                $"四职业描述各含特征(剑士[{d0}] 守卫[{d1}] 猎手[{d2}] 秘术师[{d3}])");
+            Check(new HashSet<string> { d0, d1, d2, d3 }.Count == 4, "四句描述互不相同");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -536,6 +593,7 @@ namespace StarfallKnights.Tests
             TestTerrainRules();
             TestPixelFont();
             TestLeaderboard();
+            TestBasicAttack();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
