@@ -47,6 +47,11 @@ export interface SaveData {
   blueprints: string[];
   /** 铸台预约的蓝图 id:下局开局直接拿到这张图纸的产品(null = 没预约) */
   craftQueuedId: string | null;
+  /**
+   * 各深渊层通关次数(下标 0 → 深渊 I)。深渊解锁是**逐层**的:
+   * II 要求 I 通关 unlockAbyss 次,III 要求 II —— 所以这必须是每层独立的计数,不能只存一个总数。
+   */
+  abyssClears: number[];
   /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 周常挑战最佳(键 = ISO 周,如 2026-W40;跨周自动作废) */
@@ -101,6 +106,7 @@ export function defaultSave(): SaveData {
     craftQueued: false,
     blueprints: [],
     craftQueuedId: null,
+    abyssClears: [],
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     weekly: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
   leaderboard: { speed: [], kills: [], hit: [], nohit: [] },
@@ -187,6 +193,12 @@ export function migrateSave(raw: unknown): MigrateResult {
     : [];
   data.craftQueuedId = typeof data.craftQueuedId === 'string' && data.craftQueuedId.length > 0
     ? data.craftQueuedId : null;
+  // 深渊各层通关数:补齐到层数长度、越界/非数字一律夹回(层表变长时老档自动补 0)
+  const levelCount = (balance.abyss.levels as unknown[]).length;
+  data.abyssClears = Array.from({ length: levelCount }, (_, i) => {
+    const raw = Array.isArray(data.abyssClears) ? (data.abyssClears as unknown[])[i] : 0;
+    return Math.max(0, Math.floor(num(raw)));
+  });
   const cleanRecord = (r: { key: unknown; cleared: unknown; bestTimeS: unknown; bestKills: unknown }):
     { key: string; cleared: boolean; bestTimeS: number; bestKills: number } => ({
     key: typeof r.key === 'string' ? r.key : '',

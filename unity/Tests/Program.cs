@@ -603,6 +603,7 @@ namespace StarfallKnights.Tests
             TestRunSequence();
             TestCodex();
             TestChapters();
+            TestAbyss();
             TestTelegraphs();
             TestWeakspots();
             TestCreatureAI();
@@ -1490,6 +1491,82 @@ namespace StarfallKnights.Tests
             runB.OnSpawn = (k, hp, atk, spd) => { if (EnemyKinds.IsBoss(k)) bossHp = hp; };
             for (int d = 0; d < 8; d++) runB.NextRoom(wB);
             Near(bossHp, Bestiary.Of(EnemyKind.BossKazra).Hp, 0.01f, "章 3 Boss 血量不被章节乘区二次放大");
+        }
+
+        /// <summary>
+        /// 深渊难度层(轮 23):层表乘区 + 逐层解锁 + **真的作用到出怪**。
+        /// 前面三项在 ParityTests.CheckAbyss 里是纯规则断言;这里跑**真实的 RunManagerLite**,
+        /// 因为"规则写对了但 Scale 没乘上"是这一轮最容易犯的错(web 侧同款接线守卫)。
+        /// </summary>
+        private static void TestAbyss()
+        {
+            Suite("深渊难度层(乘区 / 解锁 / 接线)");
+            Check(AbyssRules.LevelCount == 3, "三层难度");
+            Check(AbyssRules.HpMult(1) < AbyssRules.HpMult(2) && AbyssRules.HpMult(2) < AbyssRules.HpMult(3),
+                "怪血乘区逐层递增");
+            Check(AbyssRules.LootMult(1) > 1f && AbyssRules.LootMult(3) > AbyssRules.LootMult(2),
+                "掉落乘区逐层递增且都 > 1(难度要值得打)");
+
+            // 解锁:逐层(不能跳级)
+            var none = new int[3];
+            var firstOnly = new int[] { 1, 0, 0 };
+            var all = new int[] { 9, 9, 9 };
+            Check(!AbyssRules.Unlocked(2, 9999, none) && AbyssRules.Unlocked(2, 9999, firstOnly),
+                "深渊 II 必须先通关深渊 I");
+            Check(!AbyssRules.Unlocked(3, 9999, firstOnly)
+                  && AbyssRules.Unlocked(3, 9999, all), "深渊 III 只看深渊 II(不能跳级)");
+
+            // 接线:真实 RunManagerLite 的出怪血量按档位放大
+            var w0 = new LogicWorld();
+            MakePlayer(w0);
+            var run0 = new RunManagerLite();
+            int spawned0 = 0;
+            run0.OnSpawn = (k, hp, atk, spd) => { if (!EnemyKinds.IsBoss(k)) spawned0++; };
+            run0.SetChapter(1);
+            run0.NextRoom(w0);
+
+            var w3 = new LogicWorld();
+            MakePlayer(w3);
+            var run3 = new RunManagerLite();
+            int spawned3 = 0;
+            run3.OnSpawn = (k, hp, atk, spd) => { if (!EnemyKinds.IsBoss(k)) spawned3++; };
+            run3.SetChapter(1);
+            run3.SetAbyss(3);
+            run3.NextRoom(w3);
+            Check(spawned0 > 0 && spawned3 > 0, "两种档位都刷出了杂兵");
+
+            // 比"同一只怪"的缩放比值:两次出怪的**种类随机**,直接比两只不同怪的血量会得到 1.2 这种假比值
+            var probe = Bestiary.Of(EnemyKind.Shroomling);
+            var (hpA, atkA) = run0.Scale(probe, false, false);
+            var (hpB, atkB) = run3.Scale(probe, false, false);
+            Near(hpB / hpA, AbyssRules.HpMult(3), 1e-3f,
+                $"深渊 III 下同一只菇灵血量是普通档的 {AbyssRules.HpMult(3)} 倍(实测 {hpB / hpA:0.###})");
+            Near(atkB / atkA, AbyssRules.AtkMult(3), 1e-3f, $"攻击同理 ×{AbyssRules.AtkMult(3)}");
+            Check(run0.LootMult == 1f && run3.LootMult > 1f, "掉落乘区随档位走(普通档中性)");
+            Check(run0.DustMult == 1f && run3.DustMult > 1f, "星尘乘区随档位走");
+            Check(run0.EliteExtraWaves == 0 && run3.EliteExtraWaves > 0, "精英房波次随档位走");
+
+            // 精英房真的多刷了怪(不是只暴露了一个 getter)
+            int CountElite(int abyss)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w);
+                var run = new RunManagerLite();
+                int n = 0;
+                run.OnRoomStart = (kind, depth) => { if (kind == RoomKind.Elite) n = 0; };
+                run.OnSpawn = (k, hp, atk, spd) => { if (run.Room == RoomKind.Elite) n++; };
+                run.SetChapter(1);
+                run.SetAbyss(abyss);
+                for (int d = 0; d < 5; d++) run.NextRoom(w);
+                return n;
+            }
+            int elite0 = CountElite(0);
+            int elite3 = CountElite(3);
+            Check(elite0 > 0 && elite3 > elite0, $"深渊档的精英房怪更多(普通 {elite0} → 深渊 III {elite3})");
+
+            // 挑战局口径:普通档不叠任何乘区
+            Check(AbyssRules.HpMult(AbyssRules.Normal) == 1f && AbyssRules.AtkMult(AbyssRules.Normal) == 1f,
+                "普通档全中性(挑战局固定用它)");
         }
 
         // ---------------- 预警区域 ----------------

@@ -10,6 +10,7 @@ import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
 import { BLUEPRINTS, blueprintOf, craftBlocker, blockerText } from '@game/loot/Blueprint';
 import { specialDef } from '@game/loot/Specials';
+import { ABYSS_LEVELS, NORMAL, abyssUnlocked, lockReason, summaryOf } from '@game/dungeon/Abyss';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
 import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
 import {
@@ -69,6 +70,8 @@ export class CampUI {
   dailyTab: 'today' | 'week' = 'today';
   /** 星陨殿堂页签:成就 / 排行榜 */
   hallTab: 'achv' | 'board' = 'achv';
+  /** 选中的深渊难度档(0 = 普通远征;轮 23)。解锁状态每帧现读存档,不缓存(通关后应立刻可选) */
+  selectedAbyss = NORMAL;
   /** 铸台选中的蓝图 id(默认第一张) */
   forgePick: string = BLUEPRINTS[0]?.id ?? '';
   /** 铸台当前提示:挡住了为什么 / 成功后一句话(菜单里没有 Toast,就地显示) */
@@ -147,6 +150,13 @@ export class CampUI {
         }
       }
       if (r.act.startsWith('up_')) this.tryUpgrade(r.act.slice(3) as 'hp' | 'atk' | 'luck');
+      if (r.act.startsWith('ab') && r.act.length > 2) {
+        // 深渊档(轮 23):锁着就**不切**(点一下锁定层却切过去,比不响应更糟)
+        const idx = Number(r.act.slice(2));
+        if (abyssUnlocked(idx, { clears: meta.data.stats.clears, abyssClears: meta.data.abyssClears })) {
+          this.selectedAbyss = idx;
+        }
+      }
       if (r.act.startsWith('bp_')) { this.forgePick = r.act.slice(3); this.forgeNotice = ''; }
       if (r.act === 'forgeLearn') return this.tryLearn();
       if (r.act === 'forgeCraft') return this.tryCraft();
@@ -690,8 +700,8 @@ export class CampUI {
 
   // ---- 出征 ----
   private renderExpedition(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    const pw = 560;
-    const ph = 250;
+    const pw = 620;
+    const ph = 292;
     const px = w / 2 - pw / 2;
     const py = h / 2 - ph / 2;
     panelBox(ctx, px, py, pw, ph);
@@ -718,6 +728,43 @@ export class CampUI {
       ctx.fillText(locked ? `通关${cfg.unlockClears}次解锁` : cfg.name, rect.x + rect.w / 2, rect.y + 48);
       this.rects.push({ rect, act: `ch${ch}` });
     });
+
+    // ---- 深渊难度(轮 23):普通远征 + 三层;锁着的显示解锁条件 ----
+    const prog = { clears: meta.data.stats.clears, abyssClears: meta.data.abyssClears };
+    const tiers: number[] = [NORMAL, ...ABYSS_LEVELS.map((l) => l.id)];
+    const tierW = (pw - 48 - 24) / 4;
+    ctx.textAlign = 'center';
+    ctx.font = '11px monospace';
+    ctx.fillStyle = UI.dim;
+    ctx.fillText('深渊难度(乘区只作用于本局;解锁后永久可选)', w / 2, py + 138);
+    tiers.forEach((idx, i) => {
+      const rect: Rect = { x: px + 24 + i * (tierW + 8), y: py + 148, w: tierW, h: 62 };
+      const unlocked = abyssUnlocked(idx, prog);
+      const sel = this.selectedAbyss === idx;
+      ctx.fillStyle = sel ? '#3a2531' : '#1a1f30';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.strokeStyle = sel ? UI.hpLow : unlocked ? '#3a4154' : '#2a2f3d';
+      ctx.lineWidth = sel ? 2.5 : 1.5;
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      const name = idx === NORMAL ? '远征' : ABYSS_LEVELS[idx - 1].name;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = unlocked ? (sel ? UI.hpLow : UI.text) : UI.dim;
+      ctx.fillText(unlocked ? name : `🔒 ${name}`, rect.x + rect.w / 2, rect.y + 22);
+      ctx.font = '10px monospace';
+      ctx.fillStyle = UI.dim;
+      const line2 = unlocked
+        ? (idx === NORMAL ? '基准' : `血×${ABYSS_LEVELS[idx - 1].hpMult} 掉×${ABYSS_LEVELS[idx - 1].lootMult}`)
+        : (lockReason(idx, prog) ?? '');
+      ctx.fillText(line2, rect.x + rect.w / 2, rect.y + 38);
+      if (unlocked && (meta.data.abyssClears[idx - 1] ?? 0) > 0 && idx > 0) {
+        ctx.fillStyle = UI.gold;
+        ctx.fillText(`已通关 ${meta.data.abyssClears[idx - 1]} 次`, rect.x + rect.w / 2, rect.y + 52);
+      }
+      this.rects.push({ rect, act: `ab${idx}` });
+    });
+    ctx.fillStyle = UI.dim;
+    ctx.font = '10px monospace';
+    ctx.fillText(summaryOf(this.selectedAbyss), w / 2, py + 228);
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 78, w: 220, h: 46 };
     ctx.fillStyle = '#2a3147';

@@ -43,6 +43,7 @@ namespace StarfallKnights.Tests
             CheckReactions(check, root);
             CheckLoot(check, root);
             CheckShop(check, root);
+            CheckAbyss(check, root);
         }
 
         /// <summary>
@@ -229,7 +230,7 @@ namespace StarfallKnights.Tests
             var reactions = MiniJson.Opt(doc, "reactions");
             if (reactions != null) Walk(reactions, "reactions");
             // 橙装特效 / 消耗品 / 蓝图(轮 19–21):三段数值键同样进通用循环
-            foreach (var sect in new[] { "specials", "consumables", "blueprint", "shop", "events" })
+            foreach (var sect in new[] { "specials", "consumables", "blueprint", "shop", "events", "abyss" })
             {
                 var seg = MiniJson.Opt(doc, sect);
                 if (seg != null) Walk(seg, sect);
@@ -297,6 +298,93 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
             check(rowBad == 0, $"{enemies.Count} 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+        }
+
+        /// <summary>
+        /// 深渊难度层 parity(2026-09-29,轮 23)。
+        ///
+        /// 数值叶子走生成常量(已由通用循环逐键比对),这里钉**规则与口径**:
+        /// 逐列单调、普通档全中性、逐层解锁(不能跳级)、越界安全、形状稳定。
+        /// 这类"结构性质"一旦在移植时被抹平(比如把逐层解锁做成"通关 10 次全开"),
+        /// 数值 parity 依然全绿,但玩法已经变了。
+        /// </summary>
+        private static void CheckAbyss(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var abyss = MiniJson.Opt(doc, "abyss");
+            if (abyss == null) { check(false, "balance.abyss 存在"); return; }
+            var lv = MiniJson.OptArr(abyss, "levels") ?? new List<object>();
+            check(lv.Count == AbyssRules.LevelCount, $"层数一致(JSON {lv.Count} vs C# {AbyssRules.LevelCount})");
+
+            // 逐列单调:越高层怪越硬、掉得越多(不能出现"III 的掉落比 II 低")
+            string[] cols = { "hpMult", "atkMult", "lootMult", "dustMult" };
+            int bad = 0;
+            for (int i = 0; i < lv.Count; i++)
+            {
+                var row = MiniJson.Obj(lv[i]);
+                for (int j = 0; j < cols.Length; j++)
+                {
+                    float json = (float)MiniJson.Num(row, cols[j]);
+                    float cs = cols[j] switch { "hpMult" => AbyssRules.HpMult(i + 1), "atkMult" => AbyssRules.AtkMult(i + 1), "lootMult" => AbyssRules.LootMult(i + 1), _ => AbyssRules.DustMult(i + 1) };
+                    if (Math.Abs(json - cs) > Tol) bad++;
+                    if (i > 0 && json <= (float)MiniJson.Num(MiniJson.Obj(lv[i - 1]), cols[j])) bad++;
+                }
+            }
+            check(bad == 0, $"三层四条乘区逐列递增且与 C# 一致(异常 {bad} 处)");
+            check(AbyssRules.Levels[0].Loot > 1f && AbyssRules.Levels[2].Dust > AbyssRules.Levels[0].Dust,
+                "难度要值得打:掉落乘区 > 1 且越高层星尘越多");
+            check(AbyssRules.Normal == 0 && AbyssRules.HpMult(AbyssRules.Normal) == 1f
+                  && AbyssRules.AtkMult(AbyssRules.Normal) == 1f && AbyssRules.LootMult(AbyssRules.Normal) == 1f
+                  && AbyssRules.EliteWaves(AbyssRules.Normal) == 0,
+                "普通档全中性(系统侧不需要 if (abyss > 0))");
+            check(AbyssRules.HpMult(99) == 1f && AbyssRules.LootMult(-3) == 1f,
+                "越界难度档回中性(坏存档不该让玩家进不去游戏)");
+
+            // 逐层解锁:不能跳级
+            var none = new int[3];
+            var first = new int[] { 1, 0, 0 };
+            var enough = new int[] { 9, 9, 9 };
+            int needI = (int)Bestiary.AbyssLevels0UnlockClears;
+            check(needI > 0 && !AbyssRules.Unlocked(1, needI - 1, none) && AbyssRules.Unlocked(1, needI, none),
+                "深渊 I 看普通局通关数");
+            check(!AbyssRules.Unlocked(2, 9999, none) && AbyssRules.Unlocked(2, 9999, first),
+                "深渊 II 必须深渊 I 先通关(跳级 = 直接撞高倍血量的墙)");
+            check(!AbyssRules.Unlocked(3, 9999, first) && AbyssRules.Unlocked(3, 9999, enough),
+                "深渊 III 只认深渊 II 的通关数");
+            check(AbyssRules.Unlocked(AbyssRules.Normal, 0, none) && !AbyssRules.Unlocked(4, 9999, enough),
+                "普通远征永远可选;越界层永远不可选");
+            check(AbyssRules.MaxPlayable(0, none) == AbyssRules.Normal
+                  && AbyssRules.MaxPlayable(needI, none) == 1
+                  && AbyssRules.MaxPlayable(needI, enough) == 3,
+                "MaxPlayable 给出当前能打的最高层");
+            check(AbyssRules.LockReason(1, 0, none) != null && AbyssRules.LockReason(AbyssRules.Normal, 0, none) == null,
+                "锁着的原因说得清;普通档没有原因");
+
+            // 形状稳定 + 不改入参
+            var before = new int[] { 2, 0, 0 };
+            var after = AbyssRules.RecordClear(1, before);
+            check(after.Length == AbyssRules.LevelCount && after[0] == 3 && before[0] == 2,
+                "通关计数形状恒为层数,且不改入参");
+            var normalClear = AbyssRules.RecordClear(AbyssRules.Normal, before);
+            check(normalClear.Length == AbyssRules.LevelCount && normalClear[0] == 2,
+                "普通局通关也返回规整数组(否则存档形状会随档位变)");
+            check(AbyssRules.RecordClear(99, before).Length == AbyssRules.LevelCount, "越界档位不写出超长数组");
+
+            // 解锁提示只在跨过去那一次
+            check(AbyssRules.NewlyUnlocked(needI - 1, none, needI, none) == 1
+                  && AbyssRules.NewlyUnlocked(needI, none, needI + 1, none) == -1,
+                "解锁提示只报一次(已解锁的不反复提示)");
+
+            // 乘区应用顺序:章节 → 深渊(web RunMods.enemy 同序,乘积可交换所以只比结果)
+            var (hp, atk) = AbyssRules.Apply(3, 100f, 20f);
+            check(Math.Abs(hp - 100f * Bestiary.AbyssLevels2HpMult) < Tol
+                  && Math.Abs(atk - 20f * Bestiary.AbyssLevels2AtkMult) < Tol,
+                "Apply 把三层乘区作用到血/攻上");
+            check(Math.Abs(AbyssRules.NightBonusMult - Bestiary.AbyssNightBonusMult) < Tol,
+                "夜战加成读数据表(不写死)");
         }
 
         /// <summary>

@@ -1189,5 +1189,44 @@
       "chargeMax": 1.0,
       "element": "fire"
     }
+  },
+  "abyss": {
+    "$doc": "深渊难度层(10-FULL-PLAN 轮 23):在三章之上叠三层**独立乘区**。层数只改乘区与解锁,不改内容(敌人/房间/事件仍由章节决定)—— 所以三层可以共用同一套内容,三章的怪在三档难度下体验不同。eliteWaves = 每层**精英房额外波次**(不是额外房间:房间序列固定,插房间会顶掉商店/秘境选路)。规则见 dungeon/Abyss.ts。",
+    "levels": [
+      {
+        "id": 1,
+        "name": "深渊 I",
+        "hpMult": 1.45,
+        "atkMult": 1.25,
+        "lootMult": 1.25,
+        "dustMult": 1.3,
+        "unlockClears": 3,
+        "unlockAbyss": 0,
+        "eliteWaves": 1
+      },
+      {
+        "id": 2,
+        "name": "深渊 II",
+        "hpMult": 2.1,
+        "atkMult": 1.55,
+        "lootMult": 1.5,
+        "dustMult": 1.7,
+        "unlockClears": 0,
+        "unlockAbyss": 1,
+        "eliteWaves": 1
+      },
+      {
+        "id": 3,
+        "name": "深渊 III",
+        "hpMult": 3.0,
+        "atkMult": 1.9,
+        "lootMult": 1.8,
+        "dustMult": 2.2,
+        "unlockClears": 0,
+        "unlockAbyss": 2,
+        "eliteWaves": 2
+      }
+    ],
+    "nightBonusMult": 1.1
   }
 }

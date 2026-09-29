@@ -60,6 +60,7 @@ import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { buildFromBlueprint, blueprintOf } from '@game/loot/Blueprint';
+import { NORMAL as ABYSS_NORMAL, newlyUnlocked, recordClear, levelName } from '@game/dungeon/Abyss';
 import { CONS_VISUAL, consumableDef, type ConsumableId } from '@game/loot/Consumables';
 import { tutorial, formatHint } from '@game/meta/Tutorial';
 import { markRuneOwned } from '@game/meta/Codex';
@@ -194,6 +195,8 @@ export class GameScene {
     this.events = new EventSystem(this.input, this.loot.factory);
     this.run = new RunManager(this.loot.factory);
     this.run.chapter = chapter;
+    // 深渊难度档(轮 23):挑战局(每日/周常)固定普通档 —— 挑战要全服同条件,不是"谁层数高谁分高"
+    runMods.setAbyss(mode === 'off' ? this.campUI.selectedAbyss : ABYSS_NORMAL);
     this.bgHasTile = false;
     this.playerSystem = new PlayerSystem(this.input, this.renderer);
     this.playerSystem.aimAssist.reset(); // 新一局:清掉上一局的锁定目标(实体 id 会复用)
@@ -723,6 +726,15 @@ export class GameScene {
     if (victory) {
       meta.data.stats.clears++;
       if (this.feedback.hitsTaken === 0) meta.data.stats.noHitClears++; // 无伤通关
+      // 深渊层通关(轮 23):逐层计数 —— 深渊 II 的解锁看的是深渊 I 的通关数,不能只存总数
+      const before = { clears: meta.data.stats.clears - 1, abyssClears: meta.data.abyssClears };
+      if (runMods.abyss > ABYSS_NORMAL) {
+        meta.data.abyssClears = [...recordClear(runMods.abyss, before).abyssClears];
+      }
+      const unlocked = newlyUnlocked(before, { clears: meta.data.stats.clears, abyssClears: meta.data.abyssClears });
+      if (unlocked !== null) {
+        this.world.emit(new ToastEvent(`🔓 解锁「${levelName(unlocked)}」—— 营地里可选`, RARITY_COLORS.legendary));
+      }
       if (meta.data.stats.bestTimeS === 0 || clock.runTime < meta.data.stats.bestTimeS) {
         meta.data.stats.bestTimeS = clock.runTime;
       }
@@ -2182,6 +2194,14 @@ export class GameScene {
       ? `🌙 夜间掉落×2 · [L] 星灯 ✦${this.run.chapterCfg.lanternCost} 立即天亮 · [Tab]背包镶符文`
       : '踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包(右键重铸) · 2/3/4 消耗品 · 商店按[F]买';
     ctx.fillText(hint, width / 2, height - 12);
+    // 深渊档位提示(轮 23):玩家必须随时知道自己在哪一档 —— 打不动时第一反应是查装备,不是查难度
+    if (runMods.abyss > 0) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff9a6b';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(`🔥 ${levelName(runMods.abyss)}(怪血 ×${runMods.abyssHpMult} 攻击 ×${runMods.abyssAtkMult})`,
+        width / 2, height - 30);
+    }
   }
 
   /** 烘焙静态地面 */

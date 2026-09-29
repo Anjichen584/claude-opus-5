@@ -1040,6 +1040,56 @@ namespace StarfallKnights.Data
         public const float EventSacrificeCons = 3f;
         /// <summary>events.relicDustFallback</summary>
         public const float EventRelicDustFallback = 60f;
+        /// <summary>abyss.levels.0.id</summary>
+        public const float AbyssLevels0Id = 1f;
+        /// <summary>abyss.levels.0.hpMult</summary>
+        public const float AbyssLevels0HpMult = 1.45f;
+        /// <summary>abyss.levels.0.atkMult</summary>
+        public const float AbyssLevels0AtkMult = 1.25f;
+        /// <summary>abyss.levels.0.lootMult</summary>
+        public const float AbyssLevels0LootMult = 1.25f;
+        /// <summary>abyss.levels.0.dustMult</summary>
+        public const float AbyssLevels0DustMult = 1.3f;
+        /// <summary>abyss.levels.0.unlockClears</summary>
+        public const float AbyssLevels0UnlockClears = 3f;
+        /// <summary>abyss.levels.0.unlockAbyss</summary>
+        public const float AbyssLevels0UnlockAbyss = 0f;
+        /// <summary>abyss.levels.0.eliteWaves</summary>
+        public const float AbyssLevels0EliteWaves = 1f;
+        /// <summary>abyss.levels.1.id</summary>
+        public const float AbyssLevels1Id = 2f;
+        /// <summary>abyss.levels.1.hpMult</summary>
+        public const float AbyssLevels1HpMult = 2.1f;
+        /// <summary>abyss.levels.1.atkMult</summary>
+        public const float AbyssLevels1AtkMult = 1.55f;
+        /// <summary>abyss.levels.1.lootMult</summary>
+        public const float AbyssLevels1LootMult = 1.5f;
+        /// <summary>abyss.levels.1.dustMult</summary>
+        public const float AbyssLevels1DustMult = 1.7f;
+        /// <summary>abyss.levels.1.unlockClears</summary>
+        public const float AbyssLevels1UnlockClears = 0f;
+        /// <summary>abyss.levels.1.unlockAbyss</summary>
+        public const float AbyssLevels1UnlockAbyss = 1f;
+        /// <summary>abyss.levels.1.eliteWaves</summary>
+        public const float AbyssLevels1EliteWaves = 1f;
+        /// <summary>abyss.levels.2.id</summary>
+        public const float AbyssLevels2Id = 3f;
+        /// <summary>abyss.levels.2.hpMult</summary>
+        public const float AbyssLevels2HpMult = 3f;
+        /// <summary>abyss.levels.2.atkMult</summary>
+        public const float AbyssLevels2AtkMult = 1.9f;
+        /// <summary>abyss.levels.2.lootMult</summary>
+        public const float AbyssLevels2LootMult = 1.8f;
+        /// <summary>abyss.levels.2.dustMult</summary>
+        public const float AbyssLevels2DustMult = 2.2f;
+        /// <summary>abyss.levels.2.unlockClears</summary>
+        public const float AbyssLevels2UnlockClears = 0f;
+        /// <summary>abyss.levels.2.unlockAbyss</summary>
+        public const float AbyssLevels2UnlockAbyss = 2f;
+        /// <summary>abyss.levels.2.eliteWaves</summary>
+        public const float AbyssLevels2EliteWaves = 2f;
+        /// <summary>abyss.nightBonusMult</summary>
+        public const float AbyssNightBonusMult = 1.1f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1526,6 +1576,31 @@ namespace StarfallKnights.Data
             { "events.sacrificeHpFrac", EventSacrificeHpFrac },
             { "events.sacrificeCons", EventSacrificeCons },
             { "events.relicDustFallback", EventRelicDustFallback },
+            { "abyss.levels.0.id", AbyssLevels0Id },
+            { "abyss.levels.0.hpMult", AbyssLevels0HpMult },
+            { "abyss.levels.0.atkMult", AbyssLevels0AtkMult },
+            { "abyss.levels.0.lootMult", AbyssLevels0LootMult },
+            { "abyss.levels.0.dustMult", AbyssLevels0DustMult },
+            { "abyss.levels.0.unlockClears", AbyssLevels0UnlockClears },
+            { "abyss.levels.0.unlockAbyss", AbyssLevels0UnlockAbyss },
+            { "abyss.levels.0.eliteWaves", AbyssLevels0EliteWaves },
+            { "abyss.levels.1.id", AbyssLevels1Id },
+            { "abyss.levels.1.hpMult", AbyssLevels1HpMult },
+            { "abyss.levels.1.atkMult", AbyssLevels1AtkMult },
+            { "abyss.levels.1.lootMult", AbyssLevels1LootMult },
+            { "abyss.levels.1.dustMult", AbyssLevels1DustMult },
+            { "abyss.levels.1.unlockClears", AbyssLevels1UnlockClears },
+            { "abyss.levels.1.unlockAbyss", AbyssLevels1UnlockAbyss },
+            { "abyss.levels.1.eliteWaves", AbyssLevels1EliteWaves },
+            { "abyss.levels.2.id", AbyssLevels2Id },
+            { "abyss.levels.2.hpMult", AbyssLevels2HpMult },
+            { "abyss.levels.2.atkMult", AbyssLevels2AtkMult },
+            { "abyss.levels.2.lootMult", AbyssLevels2LootMult },
+            { "abyss.levels.2.dustMult", AbyssLevels2DustMult },
+            { "abyss.levels.2.unlockClears", AbyssLevels2UnlockClears },
+            { "abyss.levels.2.unlockAbyss", AbyssLevels2UnlockAbyss },
+            { "abyss.levels.2.eliteWaves", AbyssLevels2EliteWaves },
+            { "abyss.nightBonusMult", AbyssNightBonusMult },
         };
     }
 

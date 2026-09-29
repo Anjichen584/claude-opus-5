@@ -27,6 +27,22 @@ describe('存档迁移', () => {
     expect(migrateSave(v1).data.craftQueuedId).toBeNull();
   });
 
+  /**
+   * 深渊通关计数(轮 23):长度必须**等于层数** —— 层表变长时老档自动补 0,
+   * 否则读取 abyssClears[1] 会拿到 undefined,解锁判定就会安静地判成"没通关"。
+   */
+  it('深渊进度:老档补 0 到层数长度,脏数据夹回非负整数', () => {
+    const levels = (balance.abyss.levels as unknown[]).length;
+    expect(migrateSave(v1).data.abyssClears).toHaveLength(levels);
+    expect(migrateSave(v1).data.abyssClears.every((n) => n === 0)).toBe(true);
+    const dirty = migrateSave({ ...v1, v: 2, abyssClears: [3, -5, 'x', 9, 9] }).data.abyssClears;
+    expect(dirty).toHaveLength(levels);
+    expect(dirty[0]).toBe(3);
+    expect(dirty[1], '负数夹回 0').toBe(0);
+    expect(dirty[2], '非数字当 0').toBe(0);
+    expect(migrateSave({ ...v1, v: 2, abyssClears: 'nope' }).data.abyssClears).toHaveLength(levels);
+  });
+
   it('蓝图字段:非字符串/重复项被洗掉,合法 id 原样保留', () => {
     const dirty = { ...v1, v: 2, blueprints: ['bp_a', 'bp_a', 7, null, '', 'bp_b'], craftQueuedId: 42 };
     const d = migrateSave(dirty).data;

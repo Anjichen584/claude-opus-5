@@ -77,6 +77,9 @@ namespace StarfallKnights.Dungeon
         /// <summary>章节配置(名称/乘区/星灯价)。</summary>
         public Bestiary.Chapter ChapterCfg => Bestiary.ChapterOf(Chapter);
 
+        /// <summary>深渊难度档(轮 23;0 = 普通远征)。乘区叠在章节乘区之后(见 Scale)。</summary>
+        public int Abyss { get; private set; } = AbyssRules.Normal;
+
         /// <summary>宿主实现:实例化敌人(种类 + 已缩放的血/攻/速)。</summary>
         public Action<EnemyKind, float, float, float> OnSpawn;
         /// <summary>房间清空(宿主放传送门/奖励)。</summary>
@@ -101,17 +104,40 @@ namespace StarfallKnights.Dungeon
             Cleared = false;
         }
 
+        /// <summary>
+        /// 切换深渊难度档(轮 23)。**挑战局请传 AbyssRules.Normal**:挑战要全服同条件,
+        /// 不是"谁解锁得高谁分高"(web 侧 GameScene.startRun 同款口径,有 parity 断言钉住)。
+        /// </summary>
+        public void SetAbyss(int idx)
+        {
+            Abyss = idx < AbyssRules.Normal ? AbyssRules.Normal
+                : idx > AbyssRules.LevelCount ? AbyssRules.LevelCount : idx;
+        }
+
         public int CurrentChapter => Chapter;
 
-        /// <summary>本章杂兵缩放(章节乘区 × 深度 × 夜间;Boss 不吃章节乘区,它自己表里已调好)。</summary>
+        /// <summary>
+        /// 本章杂兵缩放(章节乘区 × 深度 × 夜间 × **深渊档**;Boss 不吃章节乘区,它自己表里已调好)。
+        /// 顺序与 web 一致:深度/夜间 → 章节 → 深渊(Web 侧深渊乘区在 RunMods.enemy 里最后乘上)。
+        /// </summary>
         public (float hp, float atk) Scale(Bestiary.Stat s, bool night, bool boss)
         {
             float mul = boss ? 1f : ChapterCfg.StatMult;
             // 镜像 web:Boss 用 depth 0 缩放(它自己表里已按章调好),杂兵才吃房间深度
             int depth = boss ? 0 : (Depth < 0 ? 0 : Depth);
-            return (Balance.ScaleHp(s.Hp, depth, night) * mul,
-                    Balance.ScaleAtk(s.Atk, depth, night) * mul);
+            return AbyssRules.Apply(Abyss,
+                Balance.ScaleHp(s.Hp, depth, night) * mul,
+                Balance.ScaleAtk(s.Atk, depth, night) * mul);
         }
+
+        /// <summary>当前档的掉落乘区(镜像 web runMods.dropMult 里的深渊部分)</summary>
+        public float LootMult => AbyssRules.LootMult(Abyss);
+
+        /// <summary>当前档的星尘乘区(镜像 web runMods.dustMult)</summary>
+        public float DustMult => AbyssRules.DustMult(Abyss);
+
+        /// <summary>精英房额外波次(镜像 web RunManager 的 pendingWaves 加成)</summary>
+        public int EliteExtraWaves => AbyssRules.EliteWaves(Abyss);
 
         /// <summary>进入下一房。返回 false 表示已通关序列。</summary>
         public bool NextRoom(LogicWorld w)
@@ -167,6 +193,9 @@ namespace StarfallKnights.Dungeon
                 {
                     var comp = EliteComp.TryGetValue(Chapter, out var c) ? c : EliteComp[1];
                     foreach (var k in comp) Spawn(k);
+                    // 深渊档(轮 23):精英房多刷一轮 —— 只加"这一间更长",不动房间序列
+                    for (int i = 0; i < EliteExtraWaves; i++)
+                        foreach (var k in comp) Spawn(k);
                     return;
                 }
                 default:

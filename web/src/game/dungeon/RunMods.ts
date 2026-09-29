@@ -1,11 +1,17 @@
 import { mergeMods, NEUTRAL_MODS, type MergedMods, type RunMod } from '@game/meta/Daily';
 import { NEUTRAL_STRUCTURE, weeklyLabel, type StructureMods, type WeeklyRule } from '@game/meta/Weekly';
+import { multsOf } from './Abyss';
 
 /**
  * 本局生效的挑战词条(模块级单例,和 clock 一样)。
  * 普通局 = 空词条(全中性),每日挑战 = 当日词条 —— 系统侧只读乘区,不需要 if (isDaily)。
  */
 class RunMods {
+  /**
+   * 深渊难度档(轮 23;0 = 普通远征)。乘区直接乘进 enemy()/dropMult ——
+   * 这样已有的出怪与掉落调用点**一行都不用改**(与每日/周常同一套"系统侧只读乘区"的做法)。
+   */
+  abyss = 0;
   active = false;
   /** 'off' = 普通远征;'daily' = 每日挑战;'weekly' = 周常挑战 */
   mode: 'off' | 'daily' | 'weekly' = 'off';
@@ -34,7 +40,13 @@ class RunMods {
     this.structure = weekly.structure;
   }
 
+  /** 设定本局难度档(在 clear() 之后调用:普通远征也要显式设 0) */
+  setAbyss(idx: number): void {
+    this.abyss = idx;
+  }
+
   clear(): void {
+    this.abyss = 0;
     this.active = false;
     this.mode = 'off';
     this.key = '';
@@ -57,14 +69,29 @@ class RunMods {
   get eliteShift(): number { return this.structure.eliteShift; }
   get forcedLayout(): StructureMods['forcedLayout'] { return this.structure.forcedLayout; }
 
-  /** 出怪数值乘区 */
+  /** 出怪数值乘区(挑战词条 × 深渊档;夜战缩放由 Scaling 另行处理) */
   enemy(hp: number, atk: number): [number, number] {
-    return [hp * this.eff.hp, atk * this.eff.atk];
+    const a = multsOf(this.abyss);
+    return [hp * this.eff.hp * a.hp, atk * this.eff.atk * a.atk];
   }
 
   /** 掉落判定乘区 */
   get dropMult(): number {
-    return this.eff.drop;
+    return this.eff.drop * multsOf(this.abyss).loot;
+  }
+
+  /** 星尘结算乘区(深渊给更多星尘 —— 难度要"值得打",不能只有惩罚) */
+  get dustMult(): number {
+    return multsOf(this.abyss).dust;
+  }
+
+  /** HUD 展示用:当前深渊档的怪血/攻击乘区 */
+  get abyssHpMult(): number { return multsOf(this.abyss).hp; }
+  get abyssAtkMult(): number { return multsOf(this.abyss).atk; }
+
+  /** 深渊层的精英房额外波次(0 = 基础) */
+  get eliteWaves(): number {
+    return multsOf(this.abyss).eliteWaves;
   }
 
   /** 冷却缩减上限:有 cdr 词条时放宽到 60%(否则 40% 上限会让「迅影」失效) */

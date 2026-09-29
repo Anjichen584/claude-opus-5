@@ -99,7 +99,8 @@ export class RunManager {
         this.waveTimer = 0.8;
         break;
       case 'elite':
-        this.pendingWaves = 1 + runMods.extraWaves;
+        // 深渊(轮 23)给精英房加波:难度档只加"这一间更长",不动房间序列
+        this.pendingWaves = 1 + runMods.extraWaves + runMods.eliteWaves;
         this.waveTimer = 0.8;
         break;
       case 'treasure': {
