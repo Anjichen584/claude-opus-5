@@ -504,6 +504,59 @@ namespace StarfallKnights.Tests
                 "每座碑都有实现(数据加了碑而没写处理 = 玩家抽到一块按不动的石头)");
             check(jsonTotems.Count >= (int)Bestiary.EventTotemPick, "碑池不小于每次抽取数");
 
+            // ---- 碑的展示元数据(轮 25):两端各一份表,逐 id 比 —— 数据加了碑而元数据没跟上,
+            // 渲染就会在抽到它的时候炸(轮 22 的 web 就是这么崩的)
+            int metaBad = 0; string metaFirst = "";
+            foreach (var t in jsonTotems)
+            {
+                var id = t as string;
+                if (id == null) continue;
+                var v = ShopRules.TotemVisual(id);
+                bool ok = !string.IsNullOrEmpty(v.icon) && !string.IsNullOrEmpty(v.name) && v.name != id
+                          && !string.IsNullOrEmpty(v.desc) && v.color != null && v.color.Length == 7 && v.color[0] == '#';
+                if (!ok) { metaBad++; if (metaFirst == "") metaFirst = id; }
+            }
+            check(metaBad == 0, "每座碑都有完整展示元数据(首个不一致: " + metaFirst + ")");
+            var unknown = ShopRules.TotemVisual("no_such_totem");
+            check(unknown.name == "no_such_totem" && unknown.color.Length == 7,
+                "不认识的碑 id 也给出完整元数据(渲染循环绝不抛错)");
+
+            // ---- 轮 25 规则:回响 / 疗愈 / 收益当量 / 抉择记录 ----
+            check(ShopRules.EchoDust(120f) == Math.Round(120f * Bestiary.EventEchoFrac, MidpointRounding.AwayFromZero),
+                "回响:有记录时给上次价值的 echoFrac");
+            check(ShopRules.EchoDust(0f) == (int)Bestiary.EventEchoFallbackDust
+                  && ShopRules.EchoDust(-80f) == (int)Bestiary.EventEchoFallbackDust
+                  && ShopRules.EchoDust(float.NaN) == (int)Bestiary.EventEchoFallbackDust,
+                "回响:没有记录(或负值/NaN)走兜底星尘,不会给出负数");
+            check(Bestiary.EventMendHpMult < 1f && Bestiary.EventMendHpMult > 0f, "疗愈之碑的代价是上限(<1)");
+            check(ShopRules.TotemBlocker("echo", 1f, 0) == null && ShopRules.TotemBlocker("mend", 1f, 0) == null,
+                "两座新碑都没有硬门槛(兜底/玩家判断)");
+
+            check(ShopRules.RepayValue("blood") == (int)Bestiary.EventRepayBlood
+                  && ShopRules.RepayValue("mend") == (int)Bestiary.EventRepayMend
+                  && ShopRules.RepayValue("blessing") == (int)Bestiary.EventRepayBlessing,
+                "收益当量:血/祝福/疗愈读数据表");
+            check(ShopRules.RepayValue("gamble", won: true, gambleSpent: 60, gambleDust: 180) == 120
+                  && ShopRules.RepayValue("gamble", won: false, gambleSpent: 60) == -60,
+                "收益当量:赌赢记净赚、赌输记负值(面板要能显示「这局亏了」)");
+            check(ShopRules.RepayValue("relic", hasRune: true) == (int)Bestiary.EventRepayRune
+                  && ShopRules.RepayValue("relic", relicDust: 60) == 60,
+                "收益当量:有符文献机会价值,集齐才折星尘");
+
+            var log = ShopRules.PushChoice(new List<ShopRules.TotemChoice>(),
+                new ShopRules.TotemChoice(2, "blood", (int)Bestiary.EventRepayBlood));
+            var log2 = ShopRules.PushChoice(log, new ShopRules.TotemChoice(9, "echo", ShopRules.EchoDust(log[0].Value)));
+            check(log2.Count == 2 && log2[0].Totem == "echo" && log.Count == 1,
+                "记录:新的在前,且不改入参(web pushChoice 同口径)");
+            var capped = new List<ShopRules.TotemChoice>();
+            for (int i = 0; i < 40; i++)
+                capped = ShopRules.PushChoice(capped, new ShopRules.TotemChoice(i, "fountain", 10));
+            check(capped.Count == (int)Bestiary.EventEventLogMax,
+                "记录裁到 eventLogMax(" + (int)Bestiary.EventEventLogMax + " 条),存档不随时间膨胀");
+            var sum = ShopRules.SummariseChoices(log2);
+            check(sum.counts["blood"] == 1 && sum.total == (int)Bestiary.EventRepayBlood + ShopRules.EchoDust((int)Bestiary.EventRepayBlood),
+                "汇总:次数与累计星尘当量对得上(总览两栏都读它)");
+
             // ---- 抽取:数量对、不重复、四座以上池子时不会永远同一组 ----
             var rolls = new List<float> { 0.11f, 0.42f, 0.73f, 0.95f, 0.28f, 0.61f };
             var picked = ShopRules.PickTotems(rolls);

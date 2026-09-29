@@ -76,6 +76,13 @@ export interface SaveData {
     /** 星辉铸台铸造次数 */
     crafts: number;
   };
+  /**
+   * 秘境抉择记录(轮 25):最近 `balance.events.eventLogMax` 条,新的在前。
+   * 存的是"哪座碑、第几层、值多少星尘当量" —— 汇总面板回看用,回响之碑也读最近一条。
+   */
+  eventLog: { floor: number; totem: string; value: number }[];
+  /** 每座碑被选过的次数(id → 次数;8 座碑的"回看"第二栏) */
+  totemCounts: Record<string, number>;
   /** 成就:已解锁 id → 首次解锁时间戳(只增不减) */
   achievements: { unlocked: Record<string, number> };
   /**
@@ -125,6 +132,7 @@ export function defaultSave(): SaveData {
       binds: { ...DEFAULT_BINDS },
     },
     stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0, noHitClears: 0, dailyClears: 0, weeklyClears: 0, crafts: 0 },
+    eventLog: [], totemCounts: {},
     achievements: { unlocked: {} },
     tutorial: { step: 0, done: false },
     updatedAt: 0,
@@ -169,6 +177,8 @@ export function migrateSave(raw: unknown): MigrateResult {
     v: CURRENT_SAVE_VERSION,
     altar: { ...d.altar, ...(parsed.altar ?? {}) },
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
+    eventLog: parsed.eventLog ?? [],
+    totemCounts: parsed.totemCounts ?? {},
     daily: { ...d.daily, ...(parsed.daily ?? {}) },
     weekly: { ...d.weekly, ...(parsed.weekly ?? {}) },
     // 榜单是数组,不能走 spread 合并:整段交给 sanitize 重排/截断
@@ -222,6 +232,21 @@ export function migrateSave(raw: unknown): MigrateResult {
     atk: Math.max(0, Math.floor(num(data.altar.atk))),
     luck: Math.max(0, Math.floor(num(data.altar.luck))),
   };
+  // 秘境记录(轮 25):逐条洗 —— floor 非负整数、totem 必须是字符串 id、value 夹成有限整数;
+  // 坏档只丢坏行,不整段作废(否则一次坏写就让"回看"永远空白)
+  data.eventLog = (Array.isArray(data.eventLog) ? data.eventLog : [])
+    .filter((c) => c && typeof c === 'object' && typeof (c as { totem?: unknown }).totem === 'string')
+    .slice(0, Math.max(1, Math.floor(balance.events.eventLogMax)))
+    .map((c) => ({
+      floor: Math.max(0, Math.floor(num((c as { floor?: unknown }).floor))),
+      totem: String((c as { totem: string }).totem),
+      value: Math.round(num((c as { value?: unknown }).value)),
+    }));
+  const counts: Record<string, number> = {};
+  const rawCounts = (data.totemCounts ?? {}) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(rawCounts)) counts[k] = Math.max(0, Math.floor(num(v)));
+  data.totemCounts = counts;
+
   data.stats = {
     runs: Math.max(0, Math.floor(num(data.stats.runs))),
     clears: Math.max(0, Math.floor(num(data.stats.clears))),

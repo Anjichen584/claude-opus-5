@@ -1,21 +1,19 @@
 import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
-import balance from '@data/balance.json';
 import { M, RARITY_COLORS, UI } from '@game/constants';
 import {
   EventTotem, Health, Inventory, Pickup, Player, SfxEvent, ToastEvent, Transform, Velocity,
 } from '@game/components';
 import { CONSUMABLE_IDS, CONS_VISUAL, consumableDef } from '@game/loot/Consumables';
 import {
-  totemBlocker, totemBlockerText, totemName, resolveTotem, type TotemKind,
+  totemBlocker, totemBlockerText, totemName, resolveTotem, repayValue,
+  type TotemChoice, type TotemKind,
 } from '@game/loot/EventRules';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { recompute } from '@game/loot/Equip';
 import type { ItemFactory } from '@game/loot/Items';
 import { Rng } from '@engine/core/Rng';
 import { bindOf } from '@game/meta/Bindings';
-
-const EV = balance.events;
 
 /**
  * 秘境房三选一图腾(轮 22 深化):碑池 6 座,每次抽 3 座(见 loot/EventRules.ts 的表)。
@@ -24,11 +22,17 @@ const EV = balance.events;
  */
 export class EventSystem implements System {
   nearbyTotem: Entity | null = null;
+  /** 本局做过的秘境抉择(轮 25:汇总面板与回响之碑都读它) */
+  readonly choices: TotemChoice[] = [];
   private rng = new Rng((Date.now() ^ 0x9e3779b9) >>> 0);
 
   constructor(
     private readonly input: Input,
     private readonly factory: ItemFactory,
+    /** 每次抉择后立刻回调(宿主负责落存档:中途退出也不丢记录) */
+    private readonly onChoice?: (c: TotemChoice) => void,
+    /** 当前层(宿主给:`() => run.floor`);拿不到就记 0,不猜 */
+    private readonly floorOf?: () => number,
   ) {}
 
   /** 本职业还没拿到的符文里随机一枚(集齐返回 null → 残骸折星尘) */
@@ -82,6 +86,8 @@ export class EventSystem implements System {
     const res = resolveTotem(kind, this.rng, { hp: hp.hp, stardust: p.stardust, runesLeft: 0 }, {
       runeId: this.pickUnusedRune(world, pe),
       consPool: CONSUMABLE_IDS,
+      // 回响之碑要"上一次抉择值多少"(本局内累计;没记录 = 0 → 走兜底星尘)
+      lastValue: this.choices.length > 0 ? this.choices[0].value : 0,
     });
 
     switch (res.kind) {
@@ -125,6 +131,23 @@ export class EventSystem implements System {
         world.emit(new ToastEvent(`🕯 献祭之坛:-${res.hpCost} 生命 → ${names}`, CONS_VISUAL.shield.color));
         break;
       }
+      case 'echo': {
+        p.stardust += res.dust;
+        world.emit(new ToastEvent(
+          res.fromValue > 0
+            ? `🔁 回响之碑:上一次抉择的 ${Math.round(res.frac * 100)}% → +${res.dust}✦`
+            : `🔁 回响之碑:还没有可回响的抉择 → +${res.dust}✦(兜底)`,
+          '#7fd6d6'));
+        break;
+      }
+      case 'mend': {
+        // 代价是**上限**(不是当前血):回满血 + 上限 ×0.85 —— 满血时选它就是纯亏,描述里直说
+        p.runHpMult *= res.hpMult;
+        recompute(world, pe);
+        hp.hp = hp.max;
+        world.emit(new ToastEvent(`💚 疗愈之碑:生命回满,上限 ×${res.hpMult}`, '#8ee08e'));
+        break;
+      }
       case 'relic': {
         if (res.runeId) {
           p.runeBag.push(res.runeId);
@@ -137,7 +160,15 @@ export class EventSystem implements System {
         break;
       }
     }
-    void EV;
+    // 抉择记录(轮 25):floor 用本局的房间计数口径;value 是星尘当量,回响与汇总面板都读
+    const choice: TotemChoice = {
+      floor: Math.max(0, Math.floor(this.floorOf?.() ?? 0)),
+      totem: kind,
+      value: repayValue(res),
+    };
+    this.choices.unshift(choice);
+    this.onChoice?.(choice);
+
     world.emit(new SfxEvent('ult'));
     // 三选一:全部封印
     for (const e of world.query(EventTotem)) world.mustGet(e, EventTotem).used = true;

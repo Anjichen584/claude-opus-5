@@ -1003,7 +1003,7 @@
     "blessingSpeed": 0.1,
     "fountainMin": 80,
     "fountainMax": 150,
-    "$doc": "秘境房(轮 22:3 座 → 从 6 座池子里抽 totemPick 座,不再每次都是同样三块碑)。totems 是 id 清单:web 的 RunManager 与 Unity 的 EventRules 都读它,id → 处理的映射两边都要有(ParityTests.CheckShop 逐 id 比对,漏一个立刻红)。",
+    "$doc": "秘境房(轮 22:3 座 → 从 6 座池子里抽 totemPick 座;轮 25:补到 8 座 + 抉择记录)。totems 是 id 清单:web 的 RunManager/EventSystem 与 Unity 的 EventRules 都读它,id → 处理的映射两边都要有(ParityTests.CheckShop 逐 id 比对,漏一个立刻红);轮 25 起**展示元数据也只此一份**(EventRules.totemVisual),渲染不再自带一份小表 —— 轮 22 就是那样漏掉了三座碑的图标/颜色,抽中即渲染崩。",
     "totemPick": 3,
     "totems": [
       "blood",
@@ -1011,14 +1011,27 @@
       "fountain",
       "gamble",
       "sacrifice",
-      "relic"
+      "relic",
+      "echo",
+      "mend"
     ],
     "gambleCost": 60,
     "gambleMult": 3,
     "gambleWinChance": 0.4,
     "sacrificeHpFrac": 0.3,
     "sacrificeCons": 3,
-    "relicDustFallback": 60
+    "relicDustFallback": 60,
+    "echoFrac": 0.5,
+    "echoFallbackDust": 40,
+    "mendHpMult": 0.85,
+    "repay": {
+      "blood": 90,
+      "blessing": 80,
+      "cons": 45,
+      "rune": 100,
+      "mend": 70
+    },
+    "eventLogMax": 12
   },
   "blueprint": {
     "$doc": "图纸与铸台(10-FULL-PLAN 轮 20):Boss 掉碎片 + 概率掉整张图纸 → 铸台学会 → 铸造指定橙装(下局开局携带);局内背包右键重铸词条。",

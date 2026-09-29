@@ -1040,6 +1040,24 @@ namespace StarfallKnights.Data
         public const float EventSacrificeCons = 3f;
         /// <summary>events.relicDustFallback</summary>
         public const float EventRelicDustFallback = 60f;
+        /// <summary>events.echoFrac</summary>
+        public const float EventEchoFrac = 0.5f;
+        /// <summary>events.echoFallbackDust</summary>
+        public const float EventEchoFallbackDust = 40f;
+        /// <summary>events.mendHpMult</summary>
+        public const float EventMendHpMult = 0.85f;
+        /// <summary>events.repay.blood</summary>
+        public const float EventRepayBlood = 90f;
+        /// <summary>events.repay.blessing</summary>
+        public const float EventRepayBlessing = 80f;
+        /// <summary>events.repay.cons</summary>
+        public const float EventRepayCons = 45f;
+        /// <summary>events.repay.rune</summary>
+        public const float EventRepayRune = 100f;
+        /// <summary>events.repay.mend</summary>
+        public const float EventRepayMend = 70f;
+        /// <summary>events.eventLogMax</summary>
+        public const float EventEventLogMax = 12f;
         /// <summary>abyss.levels.0.id</summary>
         public const float AbyssLevels0Id = 1f;
         /// <summary>abyss.levels.0.hpMult</summary>
@@ -1592,6 +1610,15 @@ namespace StarfallKnights.Data
             { "events.sacrificeHpFrac", EventSacrificeHpFrac },
             { "events.sacrificeCons", EventSacrificeCons },
             { "events.relicDustFallback", EventRelicDustFallback },
+            { "events.echoFrac", EventEchoFrac },
+            { "events.echoFallbackDust", EventEchoFallbackDust },
+            { "events.mendHpMult", EventMendHpMult },
+            { "events.repay.blood", EventRepayBlood },
+            { "events.repay.blessing", EventRepayBlessing },
+            { "events.repay.cons", EventRepayCons },
+            { "events.repay.rune", EventRepayRune },
+            { "events.repay.mend", EventRepayMend },
+            { "events.eventLogMax", EventEventLogMax },
             { "abyss.levels.0.id", AbyssLevels0Id },
             { "abyss.levels.0.hpMult", AbyssLevels0HpMult },
             { "abyss.levels.0.atkMult", AbyssLevels0AtkMult },

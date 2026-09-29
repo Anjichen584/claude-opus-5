@@ -13,6 +13,7 @@ import { specialDef } from '@game/loot/Specials';
 import { ABYSS_LEVELS, NORMAL, abyssUnlocked, lockReason, summaryOf } from '@game/dungeon/Abyss';
 import { endlessLockReason, endlessUnlocked } from '@game/dungeon/Endless';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
+import { TOTEM_IDS, summariseChoices, totemVisual } from '@game/loot/EventRules';
 import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
 import {
   BOARD_HINT, BOARD_IDS, BOARD_LABEL, boardsFilled, formatScore, tagLabel,
@@ -65,7 +66,7 @@ export class CampUI {
   selectedClass: Klass = 'blade';
   selectedChapter: 1 | 2 | 3 = 1;
   /** 图鉴页签(怪物 / 符文)与选中项 */
-  codexTab: 'enemy' | 'rune' = 'enemy';
+  codexTab: 'enemy' | 'rune' | 'totem' = 'enemy';
   codexPick: string | null = null;
   /** 混沌祭坛页签:今日(每日挑战)/ 本周(周常挑战) */
   dailyTab: 'today' | 'week' = 'today';
@@ -171,6 +172,7 @@ export class CampUI {
       if (r.act === 'forgeCraft') return this.tryCraft();
       if (r.act === 'codex_enemy') { this.codexTab = 'enemy'; this.codexPick = null; }
       if (r.act === 'codex_rune') { this.codexTab = 'rune'; this.codexPick = null; }
+      if (r.act === 'codex_totem') { this.codexTab = 'totem'; this.codexPick = null; }
       if (r.act.startsWith('cx_')) this.codexPick = r.act.slice(3);
     }
     if (!hit) this.panel = 'none'; // 点面板外关闭
@@ -299,9 +301,10 @@ export class CampUI {
       w / 2, py + 52);
 
     // 页签
-    const tabs: Array<{ id: 'enemy' | 'rune'; label: string; act: string }> = [
+    const tabs: Array<{ id: 'enemy' | 'rune' | 'totem'; label: string; act: string }> = [
       { id: 'enemy', label: `👾 怪物 ${prog.enemyFound}/${prog.enemyTotal}`, act: 'codex_enemy' },
       { id: 'rune', label: `◈ 符文 ${prog.runeFound}/${prog.runeTotal}`, act: 'codex_rune' },
+      { id: 'totem', label: `🗿 秘境 ${meta.data.eventLog.length}/${balance.events.eventLogMax}`, act: 'codex_totem' },
     ];
     tabs.forEach((t, i) => {
       const r: Rect = { x: px + 24 + i * 172, y: py + 64, w: 164, h: 30 };
@@ -316,6 +319,16 @@ export class CampUI {
       ctx.fillText(t.label, r.x + r.w / 2, r.y + 20);
       this.rects.push({ rect: r, act: t.act });
     });
+
+    // 秘境记录(轮 25):8 座碑 × 选择次数 + 累计星尘当量 + 最近记录 —— 秘境抉择"都有记录可回看"
+    if (this.codexTab === 'totem') {
+      this.renderTotemPanel(ctx, px, pw, ph, py + 106);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = UI.dim;
+      ctx.font = '11px monospace';
+      ctx.fillText('记录跨局保留(最近 12 条)· 回响之碑按最近一次抉择的价值结算 · [Esc/F] 关闭', w / 2, py + ph - 12);
+      return;
+    }
 
     // 左侧网格
     const gx = px + 24, gy = py + 106;
@@ -360,6 +373,79 @@ export class CampUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.fillText('图鉴跨局保留 · 数值来自 balance.json(调平衡不会让老档失真)· [Esc/F] 关闭', w / 2, py + ph - 12);
+  }
+
+  /**
+   * 秘境记录面板(轮 25)。左栏 8 座碑 + 选择次数 + 累计星尘当量,右栏最近记录时间线。
+   * 为什么要有这一屏:碑池扩到 8 座之后,玩家会遇到"这座碑我上次选了什么、值不值"的问题 ——
+   * 记录是**回响之碑的输入**,也是玩家自己复盘哪座碑在什么局面下划算的依据。
+   */
+  private renderTotemPanel(
+    ctx: CanvasRenderingContext2D, px: number, pw: number, ph: number, gy: number,
+  ): void {
+    const sum = summariseChoices(meta.data.eventLog);
+    const gx = px + 24;
+    TOTEM_IDS.forEach((id, i) => {
+      const v = totemVisual(id);
+      const y = gy + i * 40;
+      ctx.fillStyle = '#1a1f30';
+      ctx.fillRect(gx, y, 340, 34);
+      ctx.strokeStyle = '#3a4154';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(gx, y, 340, 34);
+      ctx.textAlign = 'left';
+      ctx.font = '16px monospace';
+      ctx.fillStyle = v.color;
+      ctx.fillText(v.icon, gx + 14, y + 23);
+      ctx.font = '13px monospace';
+      ctx.fillStyle = UI.text;
+      ctx.fillText(v.name, gx + 42, y + 15);
+      ctx.font = '11px monospace';
+      ctx.fillStyle = UI.dim;
+      ctx.fillText(v.desc, gx + 42, y + 29);
+      ctx.textAlign = 'right';
+      const n = sum.counts[id] ?? 0;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = n > 0 ? UI.gold : '#3a4154';
+      ctx.fillText(n > 0 ? `×${n} · ${sum.byId[id] >= 0 ? '+' : ''}${sum.byId[id]}✦` : '未选过', gx + 330, y + 22);
+      ctx.textAlign = 'center';
+    });
+
+    // 右栏:累计 + 最近记录
+    const dx = gx + 356;
+    const dw = px + pw - 24 - dx;
+    ctx.fillStyle = 'rgba(19,23,36,0.7)';
+    ctx.fillRect(dx, gy - 28, dw, ph - 150);
+    ctx.strokeStyle = '#3a4154';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(dx, gy - 28, dw, ph - 150);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(`累计星尘当量 ${sum.total >= 0 ? '+' : ''}${sum.total}✦`, dx + 12, gy - 8);
+    ctx.font = '11px monospace';
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(`记录 ${meta.data.eventLog.length}/${balance.events.eventLogMax} 条 · 新的在上`, dx + 12, gy + 10);
+
+    const rows = meta.data.eventLog.slice(0, 9);
+    if (rows.length === 0) {
+      ctx.fillStyle = UI.dim;
+      ctx.font = '12px monospace';
+      ctx.fillText('还没有记录 —— 第 2/5 间房的石碑就是秘境', dx + 12, gy + 40);
+      ctx.fillText('每次抉择都会记下:哪座碑、第几层、值多少', dx + 12, gy + 58);
+    }
+    rows.forEach((r, i) => {
+      const y = gy + 42 + i * 22;
+      const v = totemVisual(r.totem);
+      ctx.fillStyle = v.color;
+      ctx.font = '12px monospace';
+      ctx.fillText(`${v.icon} 第${r.floor}层 ${v.name}`, dx + 12, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = r.value >= 0 ? UI.gold : UI.hpLow;
+      ctx.fillText(`${r.value >= 0 ? '+' : ''}${r.value}✦`, dx + dw - 12, y);
+      ctx.textAlign = 'left';
+    });
+    ctx.textAlign = 'center';
   }
 
   /** 未读条目用 ? 剪影,已读用图标(怪物用首字,Boss 用 ★) */

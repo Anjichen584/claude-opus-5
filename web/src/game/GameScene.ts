@@ -26,6 +26,7 @@ import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
 import { ShopSystem } from '@game/systems/ShopSystem';
 import { EventSystem } from '@game/systems/EventSystem';
+import { pushChoice, totemVisual } from '@game/loot/EventRules';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
 import { MidBossSystem } from '@game/systems/MidBossSystem';
@@ -91,12 +92,6 @@ const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
 /** 职业 → 精灵图名 */
 const KLASS_SPRITE: Record<string, string> = {
   blade: 'knight', ranger: 'ranger', arcanist: 'arcanist', warden: 'warden',
-};
-
-const TOTEM_INFO: Record<string, { icon: string; name: string; desc: string; color: string }> = {
-  blood: { icon: '🩸', name: '血之契约', desc: '生命上限-25% → 紫装', color: '#e05f5f' },
-  blessing: { icon: '✨', name: '星辰祝福', desc: '攻击+10% 移速+10%', color: '#ffd94f' },
-  fountain: { icon: '⛲', name: '星尘涌泉', desc: '+80~150 星尘', color: '#8fd4c8' },
 };
 
 type GameState = 'menu' | 'camp' | 'run' | 'results';
@@ -196,7 +191,16 @@ export class GameScene {
     this.shop = new ShopSystem(this.input);
     // 议价随机源每局重播种:固定种子会让"每局第一家店的议价结果永远一样"
     this.shop.reseed((meta.data.stats.runs + 1) * 2654435761);
-    this.events = new EventSystem(this.input, this.loot.factory);
+    // 秘境抉择记录(轮 25):**每次抉择立刻落档**(中途退出也不丢),汇总面板与回响之碑都读它
+    this.events = new EventSystem(
+      this.input, this.loot.factory,
+      (c) => {
+        meta.data.eventLog = pushChoice(meta.data.eventLog, c);
+        meta.data.totemCounts[c.totem] = (meta.data.totemCounts[c.totem] ?? 0) + 1;
+        meta.save();
+      },
+      () => this.run.floor,
+    );
     this.run = new RunManager(this.loot.factory);
     this.run.chapter = chapter;
     // 深渊难度档(轮 23):挑战局(每日/周常)固定普通档 —— 挑战要全服同条件,不是"谁层数高谁分高"
@@ -1666,7 +1670,7 @@ export class GameScene {
         const totem = w.mustGet(e, EventTotem);
         const tr = w.mustGet(e, Transform);
         const near = this.events.nearbyTotem === e;
-        const info = TOTEM_INFO[totem.kind];
+        const info = totemVisual(totem.kind);
         list.push({ y: tr.y, draw: () => {
           const alpha = totem.used ? 0.35 : 1;
           ctx.globalAlpha = alpha;

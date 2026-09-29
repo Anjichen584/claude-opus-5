@@ -55,6 +55,34 @@ describe('存档迁移', () => {
     expect(ok.endlessBestLoop).toBe(2);
   });
 
+  /** 秘境抉择记录(轮 25):坏行只丢坏行、条数裁到上限、计数表非负整数 */
+  it('秘境记录:老档补空、坏行丢掉、计数洗成非负', () => {
+    expect(migrateSave(v1).data.eventLog).toEqual([]);
+    expect(migrateSave(v1).data.totemCounts).toEqual({});
+    const d = migrateSave({
+      ...v1, v: 2,
+      eventLog: [
+        { floor: 3.7, totem: 'echo', value: 45.6 },
+        { floor: -1, totem: 42, value: 1 },          // totem 不是字符串 → 丢
+        'garbage',
+        { totem: 'mend' },
+      ],
+      totemCounts: { echo: 2.9, bad: -4, worse: 'x' },
+    }).data;
+    // totem: 42 与 'garbage' 不是记录行 → 丢;另两条留下,缺的字段补 0
+    expect(d.eventLog).toHaveLength(2);
+    expect(d.eventLog[0]).toEqual({ floor: 3, totem: 'echo', value: 46 });
+    expect(d.eventLog[1]).toEqual({ floor: 0, totem: 'mend', value: 0 });
+    expect(d.totemCounts).toEqual({ echo: 2, bad: 0, worse: 0 });
+  });
+
+  it('秘境记录:条数裁到 eventLogMax(存档不随时间膨胀)', () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ floor: i, totem: 'fountain', value: 10 }));
+    const d = migrateSave({ ...v1, v: 2, eventLog: many }).data;
+    expect(d.eventLog).toHaveLength(balance.events.eventLogMax);
+    expect(d.eventLog[0].floor).toBe(0);
+  });
+
   it('蓝图字段:非字符串/重复项被洗掉,合法 id 原样保留', () => {
     const dirty = { ...v1, v: 2, blueprints: ['bp_a', 'bp_a', 7, null, '', 'bp_b'], craftQueuedId: 42 };
     const d = migrateSave(dirty).data;
