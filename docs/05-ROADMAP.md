@@ -41,7 +41,7 @@
 - ✅ GitHub Pages 自动部署(CI 双 job:逻辑测试 + 构建部署)
 - ✅ 位图字体 / 9-slice 面板 / 9 种房间布局模板 / 地形机制(浅滩·可打穿障碍)
 - ☐ 剩余:UI 图标与动画序列、技能特效贴图、难度层、新手引导、性能与图集
-- ☐ **工作量与排期见 [09-SCOPE.md](09-SCOPE.md)(口径 B ≈ 30–42 轮)**
+- ☐ **工作量见 [09-SCOPE.md](09-SCOPE.md)(口径 B ≈ 30–42 轮);执行计划见 [10-FULL-PLAN.md](10-FULL-PLAN.md)(v1.0 = 52 轮 + 8 轮机动)**
 
 ## Phase 6 — Unity 副线移植 🔶 进行中
 - ✅ combat/loot/skills/meta 逻辑 C# 移植(31 文件)、codegen 数据层(`gen_bestiary.py`)、共享 data/ JSON、**384 项断言含双端 parity**

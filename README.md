@@ -76,7 +76,8 @@ claude-opus-5/
 │   ├── 06-STATUS.md       ★ 进度看板(有了啥/缺啥/下一步)
 │   ├── 07-CONTRIBUTING.md 开发指南、协作规范、收尾纪律
 │   ├── 08-ART-PROMPTS.md  AI 原画提示词存档(源图不入库,靠这里可再生)
-│   └── 09-SCOPE.md        **剩余工作量估算**(还差多少轮做完,三种口径)
+│   ├── 09-SCOPE.md        剩余工作量估算(还差多少轮做完,三种口径)
+│   └── 10-FULL-PLAN.md    **完整版生产计划**(v1.0 规格书 / 里程碑 / 52 轮清单)
 ├── tools/
 │   ├── process_art.py     AI 原画 → 游戏精灵(抠图/降采样/双帧主体对齐)
 │   └── sync.sh            一键收尾:提交 → 推送 → 清沙箱
@@ -105,7 +106,7 @@ claude-opus-5/
 3. [docs/07-CONTRIBUTING.md](docs/07-CONTRIBUTING.md) — 怎么跑起来、怎么加技能/怪物/装备、收尾纪律
 4. 改玩法数值 → [docs/03-NUMBERS.md](docs/03-NUMBERS.md) + `web/src/data/` 下的 JSON
 5. 改美术 → [docs/04-ART-PIPELINE.md](docs/04-ART-PIPELINE.md) + [docs/08-ART-PROMPTS.md](docs/08-ART-PROMPTS.md)
-6. 想知道"还要多少工作量" → [docs/09-SCOPE.md](docs/09-SCOPE.md)
+6. 想知道"还要多少工作量" → [docs/09-SCOPE.md](docs/09-SCOPE.md);"完整版怎么做" → [docs/10-FULL-PLAN.md](docs/10-FULL-PLAN.md)
 
 > 铁律:伤害数字禁止硬编码,全部走 `web/src/data/balance.json`(见 02 §5)。
 
