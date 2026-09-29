@@ -329,6 +329,18 @@ export class Projectile {
 
   /** >0 时追踪最近敌人(弧度/秒转向速率) */
   homing = 0;
+
+  /** 命中后还能穿透的**额外**目标数(猎手强化箭 = 1);>0 时不销毁,继续飞 */
+  pierce = 0;
+
+  /** 命中点溅射半径(m),0 = 单体(秘术师法球 = 0.9);只对敌方阵营结算 */
+  splashM = 0;
+
+  /** 溅射伤害倍率(相对本体伤害),来自 balance */
+  splashMult = 0.6;
+
+  /** 已命中过的目标(避免穿透弹在同一个敌人身上重复结算) */
+  readonly hitSet = new Set<number>();
 }
 
 /** 场景物件:树/岩石可碰撞且**可被打穿**(有耐久),灌木纯装饰 */
@@ -498,6 +510,8 @@ export class MeleeSweep {
     public stage: number,
     public element: Element | null = null,
     public knockbackM = 0,
+    /** >0 时命中施加"破甲"(守卫第三段重击):写目标 Buffs.vulnT */
+    public applyVulnS = 0,
   ) {}
 }
 

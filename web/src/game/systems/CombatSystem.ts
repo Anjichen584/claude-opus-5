@@ -1,6 +1,6 @@
 import type { System, World } from '@engine/ecs/World';
 import { M } from '@game/constants';
-import { Body, Faction, Health, MeleeSweep, PropObstacle, SfxEvent, Stats, Transform } from '@game/components';
+import { Body, Buffs, Faction, Health, MeleeSweep, PropObstacle, SfxEvent, Stats, Transform } from '@game/components';
 import { damageProp, propHp } from '@game/dungeon/Terrain';
 import { dealDamage } from '@game/combat/DamagePipeline';
 
@@ -61,6 +61,16 @@ export class CombatSystem implements System {
           hitAngle: Math.atan2(dy, dx),
           knockbackM: sweep.knockbackM,
         });
+
+        // 破甲(守卫第三段重击):命中即挂易伤,和元素"脆蚀"共用同一条 Buffs.vulnT 通道
+        if (sweep.applyVulnS > 0) {
+          let b = world.get(target, Buffs);
+          if (!b) {
+            b = new Buffs();
+            world.add(target, b);
+          }
+          b.vulnT = Math.max(b.vulnT, sweep.applyVulnS);
+        }
       }
     }
   }

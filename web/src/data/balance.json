@@ -542,13 +542,13 @@
       ]
     }
   },
-"night": {
-  "cycleS": 360,
-  "dayS": 240,
-  "hpMult": 1.25,
-  "atkMult": 1.15,
-  "lootMult": 2,
-  "lanternCost": 120
+  "night": {
+    "cycleS": 360,
+    "dayS": 240,
+    "hpMult": 1.25,
+    "atkMult": 1.15,
+    "lootMult": 2,
+    "lanternCost": 120
   },
   "scalingPerDepth": {
     "hp": 1.06,
@@ -810,7 +810,25 @@
       "hero": "澜",
       "hpMult": 1.0,
       "atkMult": 1.0,
-      "speedMult": 1.0
+      "speedMult": 1.0,
+      "combo": {
+        "mults": [
+          1.0,
+          1.0,
+          1.6
+        ],
+        "window": 0.6,
+        "attackTime": [
+          0.2,
+          0.2,
+          0.28
+        ],
+        "range": 2.2,
+        "arcDeg": 110,
+        "knockback3": 6.0,
+        "moveSlow": 0.35,
+        "lungeM": 0.6
+      }
     },
     "ranger": {
       "name": "星弓猎手",
@@ -825,7 +843,8 @@
         "radiusM": 0.12,
         "lifeS": 0.9,
         "heavyEvery": 4,
-        "heavyMult": 1.35
+        "heavyMult": 1.35,
+        "pierce": 1
       }
     },
     "arcanist": {
@@ -841,7 +860,9 @@
         "radiusM": 0.18,
         "lifeS": 1.1,
         "heavyEvery": 3,
-        "heavyMult": 1.4
+        "heavyMult": 1.4,
+        "splashM": 0.9,
+        "moveSlowPct": 0.55
       }
     },
     "warden": {
@@ -864,8 +885,10 @@
         "arcDeg": 130,
         "range": 2.0,
         "knockback3": 2.5,
-        "moveSlow": 0.5,
-        "window": 0.9
+        "moveSlow": 0.3,
+        "window": 0.9,
+        "lungeM": 0.25,
+        "vulnOnHitS": 2.0
       }
     }
   },

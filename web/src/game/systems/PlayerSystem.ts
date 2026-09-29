@@ -8,6 +8,7 @@ import {
   SfxEvent, SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
 
+import { basicSpec, comboStep, lungeImpulse, moveSlowOf, shotStep } from '@game/combat/BasicAttack';
 import { bindOf } from '@game/meta/Bindings';
 
 const B = balance.player;
@@ -137,11 +138,10 @@ export class PlayerSystem implements System {
         }
 
         // ---- 普通移动(指数趋近实现加减速) ----
-        const slow = p.attackT > 0
-          ? (p.klass === 'warden' ? balance.classes.warden.combo.moveSlow
-            : p.klass === 'blade' ? B.combo.moveSlow
-            : 0.85) // 远程职业射击仅轻微减速(移动射击手感)
-          : 1;
+        // 出招期间的移动倍率:近战职业有明显减速,远程由各职业的 moveSlowPct 决定
+        // (猎手可走射 = 1,秘术师施法减速到 55%)—— 全部来自 balance,不在这里写职业分支
+        const basic = basicSpec(p.klass, balance);
+        const slow = p.attackT > 0 ? moveSlowOf(basic) : 1;
         const targetVx = axis.x * stats.moveSpeed * M * slow;
         const targetVy = axis.y * stats.moveSpeed * M * slow;
         const tau = (axis.x !== 0 || axis.y !== 0) ? B.accelTime : B.decelTime;
@@ -149,14 +149,13 @@ export class PlayerSystem implements System {
         vel.vx += (targetVx - vel.vx) * k;
         vel.vy += (targetVy - vel.vy) * k;
 
-        // ---- 普攻:近战连击(剑士/守卫) / 连射(猎手箭·秘术师法球) ----
+        // ---- 普攻:形态由职业档案决定(近战组合技 / 远程射击,见 combat/BasicAttack.ts) ----
         if ((this.input.mouseDown || this.input.isDown(bindOf('attack')) || this.input.isDown('PadX') || this.input.isDown('PadRT')) && p.attackT <= 0) {
-          if (p.klass === 'ranger' || p.klass === 'arcanist') {
-            const bow = p.klass === 'ranger' ? balance.classes.ranger.bow : balance.classes.arcanist.bow;
-            p.comboStage = (p.comboStage % bow.heavyEvery) + 1;
-            const heavy = p.comboStage === bow.heavyEvery; // 每 N 发一发强化
-            p.attackDur = bow.rateS;
-            p.attackT = bow.rateS;
+          if (basic.kind === 'shot') {
+            const step = shotStep(basic, p.comboStage);
+            p.comboStage = step.stage;
+            p.attackDur = step.timeS;
+            p.attackT = step.timeS;
             p.comboTimer = 1.0;
             const len = Math.hypot(p.aimX, p.aimY) || 1;
             const nx = p.aimX / len;
@@ -164,33 +163,39 @@ export class PlayerSystem implements System {
             const shot = world.create();
             world.add(shot, new Transform(tr.x + nx * 14, tr.y + ny * 14 - 12));
             const av = new Velocity();
-            av.vx = nx * bow.speedM * M;
-            av.vy = ny * bow.speedM * M;
+            av.vx = nx * basic.speedM * M;
+            av.vy = ny * basic.speedM * M;
             world.add(shot, av);
-            const arrow = p.klass === 'ranger';
-            world.add(shot, new Projectile(
-              'player', stats.atk, heavy ? bow.mult * bow.heavyMult : bow.mult, null,
-              bow.radiusM * M * (heavy ? 1.6 : 1), bow.lifeS,
-              arrow ? (heavy ? '#ffd94f' : '#dfe8f2') : (heavy ? '#e8c0ff' : '#b880e8'),
-              arrow ? 'arrow' : 'orb',
-            ));
+            const arrow = basic.shape === 'arrow';
+            const proj = new Projectile(
+              'player', stats.atk, step.mult, null, step.radiusPx, basic.lifeS,
+              arrow ? (step.heavy ? '#ffd94f' : '#dfe8f2') : (step.heavy ? '#e8c0ff' : '#b880e8'),
+              basic.shape,
+            );
+            proj.pierce = step.pierce;   // 猎手强化箭穿透
+            proj.splashM = step.splashM; // 秘术师法球溅射
+            world.add(shot, proj);
           } else {
-            const combo = p.klass === 'warden' ? balance.classes.warden.combo : B.combo;
-            p.comboStage = p.comboTimer > 0 ? (p.comboStage % 3) + 1 : 1;
-            const idx = p.comboStage - 1;
-            p.attackDur = combo.attackTime[idx];
-            p.attackT = p.attackDur;
-            p.comboTimer = combo.window + p.attackDur;
+            const step = comboStep(basic, p.comboStage, p.comboTimer);
+            p.comboStage = step.stage;
+            p.attackDur = step.timeS;
+            p.attackT = step.timeS;
+            p.comboTimer = basic.windowS + step.timeS;
 
-            const arcRad = (combo.arcDeg * Math.PI) / 180;
             // 橙装「怒涛之刃」:第三段范围 +40%
-            const tempest = p.comboStage === 3 && p.specials.includes('tempest') ? 1.4 : 1;
-            const rangePx = combo.range * M * tempest;
+            const tempest = step.stage === basic.mults.length && p.specials.includes('tempest') ? 1.4 : 1;
+            const rangePx = step.rangePx * tempest;
             world.emit(new MeleeSweep(
-              e, tr.x, tr.y, tr.face, rangePx, arcRad, combo.mults[idx], p.comboStage,
-              null, p.comboStage === 3 ? combo.knockback3 : 0,
+              e, tr.x, tr.y, tr.face, rangePx, step.arcRad, step.mult, step.stage,
+              null, step.knockbackM, step.vulnS,
             ));
-            world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, p.comboStage, rangePx, arcRad));
+            // 终结段前冲:位移是生存手段,不是特效
+            const imp = lungeImpulse(step);
+            if (imp > 0) {
+              vel.vx += tr.face * imp;
+              world.emit(new DashGhostEvent(tr.x, tr.y, tr.face));
+            }
+            world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, step.stage, rangePx, step.arcRad));
           }
         }
       }

@@ -1,5 +1,6 @@
 import type { Input } from '@engine/input/Input';
 import balance from '@data/balance.json';
+import { basicSpec, describeBasic } from '@game/combat/BasicAttack';
 import { UI } from '@game/constants';
 import { altarCost } from '@game/dungeon/Scaling';
 import { dailyChallenge, dailyKey, type DailyChallenge } from '@game/meta/Daily';
@@ -760,11 +761,13 @@ export class CampUI {
     ctx.font = 'bold 18px monospace';
     ctx.fillText('🏵 职业试炼场', w / 2, py + 34);
 
+    // 普攻描述**从 balance 现算**(combat/BasicAttack.describeBasic),不在 UI 里再抄一份 ——
+    // 改平衡表时营地面板会跟着变,不会出现"面板说三段、实际四段"的漂移。
     const classes: Array<{ klass: Klass; icon: string; desc: string }> = [
-      { klass: 'blade', icon: '⚔', desc: '三段连斩·近战爆发' },
-      { klass: 'ranger', icon: '🏹', desc: '连射弓·走位风筝' },
-      { klass: 'arcanist', icon: '✨', desc: '追踪法球·闪现风暴' },
-      { klass: 'warden', icon: '🛡', desc: '重锤眩晕·坦克冲锋' },
+      { klass: 'blade', icon: '⚔', desc: describeBasic(basicSpec('blade', balance)) },
+      { klass: 'ranger', icon: '🏹', desc: describeBasic(basicSpec('ranger', balance)) },
+      { klass: 'arcanist', icon: '✨', desc: describeBasic(basicSpec('arcanist', balance)) },
+      { klass: 'warden', icon: '🛡', desc: describeBasic(basicSpec('warden', balance)) },
     ];
     classes.forEach((c, i) => {
       const bw = (pw - 48 - 36) / 4;
@@ -782,8 +785,12 @@ export class CampUI {
       ctx.font = 'bold 12px monospace';
       ctx.fillText(`${cfg.hero}·${cfg.name}`, rect.x + bw / 2, rect.y + 58);
       ctx.fillStyle = UI.dim;
-      ctx.font = '10px monospace';
-      ctx.fillText(c.desc, rect.x + bw / 2, rect.y + 78);
+      ctx.font = '9px monospace';
+      // 描述按「·」分段,每行最多 2 段(普攻档案比原来的四个字长得多)
+      const parts = c.desc.split(' · ');
+      const lines: string[] = [];
+      for (let k = 0; k < parts.length; k += 2) lines.push(parts.slice(k, k + 2).join(' '));
+      lines.slice(0, 3).forEach((ln, li) => ctx.fillText(ln, rect.x + bw / 2, rect.y + 74 + li * 11));
       if (sel) ctx.fillText('(出战中)', rect.x + bw / 2, rect.y + 94);
       this.rects.push({ rect, act: `kl_${c.klass}` });
     });

@@ -83,23 +83,49 @@ export class ProjectileSystem implements System {
       for (const t of world.query(Faction, Transform, Body, Health)) {
         const fac = world.mustGet(t, Faction);
         if (fac.team === pr.team || fac.team === 'neutral') continue;
+        if (pr.hitSet.has(t)) continue; // 穿透弹不在同一目标身上重复结算
         const ttr = world.mustGet(t, Transform);
         const body = world.mustGet(t, Body);
         const dx = ttr.x - tr.x;
         const dy = ttr.y - tr.y;
         if (Math.hypot(dx, dy) > pr.radiusPx + body.radius * M) continue;
 
-        const targetPlayer = world.get(t, Player);
-        if (targetPlayer) {
-          PlayerSystem.applyHurt(world, t, pr.atk * pr.mult);
-        } else {
-          dealDamage(world, {
-            source: null, target: t, mult: pr.mult, element: pr.element,
-            hitAngle: Math.atan2(dy, dx), atkOverride: pr.atk, canCrit: false, knockbackM: 0.6,
-          });
+        pr.hitSet.add(t);
+        const applyHit = (target: number, mult: number, kx: number, ky: number): void => {
+          const tp = world.get(target, Player);
+          if (tp) {
+            PlayerSystem.applyHurt(world, target, pr.atk * mult);
+          } else {
+            dealDamage(world, {
+              source: null, target, mult: pr.element ? mult : mult, element: pr.element,
+              hitAngle: Math.atan2(ky, kx), atkOverride: pr.atk, canCrit: false, knockbackM: 0.6,
+            });
+          }
+        };
+        applyHit(t, pr.mult, dy, dx);
+
+        // 溅射(秘术师法球):命中点半径内的其他敌对单位吃一份减伤版
+        if (pr.splashM > 0 && pr.team === 'player') {
+          const splashR = pr.splashM * M;
+          for (const s2 of world.query(Faction, Transform, Body, Health)) {
+            if (s2 === t || pr.hitSet.has(s2)) continue;
+            const f2 = world.mustGet(s2, Faction);
+            if (f2.team === pr.team || f2.team === 'neutral') continue;
+            const st2 = world.mustGet(s2, Transform);
+            const sb2 = world.mustGet(s2, Body);
+            if (Math.hypot(st2.x - tr.x, st2.y - tr.y) > splashR + sb2.radius * M) continue;
+            pr.hitSet.add(s2);
+            applyHit(s2, pr.mult * pr.splashMult, st2.y - tr.y, st2.x - tr.x);
+          }
+          world.emit(new RingFxEvent(tr.x, tr.y, splashR, '#c8a8ff'));
         }
+
         world.emit(new RingFxEvent(tr.x, tr.y, pr.radiusPx * 2.2, pr.color));
         world.emit(new SfxEvent('hit1'));
+        if (pr.pierce > 0) {
+          pr.pierce -= 1; // 穿透:继续飞,下一帧还能打下一个目标
+          continue;
+        }
         world.destroy(e);
         break;
       }
