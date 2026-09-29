@@ -25,6 +25,10 @@ class TerrainState {
   private floor: FloorFeature | null = null;
   /** 本房是否有机制地形(渲染/提示用) */
   hasWater = false;
+  /** 当前地板种类(null = 没有地形,如营地)。环境声(轮 26)与 UI 都读它 —— 不再把 floor 本身暴露出去 */
+  get floorKind(): string | null {
+    return this.floor === null ? null : this.floor.kind;
+  }
 
   setFromLayout(layout: LayoutResult | null): void {
     this.floor = layout?.floor ?? null;

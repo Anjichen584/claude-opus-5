@@ -2,7 +2,8 @@ import { World } from '@engine/ecs/World';
 import type { System } from '@engine/ecs/World';
 import { GameLoop } from '@engine/core/GameLoop';
 import { sfx } from '@engine/audio/Sfx';
-import { music } from '@engine/audio/Music';
+import { music, trackFor } from '@engine/audio/Music';
+import { ambience, ambienceFor } from '@engine/audio/Ambience';
 import { Rng } from '@engine/core/Rng';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
@@ -830,13 +831,20 @@ export class GameScene {
       this.bg = this.bakeBackground(); // 逻辑分辨率变了,重烘焙背景无损
     }
 
-    // ---- BGM:按场景选曲(同曲无操作,引擎内前瞻调度) ----
-    music.play(
-      this.state === 'run'
-        ? (this.run.roomKind === 'boss' ? 'boss' : (`ch${this.run.chapter}` as 'ch1' | 'ch2' | 'ch3'))
-        : 'camp',
-    );
+    // ---- BGM:按场景选曲(轮 26:规则提到 Music.trackFor,曲目 8 首;换曲是交叉淡入淡出,不是硬切) ----
+    music.play(trackFor({
+      scene: this.state === 'run' ? 'run' : 'camp',
+      chapter: this.run.chapter,
+      boss: this.run.roomKind === 'boss',
+      endless: this.run.endless,
+    }));
     music.tick();
+    // ---- 环境声(轮 26):按当前地板种类切换;营地没有地形 → 静音。夜晚更明显(同一地形 +25%)
+    ambience.play(
+      ambienceFor(this.state === 'run' ? terrain.floorKind : null, { night: clock.isNight() }),
+      clock.isNight(),
+    );
+    ambience.setEnabled(!this.muted && meta.data.settings.musicVol > 0);
     if (this.state === 'menu') {
       // 标题页也能开设置(Esc/O/右下⚙)
       if (this.settingsUI.open) {
