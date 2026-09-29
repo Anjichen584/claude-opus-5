@@ -119,5 +119,11 @@ DamageIntent { source, target, base, element?, tags[] }
 
 ## 9. 存档格式
 
-`localStorage["sk_save_v{N}"]`,JSON + 版本号,`meta/migrations.ts` 里写版本迁移函数。
-存内容: 祭坛等级、图纸、货币、解锁职业、统计、设置。**局内进度不存档**(roguelite 规则)。
+`localStorage["sk_save_v{N}"]`,JSON + 版本号,版本迁移函数写在 `meta/migrations.ts`(纯函数,可单测)。
+存内容: 祭坛等级、图纸、货币、解锁职业、统计、设置(音量/界面缩放/屏震/顿帧/键位)。**局内进度不存档**(roguelite 规则)。
+
+迁移铁律(`meta/migrations.ts` 头注释同款):
+1. **加字段不用升版本** —— 老档缺的字段由逐层兜底合并补默认(`defaultSave()` 是唯一默认值出处);
+2. **改语义/结构/存储键才升版本** —— 升版本时在 `migrateSave()` 里写显式转换,并立刻回写落盘;
+3. **绝不因读到不认识的档而清空数据** —— 版本号高于当前的档先备份到 `sk_save_backup` 再另起新档;
+4. 所有数值过 `clamp/num` 卫生化:NaN、负数、越界、断掉的键位绑定一律夹回合法值或恢复默认。

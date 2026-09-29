@@ -4,6 +4,7 @@ import type { Camera } from '@engine/render/Camera';
 import { sfx } from '@engine/audio/Sfx';
 import balance from '@data/balance.json';
 import { UI } from '@game/constants';
+import { meta } from '@game/meta/Save';
 import {
   BeamFxEvent, DashGhostEvent, HitEvent, KillEvent, PlayerHurtEvent, ReactionEvent,
   RingFxEvent, SfxEvent, SlashFxEvent, ToastEvent,
@@ -40,14 +41,26 @@ export class FeedbackSystem implements System {
     private readonly camera: Camera,
   ) {}
 
+  /** 屏震(受设置强度缩放;0 = 关闭,晕动症/低端机友好) */
+  private shake(amp: number, dur: number): void {
+    const k = meta.data.settings.screenShake;
+    if (k > 0) this.camera.shake(amp * k, dur);
+  }
+
+  /** 顿帧(同上;0 = 关闭) */
+  private stop(ms: number): void {
+    const k = meta.data.settings.hitstop;
+    if (k > 0) this.loop.hitstop(ms * k);
+  }
+
   update(world: World, dt: number): void {
     const feel = balance.feel;
 
     for (const hit of world.read(HitEvent)) {
       const ms = hit.kill ? feel.hitstopMs.kill : hit.crit ? feel.hitstopMs.crit : feel.hitstopMs.normal;
-      this.loop.hitstop(ms);
-      if (hit.kill) this.camera.shake(feel.shake.kill.amp, feel.shake.kill.dur);
-      else if (hit.crit) this.camera.shake(feel.shake.crit.amp, feel.shake.crit.dur);
+      this.stop(ms);
+      if (hit.kill) this.shake(feel.shake.kill.amp, feel.shake.kill.dur);
+      else if (hit.crit) this.shake(feel.shake.crit.amp, feel.shake.crit.dur);
       sfx.play(hit.kill ? 'kill' : hit.crit ? 'crit' : 'hit');
       if (hit.crit || hit.kill) {
         this.bursts.push({
@@ -99,8 +112,8 @@ export class FeedbackSystem implements System {
 
     // 元素连锁反应:大字 + 爆光 + 屏震 + 音效 + 元素图标交汇
     for (const rx of world.read(ReactionEvent)) {
-      this.camera.shake(3, 0.12);
-      this.loop.hitstop(60);
+      this.shake(3, 0.12);
+      this.stop(60);
       sfx.play('reaction');
       if (rx.elA && rx.elB) {
         this.reactions.push({
@@ -127,7 +140,7 @@ export class FeedbackSystem implements System {
     for (const b of world.read(BeamFxEvent)) {
       this.beams.push({ x: b.x, y: b.y, color: b.color, t: 0, life: 0.28 });
       sfx.play('beam');
-      this.camera.shake(1.5, 0.05);
+      this.shake(1.5, 0.05);
       for (let i = 0; i < 6; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = 50 + Math.random() * 120;
@@ -154,7 +167,7 @@ export class FeedbackSystem implements System {
 
     for (const hurt of world.read(PlayerHurtEvent)) {
       this.hurtVignette = feel.hurtVignetteSec;
-      this.camera.shake(feel.shake.hurt.amp, feel.shake.hurt.dur);
+      this.shake(feel.shake.hurt.amp, feel.shake.hurt.dur);
       sfx.play('hurt');
       this.floaters.push({
         x: this.camera.x, y: this.camera.y - 40, vy: -40, t: 0, life: 0.8,

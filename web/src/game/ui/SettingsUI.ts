@@ -24,6 +24,8 @@ export class SettingsUI {
   private musicBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private sfxBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private scaleBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private shakeBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private stopBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private bindRects: Array<{ rect: Rect; id: string }> = [];
   private resetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private closeRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -78,6 +80,12 @@ export class SettingsUI {
       sfx.setVolume(v);
       sfx.play('hit1'); // 试听
     })) return null;
+    if (setBar(this.shakeBar, (v) => {
+      s.screenShake = v;
+    })) return null;
+    if (setBar(this.stopBar, (v) => {
+      s.hitstop = v;
+    })) return null;
     if (setBar(this.scaleBar, (v) => {
       s.uiScale = Math.round((0.5 + v * 1.5) * 20) / 20; // 0.05 步进
     })) return null;
@@ -106,7 +114,7 @@ export class SettingsUI {
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const s = meta.data.settings;
     const pw = 560;
-    const ph = 500;
+    const ph = 574;
     const px = w / 2 - pw / 2;
     const py = h / 2 - ph / 2;
     ctx.save();
@@ -148,6 +156,8 @@ export class SettingsUI {
     this.musicBar = bar('🎵 音乐', py + 62, s.musicVol);
     this.sfxBar = bar('🔊 音效', py + 94, s.sfxVol);
     this.scaleBar = bar('🔍 界面缩放', py + 126, (s.uiScale - 0.5) / 1.5);
+    this.shakeBar = bar('📳 屏震强度', py + 158, s.screenShake);
+    this.stopBar = bar('⏱ 顿帧强度', py + 190, s.hitstop);
     // 缩放条右侧显示倍率而非百分比
     ctx.fillStyle = 'rgba(19,23,36,1)';
     ctx.fillRect(px + pw - 88, py + 114, 62, 20);
@@ -160,13 +170,13 @@ export class SettingsUI {
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.dim;
     ctx.font = '12px monospace';
-    ctx.fillText('按键绑定(点击后按新键;与他键冲突自动互换;Esc 取消):', px + 28, py + 168);
+    ctx.fillText('按键绑定(点击后按新键;与他键冲突自动互换;Esc 取消):', px + 28, py + 232);
     this.bindRects = [];
     ACTIONS.forEach((a, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = px + 28 + col * (pw / 2 - 14);
-      const y = py + 186 + row * 46;
+      const y = py + 250 + row * 46;
       const keyR: Rect = { x: x + 128, y, w: 104, h: 32 };
       ctx.fillStyle = UI.text;
       ctx.font = '12px monospace';
