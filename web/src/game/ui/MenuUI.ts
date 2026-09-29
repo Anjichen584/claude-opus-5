@@ -1,5 +1,6 @@
 import type { Input } from '@engine/input/Input';
 import { UI } from '@game/constants';
+import { STAT_ICON, drawIconRow } from '@game/gfx/icons';
 import { meta } from '@game/meta/Save';
 import balance from '@data/balance.json';
 
@@ -11,6 +12,10 @@ export interface RunStats {
   kills: number;
   timeS: number;
   stardustGained: number;
+  /** 本局受击次数(无伤判定用,结算页展示) */
+  hitsTaken: number;
+  /** 本局单次最高伤害(与排行榜共用同一数据源) */
+  maxHit: number;
 }
 
 /**
@@ -79,19 +84,27 @@ export class MenuUI {
     ctx.font = 'bold 40px monospace';
     ctx.fillText(rs.victory ? '✦ 章节通关 ✦' : '骑士倒下了…', w / 2, h * 0.32);
 
-    ctx.fillStyle = UI.text;
-    ctx.font = '15px monospace';
-    const lines = [
-      `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}`,
-      `击杀  ${rs.kills}`,
-      `用时  ${fmtTime(rs.timeS)}`,
-      `星尘收入  ✦${rs.stardustGained}(已存入钱包)`,
+    // 统计行:图标 + 左对齐文字(图标未就绪时自动只画文字,布局不塌)
+    const rows: Array<[string, string]> = [
+      [STAT_ICON.kill, `击杀  ${rs.kills}`],
+      [STAT_ICON.taken, `受击  ${rs.hitsTaken} 次${rs.hitsTaken === 0 ? '(无伤!)' : ''}`],
+      [STAT_ICON.dps, `最高单次伤害  ${Math.round(rs.maxHit)}`],
+      [STAT_ICON.chest, `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}   用时  ${fmtTime(rs.timeS)}`],
     ];
-    lines.forEach((l, i) => ctx.fillText(l, w / 2, h * 0.42 + i * 26));
+    const rowW = 360;
+    const rx = w / 2 - rowW / 2;
+    rows.forEach(([icon, text], i) => {
+      drawIconRow(ctx, icon, rx, h * 0.42 + i * 28, 22, text, UI.text, '15px monospace');
+    });
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.dim;
+    ctx.font = '14px monospace';
+    ctx.fillText(`星尘收入  ✦${rs.stardustGained}(已存入钱包)`, w / 2, h * 0.42 + rows.length * 28 + 8);
+    ctx.textAlign = 'center';
 
     ctx.fillStyle = UI.dim;
     ctx.font = '13px monospace';
-    ctx.fillText('[Enter / 点击] 返回营地', w / 2, h * 0.42 + lines.length * 26 + 34);
+    ctx.fillText('[Enter / 点击] 返回营地', w / 2, h * 0.42 + rows.length * 28 + 40);
   }
 }
 

@@ -10,6 +10,7 @@ import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { elementColor } from '@game/combat/Elements';
 import { drawElementIcon } from '@game/gfx/draw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
+import { ITEM_ICON, drawIcon } from '@game/gfx/icons';
 import { bindOf } from '@game/meta/Bindings';
 import type { Element } from '@game/components';
 
@@ -230,11 +231,16 @@ export class InventoryUI {
     ctx.lineWidth = item && (item.rarity === 'epic' || item.rarity === 'legendary') ? 2.5 : 1.5;
     ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
     if (item) {
-      ctx.fillStyle = RARITY_COLORS[item.rarity];
-      ctx.font = 'bold 20px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(item.glyph, x + size / 2, y + size / 2 + 7);
-      ctx.textAlign = 'left';
+      // 正式物品图标优先(按部位),未加载回退字形 —— 稀有度仍由外框颜色表达
+      const icon = ITEM_ICON[item.slot];
+      const inset = 6;
+      if (!(icon && drawIcon(ctx, icon, x + inset, y + inset, size - inset * 2))) {
+        ctx.fillStyle = RARITY_COLORS[item.rarity];
+        ctx.font = 'bold 20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.glyph, x + size / 2, y + size / 2 + 7);
+        ctx.textAlign = 'left';
+      }
     }
   }
 

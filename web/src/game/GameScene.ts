@@ -123,7 +123,7 @@ export class GameScene {
   private fps = 60;
   private menuT = 0;
   private wasNight = false;
-  private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0 };
+  private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0, hitsTaken: 0, maxHit: 0 };
   private bgHasTile = false;
   /** 已烘焙进背景的布局指纹(换模板/换房 → 重烘焙地面) */
   private bgLayoutKey = '';
@@ -546,6 +546,8 @@ export class GameScene {
       kills: this.feedback.kills,
       timeS: clock.runTime,
       stardustGained: p.stardust,
+      hitsTaken: this.feedback.hitsTaken,
+      maxHit: this.feedback.maxHit,
     };
     meta.data.stardust += p.stardust;
     meta.data.pity = this.loot.factory.pityCount;

@@ -80,4 +80,8 @@ export const SPRITE_NAMES = [
   'oakgolem_f2', 'snowpuff_f2',
   'iceturtle_f2', 'blizzardhawk_f2', 'frostmage_f2',
   'dunebeetle_f2', 'flamedancer_f2', 'duststinger_f2',
+  // 第五批:物品图标(6 部位,背包/装备位)+ 状态图标(结算页与 HUD)
+  'icon_item_weapon', 'icon_item_helmet', 'icon_item_chest',
+  'icon_item_boots', 'icon_item_ring', 'icon_item_amulet',
+  'icon_st_kill', 'icon_st_dps', 'icon_st_taken', 'icon_st_chest',
 ] as const;

@@ -70,6 +70,25 @@
 - **ui_panel**: pixel art UI frame panel, 9-slice style… flat solid dark indigo interior, 3px raised border, four gold corner studs… magenta
 - **icon_slash / icon_shot / icon_dash / icon_ult**: 四个技能原型 emblem(斩击/投射/突进/大招)… single emblem centered, no frame, no circle… magenta
 
+### 物品图标 ×6(2026-09-29,第五批)
+统一结尾:`single centered emblem, no frame, no circle, no text, no shadow, no background scenery…
+isolated on a flat solid magenta (#FF00FF) background, 16-bit retro RPG item icon`(全部用品红幕布,白/金属主体安全)
+
+- **icon_item_weapon**: short straight sword pointing up, pale steel blade with bright edge highlight, gold crossguard, dark leather grip, small blue gem in the pommel
+- **icon_item_helmet**: knight helmet, rounded steel dome, dark rectangular visor slit, small gold crest ridge on top, side hinge rivets
+- **icon_item_chest**: steel breastplate cuirass, curved chest plate, gold trim edging, central rivet, two shoulder straps
+- **icon_item_boots**: **exactly one single** leather boot seen from the side, folded cuff, steel toe cap, tiny wing motif on the ankle
+- **icon_item_ring**: gold ring band seen slightly at an angle, small square blue gemstone on top, engraved simple band
+- **icon_item_amulet**: necklace amulet, short chain, amber-orange teardrop crystal pendant with inner glow, gold cap
+
+### 统计/状态图标 ×4(2026-09-29,第五批)
+- **icon_st_kill**: small pale grey-green mushroom sprite skull, rounded cap with two tiny spots, two empty eye sockets
+- **icon_st_dps**: stylized flame with a white star-spark inside its core, warm yellow and orange
+- **icon_st_taken**: **exactly one single** cracked red heart with a jagged dark crack down the middle
+- **icon_st_chest**: closed wooden treasure chest in three-quarter view, gold metal bands, small gold lock, light escaping the lid seam
+
+> 待生成(下一批):`icon_st_stardust`(琥珀四芒星)、`icon_st_time`(黄铜怀表)、技能图标 ×6。
+
 ### 怪物第二帧(2026-09-29,12 只)
 全部用「第一帧成品放大图 + same creature as the reference, but in a mid-walk / wing-down /
 bouncing frame」句式生成;`snowpuff_f2` 第一版是细线稿被管线误吃,重绘为**实心白球**并强调

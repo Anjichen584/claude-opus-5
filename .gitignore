@@ -9,3 +9,7 @@ web/art_src/*.png
 # C# 逻辑层测试的编译产物(本地产物,不进仓库)
 unity/Tests/bin/
 unity/Tests/obj/
+
+# Python 缓存(工具脚本)
+__pycache__/
+*.pyc
