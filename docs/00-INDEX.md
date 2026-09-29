@@ -15,6 +15,7 @@
 | 6 | [05-ROADMAP.md](05-ROADMAP.md) | 项目分几期?每期交付什么? | 5 分钟 |
 | 7 | [07-CONTRIBUTING.md](07-CONTRIBUTING.md) | 我怎么跑起来?怎么加一个新技能/怪物?怎么收尾提交? | 15 分钟 |
 | 8 | [08-ART-PROMPTS.md](08-ART-PROMPTS.md) | AI 原画怎么生成?源图没了怎么重建? | 5 分钟 |
+| 9 | [09-SCOPE.md](09-SCOPE.md) | **这游戏还要多少工作量才算做完?** | 10 分钟 |
 
 ## 文档维护规则
 

@@ -51,6 +51,7 @@ import { RunManager } from '@game/dungeon/RunManager';
 import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
 import { terrain } from '@game/dungeon/Terrain';
 import { drawPixelText, lineHeight, measure } from '@game/gfx/pixelFont';
+import { BOARD_LABEL, submitRun, type BoardId } from '@game/meta/Leaderboard';
 import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
@@ -574,6 +575,24 @@ export class GameScene {
         else meta.data.stats.dailyClears++;
       }
       meta.save();
+    }
+    // 本地排行榜:每次出征提交一次(未通关也能进击杀/单次伤害榜;回放不会重复刷)
+    const submitted = submitRun(meta.data, {
+      cleared: victory,
+      noHit: this.feedback.hitsTaken === 0,
+      timeS: victory ? clock.runTime : 0,
+      kills: this.feedback.kills,
+      maxHit: Math.round(this.feedback.maxHit),
+      klass: p.klass,
+      chapter: this.run.chapter,
+      tag: this.runMode === 'off' ? '' : `${this.runMode}:${runMods.key}`,
+      at: Date.now(),
+    });
+    // 榜上有名:四条榜都能看到新记录才值得弹提示
+    const boards = Object.keys(submitted) as BoardId[];
+    if (boards.length > 0) {
+      const names = boards.map((b) => BOARD_LABEL[b]).join(' · ');
+      this.world.emit(new ToastEvent(`🥇 已记入排行榜:${names}`, '#e8c07a'));
     }
     this.runMode = 'off';
     // 结算时统一判定成就(首次通关/极速/无伤/击杀里程碑/每日挑战等)

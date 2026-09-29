@@ -49,6 +49,15 @@ AI 选现有行为树模板或在 `game/ai/behaviors/` 新写节点 →
 
 **改平衡**: 只动 `balance.json` + 03-NUMBERS.md,同 commit。
 
+### 4.1 随机数必须播种(踩过的坑)
+
+逻辑层里**任何** `new Random()` / `rand()` 都必须给固定种子,否则输出不可复现,测试会偶发变红
+(2026-09-29 实测:「箭雨命中前方落点区域的敌人簇」断言时红时绿,根因是 `SkillRuntime.Rng` 用了未播种的 `new Random()`;
+现已固定为 `SkillRuntime.ScatterSeed`,并补了「同序列两遍 → 逐项一致」的守卫测试)。
+- Unity 逻辑层:`SkillRuntime.Rng`(散点)、`BossAI._rng`(0x5EED1)、`DamagePipeline.CritRng` 都是固定种子,照抄这个风格。
+- web 侧 `Math.random()` 目前只用于**渲染抖动**(GameScene 里 90+ 处 jitter)与开启时的随机赠礼,不参与断言;
+  若要在 web 写逻辑散点,请用可播种 RNG(`engine` 里的 rng),别用 `Math.random()`。
+
 ## 5. 美术资源提交
 
 按 04-ART-PIPELINE §4 流程走;源文件/prompt 记录放 `webassets-src/`(不打包),

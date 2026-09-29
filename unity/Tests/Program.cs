@@ -421,6 +421,93 @@ namespace StarfallKnights.Tests
             Check(PixelFont.Supports("") , "空串视为可位图化");
         }
 
+        // ---------------- 本地排行榜 ----------------
+        private static void TestLeaderboard()
+        {
+            Suite("本地排行榜(四条榜 / 门槛 / 截断 / 清洗)");
+
+            var LB = typeof(Leaderboard);
+            var Board = typeof(Leaderboard.Board);
+            object B(string name) => Enum.Parse(Board, name);
+
+            Check(Leaderboard.Boards.Length == 4, $"四条榜(实际 {Leaderboard.Boards.Length})");
+            Check(Leaderboard.TopN >= 3 && Leaderboard.MinKills > 0, "容量与门槛来自配置(非 0 非负)");
+
+            var mk = (double score, double at) => new Leaderboard.Entry(score, "blade", 1, at, "");
+
+            // 排序方向
+            var kills = Leaderboard.Sort(Leaderboard.Board.Kills, new[] { mk(10, 1), mk(99, 2), mk(50, 3) });
+            Check(kills[0].Score == 99 && kills[2].Score == 10, "击杀榜降序(越大越前)");
+            var speed = Leaderboard.Sort(Leaderboard.Board.Speed, new[] { mk(300, 1), mk(120, 2), mk(200, 3) });
+            Check(speed[0].Score == 120 && speed[2].Score == 300, "速度榜升序(越小越前)");
+            var tie = Leaderboard.Sort(Leaderboard.Board.Speed, new[] { mk(120, 1), mk(120, 9) });
+            Check(tie[0].At == 9 && tie[1].At == 1, "同分时最近一次在前");
+
+            // 进榜门槛
+            var run = new Leaderboard.RunScore
+            {
+                Cleared = true, NoHit = false, TimeS = 300, Kills = 40, MaxHit = 55,
+                Klass = "blade", Chapter = 1, At = 1000,
+            };
+            var got = Leaderboard.RunScores(run);
+            Check(got.Count == 3 && !got.ContainsKey(Leaderboard.Board.NoHit), "通关但非无伤:速度/击杀/伤害三条,不进无伤榜");
+            var hitless = run; hitless.NoHit = true;
+            Check(Leaderboard.RunScores(hitless).Count == 4, "无伤通关:四条榜全进");
+
+            var lost = run; lost.Cleared = false; lost.TimeS = 0; lost.Kills = Leaderboard.MinKills - 1; lost.MaxHit = 0;
+            Check(Leaderboard.RunScores(lost).Count == 0, "没通关且成绩低于门槛:一条都不进");
+
+            var lowKill = run; lowKill.Kills = Leaderboard.MinKills - 1;
+            Check(!Leaderboard.RunScores(lowKill).ContainsKey(Leaderboard.Board.Kills), "击杀低于门槛不进榜");
+
+            // 提交与截断:插 9 条后仍是最强 5 条
+            var lb = new Leaderboard.Boards4();
+            for (int i = 1; i <= 9; i++)
+            {
+                var r = run; r.Kills = i * 10; r.At = i;
+                Leaderboard.Submit(lb, r);
+            }
+            Check(lb.Kills.Count == Leaderboard.TopN, $"榜长截断到前 {Leaderboard.TopN}(实际 {lb.Kills.Count})");
+            Check(string.Join(",", lb.Kills.ConvertAll(e => e.Score.ToString())) == "90,80,70,60,50", "留下的是最强 5 条");
+            var worse = run; worse.Kills = 5; worse.At = 99;
+            Leaderboard.Submit(lb, worse);
+            Check(lb.Kills[0].Score == 90 && lb.Kills.Count == Leaderboard.TopN, "更差的成绩进不来(榜不变)");
+            var better = run; better.Kills = 100; better.At = 100;
+            Leaderboard.Submit(lb, better);
+            Check(lb.Kills[0].Score == 100 && lb.Kills[lb.Kills.Count - 1].Score == 60, "破纪录会挤掉最后一名");
+
+            // 开榜进度
+            var fresh = new Leaderboard.Boards4();
+            Check(fresh.Filled() == 0, "新档:0 条榜有记录");
+            Leaderboard.Submit(fresh, hitless);
+            Check(fresh.Filled() == 4, "四条榜都能被同一次出征点亮");
+
+            // 名次
+            Check(Leaderboard.RankOf(Leaderboard.Board.Kills, fresh.Kills, fresh.Kills[0]) == 1, "榜首 rankOf = 1");
+            Check(Leaderboard.RankOf(Leaderboard.Board.Kills, fresh.Kills, mk(1, 0)) == 0, "不在榜上 rankOf = 0");
+
+            // 清洗:脏数据丢掉、重排、截断
+            var dirty = new Leaderboard.Boards4();
+            dirty.Kills.Add(new Leaderboard.Entry(10, "druid", 1, 1, ""));      // 未知职业
+            dirty.Kills.Add(new Leaderboard.Entry(10, "blade", 9, 2, ""));      // 未知章节
+            dirty.Kills.Add(new Leaderboard.Entry(-3, "blade", 1, 3, ""));      // 负数
+            dirty.Kills.Add(new Leaderboard.Entry(double.NaN, "blade", 1, 4, "")); // NaN
+            dirty.Kills.Add(new Leaderboard.Entry(42, "blade", 2, 5, "daily:2026-09-29"));
+            for (int i = 0; i < 20; i++) dirty.Speed.Add(mk(600 + i, i));
+            Leaderboard.Sanitize(dirty);
+            Check(dirty.Kills.Count == 1 && dirty.Kills[0].Score == 42, $"脏条目全部清掉,只留合法记录(实际 {dirty.Kills.Count} 条)");
+            Check(dirty.Speed.Count == Leaderboard.TopN && dirty.Speed[0].Score == 600, "超长榜截断且顺序正确");
+            Check(dirty.Hit.Count == 0 && dirty.NoHit.Count == 0, "空榜保持空");
+
+            // 展示格式
+            Check(Leaderboard.FormatScore(Leaderboard.Board.Speed, 200) == "3:20", $"时间格式 mm:ss(实际 {Leaderboard.FormatScore(Leaderboard.Board.Speed, 200)})");
+            Check(Leaderboard.FormatScore(Leaderboard.Board.Speed, 59) == "0:59", "不足一分钟也补零");
+            Check(Leaderboard.FormatScore(Leaderboard.Board.Kills, 1234) == "1,234", $"分数千分位(实际 {Leaderboard.FormatScore(Leaderboard.Board.Kills, 1234)})");
+            Check(Leaderboard.TagLabel("") == "" && Leaderboard.TagLabel("garbage") == "", "普通局/脏标记不显示徽标");
+            Check(Leaderboard.TagLabel("daily:2026-09-29").Contains("2026-09-29") && Leaderboard.TagLabel("weekly:2026-W40").Contains("2026-W40"),
+                "每日/周常徽标能认出键");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -448,6 +535,7 @@ namespace StarfallKnights.Tests
             TestChallenges();
             TestTerrainRules();
             TestPixelFont();
+            TestLeaderboard();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -732,12 +820,34 @@ namespace StarfallKnights.Tests
                 for (int i = 0; i < 8; i++)
                     cluster.Add(MakeEnemy(w, new Vector2(4f + (i % 4) * 0.5f - 0.75f, (i / 4) * 0.6f - 0.3f)));
                 s.Rage = 100f;
-                Check(s.CastR(w), "星陨箭雨可施放");
+                // 瞄向簇中心(不瞄时落点按朝向前方散开,断言会依赖随机散点)
+                Check(s.CastR(w, null, new Vector2(4f, 0f)), "星陨箭雨可施放");
                 Near(s.Rage, 0f, 1e-3f, "放完清空怒气");
-                Advance(w, 1.5f, s);
-                bool rained = false;
-                foreach (var a in cluster) if (a.Unit.Hp < 500f) rained = true;
-                Check(rained, "箭雨命中前方落点区域的敌人簇");
+                Advance(w, 2.5f, s);
+                int rained = 0;
+                foreach (var a in cluster) if (a.Unit.Hp < 500f) rained++;
+                Check(rained >= 2, $"箭雨命中前方落点区域的敌人簇(实际命中 {rained}/8)");
+
+                // 散点必须可复现:复刻**完整调用序列**(含前面几次施法与推进,RNG 消耗历史要一致),
+                // 两遍的敌人掉血应逐项相同。若把 SkillRuntime.Rng 改回 `new Random()`(未播种),这条立刻变红。
+                var w2 = new LogicWorld();
+                var p2 = MakePlayer(w2, Vector2.Zero, 40f);
+                var s2 = new RangerSkills();
+                s2.CastQ(w2);
+                var e2 = MakeEnemy(w2, new Vector2(3f, 0f));
+                Advance(w2, 0.5f, s2);
+                s2.CastE(w2);
+                Advance(w2, 0.3f, s2);
+                var cluster2 = new List<Actor>();
+                for (int i = 0; i < 8; i++)
+                    cluster2.Add(MakeEnemy(w2, new Vector2(4f + (i % 4) * 0.5f - 0.75f, (i / 4) * 0.6f - 0.3f)));
+                s2.Rage = 100f;
+                s2.CastR(w2, null, new Vector2(4f, 0f));
+                Advance(w2, 2.5f, s2);
+                bool same = true;
+                for (int i = 0; i < cluster.Count; i++)
+                    if (Math.Abs(cluster[i].Unit.Hp - cluster2[i].Unit.Hp) > 1e-4f) same = false;
+                Check(same, "技能散点可复现(同序列两遍 → 逐项一致)");
             }
 
             // 秘术师 Q/E/R

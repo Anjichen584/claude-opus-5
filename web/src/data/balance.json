@@ -488,6 +488,11 @@
     "treasureItems": 3,
     "spriteChance": 0.25
   },
+  "leaderboard": {
+    "topN": 5,
+    "minKills": 5,
+    "minHit": 1
+  },
   "layouts": {
     "entryClearXM": 4.6,
     "exitClearXM": 4.6,

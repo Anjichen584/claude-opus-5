@@ -9,6 +9,9 @@ import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
 import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
+import {
+  BOARD_HINT, BOARD_IDS, BOARD_LABEL, boardsFilled, formatScore, tagLabel,
+} from '@game/meta/Leaderboard';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -40,6 +43,8 @@ export class CampUI {
   codexPick: string | null = null;
   /** 混沌祭坛页签:今日(每日挑战)/ 本周(周常挑战) */
   dailyTab: 'today' | 'week' = 'today';
+  /** 星陨殿堂页签:成就 / 排行榜 */
+  hallTab: 'achv' | 'board' = 'achv';
 
   private rects: Array<{ rect: Rect; act: string }> = [];
 
@@ -69,6 +74,10 @@ export class CampUI {
     if (this.panel === 'daily' && this.input.wasPressed('Tab')) {
       this.dailyTab = this.dailyTab === 'today' ? 'week' : 'today';
     }
+    // 星陨殿堂:Tab 切「成就 / 排行榜」
+    if (this.panel === 'achv' && this.input.wasPressed('Tab')) {
+      this.hallTab = this.hallTab === 'achv' ? 'board' : 'achv';
+    }
     if (this.panel === 'daily' && (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart'))) {
       this.panel = 'none';
       return this.dailyTab === 'week' ? 'startWeekly' : 'startDaily';
@@ -94,6 +103,8 @@ export class CampUI {
       }
       if (r.act === 'tabToday') this.dailyTab = 'today';
       if (r.act === 'tabWeek') this.dailyTab = 'week';
+      if (r.act === 'hallAchv') this.hallTab = 'achv';
+      if (r.act === 'hallBoard') this.hallTab = 'board';
       if (r.act.startsWith('ch')) {
         const ch = Number(r.act.slice(2)) as 1 | 2 | 3;
         const cfg = balance.chapters[String(ch) as '1' | '2' | '3'];
@@ -135,30 +146,32 @@ export class CampUI {
 
 
 
-  // ---- 成就(星陨殿堂) ----
+  // ---- 星陨殿堂:成就 / 排行榜 ----
   private renderAchv(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const pw = 720, ph = 470;
     const px = w / 2 - pw / 2, py = h / 2 - ph / 2;
     panelBox(ctx, px, py, pw, ph);
+    this.renderHallTabs(ctx, w, py + 10);
+    if (this.hallTab === 'board') { this.renderBoards(ctx, w, px, py, pw, ph); return; }
 
     const prog = achvProgress(meta.data);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🏆 星陨殿堂', w / 2, py + 32);
+    ctx.fillText('🏆 星陨殿堂 · 成就', w / 2, py + 62);
     ctx.font = '12px monospace';
     ctx.fillStyle = prog.unlocked >= prog.total ? UI.gold : UI.dim;
     ctx.fillText(
       prog.unlocked >= prog.total
         ? `★ 全成就达成 ${prog.unlocked}/${prog.total}`
         : `成就 ${prog.unlocked}/${prog.total} · ${(prog.pct * 100).toFixed(0)}%`,
-      w / 2, py + 52);
+      w / 2, py + 82);
     ctx.fillStyle = UI.text;
-    ctx.fillText(summaryLine(meta.data), w / 2, py + 70);
+    ctx.fillText(summaryLine(meta.data), w / 2, py + 100);
 
     // 分类分栏(每类一行,行内放该类的成就格子)
     const cats = ACHV_CATS;
     const gx = px + 22;
-    const gy = py + 86;
+    const gy = py + 116;
     const rowH = 46;
     cats.forEach((cat, ci) => {
       const list = achvInCat(cat);
@@ -537,6 +550,110 @@ export class CampUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.fillText('[Tab] 切今日/本周 · [Enter] 开始 · [Esc/F] 关闭', w / 2, py + ph - 16);
+  }
+
+  /** 殿堂页签条(成就 / 排行榜) */
+  private renderHallTabs(ctx: CanvasRenderingContext2D, w: number, py: number): void {
+    const tabs: Array<{ act: string; key: 'achv' | 'board'; label: string }> = [
+      { act: 'hallAchv', key: 'achv', label: '🏆 成就' },
+      { act: 'hallBoard', key: 'board', label: '🥇 排行榜' },
+    ];
+    tabs.forEach((t, i) => {
+      const rw = 132;
+      const r: Rect = { x: w / 2 - rw - 4 + i * (rw + 8), y: py, w: rw, h: 26 };
+      const on = this.hallTab === t.key;
+      ctx.fillStyle = on ? '#2a3147' : '#1a1f30';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = on ? UI.gold : '#3a4154';
+      ctx.lineWidth = on ? 2 : 1.5;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = on ? UI.gold : UI.dim;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(t.label, r.x + r.w / 2, r.y + 17);
+      this.rects.push({ rect: r, act: t.act });
+    });
+  }
+
+  /** 排行榜页:四条榜各一行(名次 / 成绩 / 职业 / 章节 / 挑战徽标) */
+  private renderBoards(
+    ctx: CanvasRenderingContext2D, w: number,
+    px: number, py: number, pw: number, ph: number,
+  ): void {
+    const lb = meta.data.leaderboard;
+    const filled = boardsFilled(meta.data);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('🥇 星陨殿堂 · 排行榜', w / 2, py + 62);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = filled >= BOARD_IDS.length ? UI.gold : UI.dim;
+    ctx.fillText(
+      `本地榜(不上云)· 已开榜 ${filled}/${BOARD_IDS.length} · 每榜保留前 ${balance.leaderboard.topN}`,
+      w / 2, py + 82);
+
+    const colW = (pw - 44) / 2;
+    const rowH = 16;
+    const headH = 24;
+    BOARD_IDS.forEach((id, i) => {
+      const bx = px + 22 + (i % 2) * (colW + 4);
+      const by = py + 100 + Math.floor(i / 2) * 176;
+      const list = lb[id];
+      // 榜头
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1f30';
+      ctx.fillRect(bx, by, colW, headH);
+      ctx.fillStyle = list.length > 0 ? UI.gold : UI.dim;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(BOARD_LABEL[id], bx + 6, by + 16);
+      ctx.fillStyle = UI.dim;
+      ctx.font = '10px monospace';
+      ctx.fillText(BOARD_HINT[id], bx + 6, by + headH + 12);
+
+      if (list.length === 0) {
+        ctx.fillStyle = UI.dim;
+        ctx.font = '11px monospace';
+        ctx.fillText('—— 还没有记录,出征一次就上榜 ——', bx + 6, by + headH + 32);
+        return;
+      }
+      list.forEach((e, rank) => {
+        const ry = by + headH + 22 + rank * rowH;
+        if (rank === 0) {
+          ctx.fillStyle = 'rgba(232,192,122,0.10)'; // 榜首底色
+          ctx.fillRect(bx, ry - 11, colW, rowH);
+        }
+        ctx.textAlign = 'left';
+        ctx.fillStyle = rank === 0 ? UI.gold : UI.dim;
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`${rank + 1}.`, bx + 6, ry);
+        ctx.fillStyle = rank === 0 ? UI.gold : UI.text;
+        ctx.font = 'bold 12px monospace';
+        ctx.fillText(formatScore(id, e.score), bx + 26, ry);
+        // 职业 + 章节 + 挑战徽标
+        ctx.fillStyle = UI.dim;
+        ctx.font = '10px monospace';
+        const kls = balance.classes[e.klass].name;
+        ctx.fillText(`${kls} · 第${e.chapter}章`, bx + 82, ry);
+        const tag = tagLabel(e.tag);
+        if (tag) {
+          ctx.fillStyle = '#8fd4c8';
+          ctx.fillText(tag, bx + colW - 70, ry);
+        }
+      });
+    });
+
+    // 挑战区:今日 / 本周记录(与混沌祭坛共用同一份存档,这里只读)
+    const d = meta.data.daily;
+    const wk = meta.data.weekly;
+    ctx.textAlign = 'center';
+    ctx.font = '11px monospace';
+    const fmt = (s: number): string => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(
+      `🗓 今日 ${d.key || '—'} ${d.cleared ? `已通关 ${fmt(d.bestTimeS)}` : d.bestKills > 0 ? `击杀 ${d.bestKills}` : '未挑战'}`
+      + `   ·   🏅 本周 ${wk.key || '—'} ${wk.cleared ? `已通关 ${fmt(wk.bestTimeS)}` : wk.bestKills > 0 ? `击杀 ${wk.bestKills}` : '未挑战'}`,
+      w / 2, py + ph - 30);
+    ctx.fillStyle = UI.dim;
+    ctx.font = '10px monospace';
+    ctx.fillText('[Tab] 切成就/排行榜 · [Esc/F] 关闭 · 榜单只存在本机存档', w / 2, py + ph - 12);
   }
 
   // ---- 出征 ----

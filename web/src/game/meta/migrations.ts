@@ -11,6 +11,7 @@ export const CURRENT_SAVE_VERSION = 2;
 
 import { emptyCodex, sanitizeCodex, type CodexData } from './Codex';
 import { sanitizeAchievements } from './Achievements';
+import { sanitizeLeaderboards, type Leaderboards } from './Leaderboard';
 
 export interface Settings {
   /** 音乐音量 0~1 */
@@ -40,6 +41,8 @@ export interface SaveData {
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 周常挑战最佳(键 = ISO 周,如 2026-W40;跨周自动作废) */
   weekly: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
+  /** 本地排行榜(四条榜各留前 N 条;见 meta/Leaderboard.ts) */
+  leaderboard: Leaderboards;
   /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存"见过没有+次数" */
   codex: CodexData;
   settings: Settings;
@@ -81,6 +84,7 @@ export function defaultSave(): SaveData {
     craftQueued: false,
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     weekly: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
+  leaderboard: { speed: [], kills: [], hit: [], nohit: [] },
     codex: emptyCodex(),
     settings: {
       musicVol: 0.8, sfxVol: 0.35, uiScale: 1,
@@ -132,6 +136,8 @@ export function migrateSave(raw: unknown): MigrateResult {
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
     daily: { ...d.daily, ...(parsed.daily ?? {}) },
     weekly: { ...d.weekly, ...(parsed.weekly ?? {}) },
+    // 榜单是数组,不能走 spread 合并:整段交给 sanitize 重排/截断
+    leaderboard: parsed.leaderboard ?? d.leaderboard,
     codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
     achievements: sanitizeAchievements((parsed as Partial<SaveData>).achievements),
     settings: {
@@ -155,6 +161,7 @@ export function migrateSave(raw: unknown): MigrateResult {
   });
   data.daily = cleanRecord(data.daily);
   data.weekly = cleanRecord(data.weekly);
+  data.leaderboard = sanitizeLeaderboards(data.leaderboard);
   data.altar = {
     hp: Math.max(0, Math.floor(num(data.altar.hp))),
     atk: Math.max(0, Math.floor(num(data.altar.atk))),

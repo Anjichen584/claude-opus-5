@@ -38,6 +38,8 @@ export class FeedbackSystem implements System {
   kills = 0;
   /** 本局玩家受伤次数(无伤通关成就判定;enterCamp/startRun 时清零) */
   hitsTaken = 0;
+  /** 本局单次最高伤害(排行榜用;只记玩家打出的伤害) */
+  maxHit = 0;
 
   constructor(
     private readonly loop: GameLoop,
@@ -60,6 +62,8 @@ export class FeedbackSystem implements System {
     const feel = balance.feel;
 
     for (const hit of world.read(HitEvent)) {
+      // 单次最高伤害:玩家侧的 HitEvent 才计入(受击飘字走 PlayerHurtEvent,不会污染)
+      if (hit.amount > this.maxHit) this.maxHit = hit.amount;
       const ms = hit.kill ? feel.hitstopMs.kill : hit.crit ? feel.hitstopMs.crit : feel.hitstopMs.normal;
       this.stop(ms);
       if (hit.kill) this.shake(feel.shake.kill.amp, feel.shake.kill.dur);

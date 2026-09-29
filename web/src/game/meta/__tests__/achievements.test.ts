@@ -5,6 +5,7 @@ import {
 } from '../Achievements';
 import { ENEMY_KEYS, RUNE_KEYS, markEnemyKill, markRuneOwned } from '../Codex';
 import { defaultSave, migrateSave, type SaveData } from '../migrations';
+import { submitRun } from '../Leaderboard';
 
 /** 造一个"满贯档":所有成就的判定条件都满足 */
 function perfectSave(): SaveData {
@@ -19,6 +20,11 @@ function perfectSave(): SaveData {
   d.stats.crafts = 2;
   d.stardust = 5000;
   d.altar = { hp: 6, atk: 6, luck: 6 };
+  // 四条榜各留一条记录(成就「榜上有名」的解锁条件)
+  submitRun(d, {
+    cleared: true, noHit: true, timeS: 300, kills: 120, maxHit: 240,
+    klass: 'blade', chapter: 1, tag: '', at: 1000,
+  });
   for (const k of ENEMY_KEYS) markEnemyKill(d.codex, k);
   for (const id of RUNE_KEYS) markRuneOwned(d.codex, id);
   return d;

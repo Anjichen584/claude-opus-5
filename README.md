@@ -34,7 +34,7 @@
 | 刷宝 | 6 部位 × 5 稀有度、8 种词条、200 抽保底、3 件橙装专属特效、符文掉落镶嵌闭环 |
 | 系统 | 元素连锁、昼夜怪潮、秘境房、商店、图纸铸造、星陨祭坛永久成长、存档迁移(v2) |
 | 美术 | 71 张正式精灵(AI 生成 → 管线规范化),UI 走 9-slice 面板贴图 |
-| 代码 | TypeScript 自研引擎约 14.6k 行 · **177 条单测全绿** · Unity C# 镜像 23 文件 · **356 条逻辑层断言全绿** |
+| 代码 | TypeScript 自研引擎约 15.1k 行 · **195 条单测全绿** · Unity C# 镜像 31 文件 · **384 条逻辑层断言全绿** |
 
 ## 操作
 
@@ -75,7 +75,8 @@ claude-opus-5/
 │   ├── 05-ROADMAP.md      路线图(Phase 0~6)
 │   ├── 06-STATUS.md       ★ 进度看板(有了啥/缺啥/下一步)
 │   ├── 07-CONTRIBUTING.md 开发指南、协作规范、收尾纪律
-│   └── 08-ART-PROMPTS.md  AI 原画提示词存档(源图不入库,靠这里可再生)
+│   ├── 08-ART-PROMPTS.md  AI 原画提示词存档(源图不入库,靠这里可再生)
+│   └── 09-SCOPE.md        **剩余工作量估算**(还差多少轮做完,三种口径)
 ├── tools/
 │   ├── process_art.py     AI 原画 → 游戏精灵(抠图/降采样/双帧主体对齐)
 │   └── sync.sh            一键收尾:提交 → 推送 → 清沙箱
@@ -104,6 +105,7 @@ claude-opus-5/
 3. [docs/07-CONTRIBUTING.md](docs/07-CONTRIBUTING.md) — 怎么跑起来、怎么加技能/怪物/装备、收尾纪律
 4. 改玩法数值 → [docs/03-NUMBERS.md](docs/03-NUMBERS.md) + `web/src/data/` 下的 JSON
 5. 改美术 → [docs/04-ART-PIPELINE.md](docs/04-ART-PIPELINE.md) + [docs/08-ART-PROMPTS.md](docs/08-ART-PROMPTS.md)
+6. 想知道"还要多少工作量" → [docs/09-SCOPE.md](docs/09-SCOPE.md)
 
 > 铁律:伤害数字禁止硬编码,全部走 `web/src/data/balance.json`(见 02 §5)。
 

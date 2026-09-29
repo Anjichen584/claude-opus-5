@@ -1,6 +1,7 @@
 import balance from '@data/balance.json';
 import { ENEMY_KEYS, codexProgress, type CodexData } from './Codex';
 import type { SaveData } from './migrations';
+import { BOARD_IDS, boardsFilled } from './Leaderboard';
 
 /**
  * 成就(星陨殿堂):**纯函数判定 + 幂等解锁**。
@@ -67,6 +68,7 @@ export const ACHIEVEMENTS: AchvDef[] = [
   // ---- 局外 ----
   { id: 'daily_clear', name: '混沌征服者', desc: '通关一次每日挑战', icon: '🗓', cat: '局外', progress: (d) => prog(d.stats.dailyClears, 1) },
   { id: 'weekly_clear', name: '铁律破译者', desc: '通关一次周常挑战', icon: '🏅', cat: '局外', progress: (d) => prog(d.stats.weeklyClears, 1) },
+  { id: 'boards_filled', name: '榜上有名', desc: '四条排行榜都有记录', icon: '🥇', cat: '局外', progress: (d) => prog(boardsFilled(d), BOARD_IDS.length) },
   { id: 'altar5', name: '星陨祭坛·小成', desc: '任一祭坛分支升到 5 级', icon: '⭐', cat: '局外', progress: (d) => prog(altarBest(d), 5) },
   { id: 'altar15', name: '星陨祭坛·大成', desc: '三系祭坛合计 15 级', icon: '✨', cat: '局外', progress: (d) => prog(altarLevels(d), 15) },
   { id: 'craft1', name: '铸星者', desc: '在星辉铸台铸造 1 次开局橙装', icon: '📜', cat: '局外', progress: (d) => prog(d.stats.crafts, 1) },

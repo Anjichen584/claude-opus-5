@@ -34,6 +34,7 @@ namespace StarfallKnights.Tests
             CheckLayouts(check, near, root);
             CheckChallenges(check, near, root);
             CheckPixelFont(check, near, root);
+            CheckLeaderboard(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -370,6 +371,36 @@ namespace StarfallKnights.Tests
             foreach (var ch in PixelFont.Glyphs.Keys) if (!glyphs.ContainsKey(ch)) extra.Add(ch);
             check(extra.Count == 0, $"C# 没有多余字模(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(",", extra) : "")})");
             check(bad == 0, $"font.json → PixelFont.cs 逐字符逐行一致({glyphs.Count} 个字模)");
+        }
+
+        /// <summary>排行榜配置 parity:balance.json 的 leaderboard 段 vs Meta/Leaderboard.cs。</summary>
+        private static void CheckLeaderboard(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var cfg = Meta.Leaderboard.Parity;
+            var lb = MiniJson.Opt(doc, "leaderboard");
+            if (lb == null) { check(false, "balance.json 有 leaderboard 段"); return; }
+
+            int bad = 0, matched = 0;
+            foreach (var kv in cfg)
+            {
+                string leaf = kv.Key.Substring("leaderboard.".Length);
+                double json = MiniJson.Num(lb, leaf);
+                if (double.IsNaN(json)) { bad++; check(false, $"leaderboard 缺键 {leaf}"); continue; }
+                matched++;
+                if (Math.Abs((double)kv.Value - json) > Tol) { bad++; check(false, $"排行榜配置不一致:{leaf}(JSON={json} vs C#={kv.Value})"); }
+            }
+            check(bad == 0, $"balance.json → Leaderboard.cs 逐键一致({matched} 个数值键)");
+
+            // 四条榜的名字/顺序/方向也应当两边一致(名字是逻辑,不是纯展示)
+            check(Meta.Leaderboard.Boards.Length == 4, "四条榜(Speed/Kills/Hit/NoHit)");
+            check(Meta.Leaderboard.Ascending(Meta.Leaderboard.Board.Speed)
+                  && Meta.Leaderboard.Ascending(Meta.Leaderboard.Board.NoHit)
+                  && !Meta.Leaderboard.Ascending(Meta.Leaderboard.Board.Kills)
+                  && !Meta.Leaderboard.Ascending(Meta.Leaderboard.Board.Hit),
+                "时间榜升序、分数榜降序");
         }
 
         private static Core.EnemyKind? KindOf(string jsonKey)

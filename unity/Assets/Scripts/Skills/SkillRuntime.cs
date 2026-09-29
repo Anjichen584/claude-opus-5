@@ -30,7 +30,16 @@ namespace StarfallKnights.Skills
         protected float CdScale => Math.Clamp(1f - Cdr, 1f - Balance.CdrCap, 1f);
 
         protected readonly List<(float t, Action run)> Queue = new();
-        protected readonly Random Rng = new();
+
+        /// <summary>
+        /// 技能散点用的随机源(环箭/箭雨/风暴落点等)。
+        /// **必须播种**:默认 `new Random()` 会让逻辑层输出不可复现 —— 2026-09-29 实测「箭雨命中前方落点区域的敌人簇」
+        /// 断言偶发变红(落点散到簇外)。BossAI 早就是固定种子(`0x5EED1`),这里对齐。
+        /// </summary>
+        protected readonly Random Rng = new(0x5C11);
+
+        /// <summary>散点种子(固定值):换种子 = 改这里。别改成 `new Random()`。</summary>
+        public const int ScatterSeed = 0x5C11;
 
         public void Tick(float dt)
         {
