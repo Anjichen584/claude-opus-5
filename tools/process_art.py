@@ -73,12 +73,20 @@ TARGETS = {
     "elem_ice": 20,
     "elem_lightning": 20,
     "elem_poison": 20,
+    # 第三批之二:UI 9-slice 面板 + 技能图标(按技能原型:斩击/投射/突进/大招)
+    "icon_slash": 26,
+    "icon_shot": 26,
+    "icon_dash": 26,
+    "icon_ult": 26,
 }
 TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
 
 # 特效贴图:纯黑底,运行时 'lighter' 加法混合(黑=不发光,无需抠图)。
 # 处理:亮度>16 的 bbox 裁剪 → 等比缩放到目标高。
 FX = {"fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128}
+
+# 9-slice UI 面板:抠图后强制正方形输出(切片尺寸由绘制端按比例取,见 gfx/nineSlice.ts)
+PANEL = {"ui_panel": 32}
 DIST = 88  # 幕布色距阈值
 
 
@@ -183,6 +191,19 @@ def main() -> None:
         img = img.resize((max(1, round(img.width * scale)), size), Image.NEAREST)
         img.save(OUT / f"{name}.png")
         print(f"{name}: fx {img.width}x{img.height}")
+
+    for name, size in PANEL.items():
+        pf = SRC / f"{name}.png"
+        if not pf.exists():
+            print(f"{name}: 缺源图,跳过")
+            continue
+        img = key_out(Image.open(pf))
+        box = img.getbbox()
+        if box:
+            img = img.crop(box)
+        img = img.resize((size, size), Image.NEAREST)
+        img.save(OUT / f"{name}.png")
+        print(f"{name}: panel {size}x{size}")
 
     for name, size in TILE.items():
         tf = SRC / f"{name}.png"

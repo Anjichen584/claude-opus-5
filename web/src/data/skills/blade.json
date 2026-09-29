@@ -4,30 +4,61 @@
     {
       "id": "blade_q_cleave",
       "slot": "Q",
+      "icon": "slash",
       "name": "裂空斩",
       "cooldown": 4.0,
       "phases": [
-        { "type": "multiSweep", "count": 3, "intervalS": 0.1, "arcDeg": 110, "rangeM": 2.2, "mult": 1.4, "pullM": 1.5 }
+        {
+          "type": "multiSweep",
+          "count": 3,
+          "intervalS": 0.1,
+          "arcDeg": 110,
+          "rangeM": 2.2,
+          "mult": 1.4,
+          "pullM": 1.5
+        }
       ]
     },
     {
       "id": "blade_e_tidestep",
       "slot": "E",
+      "icon": "dash",
       "name": "潮涌步",
       "cooldown": 6.0,
       "phases": [
-        { "type": "dash", "distM": 3.5, "durS": 0.18, "iframesS": 0.15, "mult": 0.8 },
-        { "type": "echoBlast", "delayS": 1.0, "radiusM": 1.8, "mult": 2.2 }
+        {
+          "type": "dash",
+          "distM": 3.5,
+          "durS": 0.18,
+          "iframesS": 0.15,
+          "mult": 0.8
+        },
+        {
+          "type": "echoBlast",
+          "delayS": 1.0,
+          "radiusM": 1.8,
+          "mult": 2.2
+        }
       ]
     },
     {
       "id": "blade_r_starfall",
       "slot": "R",
+      "icon": "ult",
       "name": "星陨·万剑归宗",
       "cooldown": 1.5,
       "minRage": 40,
       "phases": [
-        { "type": "swordRain", "minCount": 8, "maxCount": 24, "mult": 0.9, "ringM": 3.2, "durS": 1.6, "aoeM": 1.0, "seekM": 6.5 }
+        {
+          "type": "swordRain",
+          "minCount": 8,
+          "maxCount": 24,
+          "mult": 0.9,
+          "ringM": 3.2,
+          "durS": 1.6,
+          "aoeM": 1.0,
+          "seekM": 6.5
+        }
       ]
     }
   ]

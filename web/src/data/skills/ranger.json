@@ -4,29 +4,59 @@
     {
       "id": "ranger_q_fan",
       "slot": "Q",
+      "icon": "shot",
       "name": "瞬影三连",
       "cooldown": 4.0,
       "phases": [
-        { "type": "fanArrows", "count": 3, "spreadDeg": 16, "mult": 0.9, "speedM": 12, "lifeS": 0.9, "radiusM": 0.14 }
+        {
+          "type": "fanArrows",
+          "count": 3,
+          "spreadDeg": 16,
+          "mult": 0.9,
+          "speedM": 12,
+          "lifeS": 0.9,
+          "radiusM": 0.14
+        }
       ]
     },
     {
       "id": "ranger_e_nova",
       "slot": "E",
+      "icon": "dash",
       "name": "疾风回旋",
       "cooldown": 6.0,
       "phases": [
-        { "type": "novaRoll", "distM": 2.6, "durS": 0.2, "iframesS": 0.3, "arrows": 8, "mult": 0.7, "speedM": 10, "lifeS": 0.8, "radiusM": 0.14 }
+        {
+          "type": "novaRoll",
+          "distM": 2.6,
+          "durS": 0.2,
+          "iframesS": 0.3,
+          "arrows": 8,
+          "mult": 0.7,
+          "speedM": 10,
+          "lifeS": 0.8,
+          "radiusM": 0.14
+        }
       ]
     },
     {
       "id": "ranger_r_storm",
       "slot": "R",
+      "icon": "ult",
       "name": "星陨箭雨",
       "cooldown": 1.5,
       "minRage": 40,
       "phases": [
-        { "type": "arrowStorm", "minCount": 10, "maxCount": 26, "mult": 0.55, "radiusM": 2.4, "durS": 1.2, "rangeM": 7.0, "aoeM": 0.9 }
+        {
+          "type": "arrowStorm",
+          "minCount": 10,
+          "maxCount": 26,
+          "mult": 0.55,
+          "radiusM": 2.4,
+          "durS": 1.2,
+          "rangeM": 7.0,
+          "aoeM": 0.9
+        }
       ]
     }
   ]

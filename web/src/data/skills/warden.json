@@ -4,29 +4,54 @@
     {
       "id": "warden_q_quake",
       "slot": "Q",
+      "icon": "slash",
       "name": "岩震击",
       "cooldown": 5.0,
       "phases": [
-        { "type": "quakeSmash", "arcDeg": 100, "rangeM": 2.4, "mult": 1.8, "stunS": 0.8 }
+        {
+          "type": "quakeSmash",
+          "arcDeg": 100,
+          "rangeM": 2.4,
+          "mult": 1.8,
+          "stunS": 0.8
+        }
       ]
     },
     {
       "id": "warden_e_charge",
       "slot": "E",
+      "icon": "dash",
       "name": "壁垒冲锋",
       "cooldown": 8.0,
       "phases": [
-        { "type": "shieldCharge", "distM": 3.0, "durS": 0.22, "iframesS": 0.25, "arcDeg": 90, "rangeM": 1.8, "mult": 1.5, "knockbackM": 2.0 }
+        {
+          "type": "shieldCharge",
+          "distM": 3.0,
+          "durS": 0.22,
+          "iframesS": 0.25,
+          "arcDeg": 90,
+          "rangeM": 1.8,
+          "mult": 1.5,
+          "knockbackM": 2.0
+        }
       ]
     },
     {
       "id": "warden_r_roar",
       "slot": "R",
+      "icon": "ult",
       "name": "大地怒吼",
       "cooldown": 1.5,
       "minRage": 40,
       "phases": [
-        { "type": "earthRoar", "radiusM": 3.6, "mult": 1.2, "knockbackM": 2.5, "slowS": 2.0, "slowPct": 0.4 }
+        {
+          "type": "earthRoar",
+          "radiusM": 3.6,
+          "mult": 1.2,
+          "knockbackM": 2.5,
+          "slowS": 2.0,
+          "slowPct": 0.4
+        }
       ]
     }
   ]

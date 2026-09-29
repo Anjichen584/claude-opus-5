@@ -36,6 +36,8 @@ interface Scheduled { t: number; run: (world: World) => void }
 interface SkillDef {
   id: string;
   slot: string;
+  /** 技能原型图标(斩击/投射/突进/大招),见 data/skills/*.json 与美术 icon_* */
+  icon?: string;
   name: string;
   cooldown: number;
   minRage?: number;
@@ -82,6 +84,11 @@ export class SkillSystem implements System {
 
   skillName(slot: string): string {
     return this.defs.get(slot)?.name ?? '';
+  }
+
+  /** 技能原型图标名(sprite):icon_slash / icon_shot / icon_dash / icon_ult */
+  iconOf(slot: string): string {
+    return `icon_${this.defs.get(slot)?.icon ?? 'ult'}`;
   }
 
   update(world: World, dt: number): void {

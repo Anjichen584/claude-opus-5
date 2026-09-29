@@ -52,6 +52,7 @@ import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
+import { drawPanel9 } from '@game/gfx/nineSlice';
 
 const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   battle: { color: '#dfe8f2', label: '战斗' },
@@ -1498,8 +1499,10 @@ export class GameScene {
     const hp = this.world.mustGet(this.playerE, Health);
 
     // 左上:名牌+血条
-    ctx.fillStyle = UI.panel;
-    ctx.fillRect(14, 14, 250, 58);
+    if (!drawPanel9(ctx, 14, 14, 250, 58)) {
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(14, 14, 250, 58);
+    }
     ctx.fillStyle = UI.text;
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
@@ -1519,8 +1522,10 @@ export class GameScene {
       ? balance.boss.nanmir.name
       : `房间 ${this.run.depth + 1}/${balance.rooms.count + 1} · ${PORTAL_STYLE[this.run.roomKind].label}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = UI.panel;
-    ctx.fillRect(width / 2 - 150, 14, 300, 26);
+    if (!drawPanel9(ctx, width / 2 - 150, 14, 300, 26)) {
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(width / 2 - 150, 14, 300, 26);
+    }
     ctx.fillStyle = UI.text;
     ctx.font = 'bold 12px monospace';
     const night = clock.isNight();
@@ -1530,8 +1535,10 @@ export class GameScene {
     const drawBossBar = (bh: Health, name: string, phase: number, gold: boolean, color: string): void => {
       const bw = Math.min(560, width - 120);
       const bx = width / 2 - bw / 2;
-      ctx.fillStyle = UI.panel;
-      ctx.fillRect(bx - 6, 48, bw + 12, 30);
+      if (!drawPanel9(ctx, bx - 6, 48, bw + 12, 30)) {
+        ctx.fillStyle = UI.panel;
+        ctx.fillRect(bx - 6, 48, bw + 12, 30);
+      }
       ctx.fillStyle = '#232838';
       ctx.fillRect(bx, 60, bw, 12);
       ctx.fillStyle = gold ? UI.gold : color;
@@ -1586,18 +1593,33 @@ export class GameScene {
     ctx.textAlign = 'center';
     slots.forEach((s, i) => {
       const x = baseX + i * (slotW + gap);
-      ctx.fillStyle = UI.panel;
-      ctx.fillRect(x, baseY, slotW, slotH);
       const ready = s.cd <= 0 && !s.locked;
+      if (!drawPanel9(ctx, x, baseY, slotW, slotH)) {
+        ctx.fillStyle = UI.panel;
+        ctx.fillRect(x, baseY, slotW, slotH);
+      }
+      // 就绪态在面板贴图上再描一圈金边(贴图本身是中性色,状态靠这个表达)
       ctx.strokeStyle = ready ? UI.gold : '#3a4154';
       ctx.lineWidth = 2;
       ctx.strokeRect(x + 1, baseY + 1, slotW - 2, slotH - 2);
-      ctx.fillStyle = ready ? UI.gold : UI.dim;
-      ctx.font = 'bold 16px monospace';
-      ctx.fillText(s.key, x + slotW / 2, baseY + 22);
+      // 技能原型图标(斩击/投射/突进/大招);未加载回退大号键位字
+      const iconDrawn = drawSprite(ctx, this.skills.iconOf(s.key), x + slotW / 2, baseY + 36, {
+        scale: 1, alpha: ready ? 1 : 0.45,
+      });
+      if (iconDrawn) {
+        ctx.fillStyle = ready ? UI.gold : UI.dim;
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(s.key, x + 5, baseY + 14);
+        ctx.textAlign = 'center';
+      } else {
+        ctx.fillStyle = ready ? UI.gold : UI.dim;
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText(s.key, x + slotW / 2, baseY + 22);
+      }
       ctx.font = '10px monospace';
       ctx.fillStyle = UI.dim;
-      ctx.fillText(this.skills.skillName(s.key), x + slotW / 2, baseY + 38);
+      ctx.fillText(this.skills.skillName(s.key), x + slotW / 2, baseY + 50);
       const rune = this.skills.runeFor(this.world, this.playerE, s.key);
       if (rune) {
         ctx.fillStyle = rune.element ? elementColor(rune.element as Element) : UI.dim;
@@ -1624,8 +1646,10 @@ export class GameScene {
 
     // 右上:统计与资源
     ctx.textAlign = 'right';
-    ctx.fillStyle = UI.panel;
-    ctx.fillRect(width - 210, 14, 196, 48);
+    if (!drawPanel9(ctx, width - 210, 14, 196, 48)) {
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(width - 210, 14, 196, 48);
+    }
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
     ctx.fillText(`击杀 ${this.feedback.kills}  FPS ${Math.round(this.fps)}`, width - 24, 32);

@@ -75,4 +75,5 @@ export const SPRITE_NAMES = [
   // 第三批:拾取物 / 传送门 / 元素图标
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',
   'elem_fire', 'elem_ice', 'elem_lightning', 'elem_poison',
+  'ui_panel', 'icon_slash', 'icon_shot', 'icon_dash', 'icon_ult',
 ] as const;

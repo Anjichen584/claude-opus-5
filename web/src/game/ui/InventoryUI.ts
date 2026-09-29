@@ -9,6 +9,7 @@ import { SLOTS } from '@game/loot/Items';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { elementColor } from '@game/combat/Elements';
 import { drawElementIcon } from '@game/gfx/draw';
+import { drawPanel9 } from '@game/gfx/nineSlice';
 import { bindOf } from '@game/meta/Bindings';
 import type { Element } from '@game/components';
 
@@ -265,6 +266,8 @@ export class InventoryUI {
 }
 
 function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  // 正式 9-slice 面板贴图优先;未加载回退程序化双描边面板
+  if (drawPanel9(ctx, x, y, w, h)) return;
   ctx.fillStyle = 'rgba(19,23,38,0.96)';
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#3a4154';

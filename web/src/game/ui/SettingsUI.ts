@@ -4,6 +4,7 @@ import { music } from '@engine/audio/Music';
 import { UI } from '@game/constants';
 import { meta } from '@game/meta/Save';
 import { ACTIONS, bindOf, keyLabel, resetBinds } from '@game/meta/Bindings';
+import { drawPanel9 } from '@game/gfx/nineSlice';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -120,11 +121,14 @@ export class SettingsUI {
     ctx.save();
     ctx.fillStyle = 'rgba(13,15,26,0.88)';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(19,23,36,0.98)';
-    ctx.fillRect(px, py, pw, ph);
-    ctx.strokeStyle = '#3a4154';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px, py, pw, ph);
+    if (!drawPanel9(ctx, px, py, pw, ph)) {
+      // 回退:程序化面板
+      ctx.fillStyle = 'rgba(19,23,36,0.98)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = '#3a4154';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px, py, pw, ph);
+    }
 
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.gold;
