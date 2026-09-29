@@ -87,6 +87,18 @@ tools/sync.sh "提交信息"     # 提交 → 推送 → 清沙箱,一条命令�
 - **提交前先看体积**:`du -sh --exclude=node_modules .`;
 - **每次改动都要推送**:环境随时可能被重建,只有 GitHub 上的东西是安全的。
 
+### 已知的两次"配置丢失"(别浪费时间排查)
+
+1. **`.git/config` 会被快照剥离**(它和 `.git/credentials`、`.netrc` 同属敏感路径)。
+   现象:`git log` 正常,但 `git remote -v` 为空、`git push` 报
+   `fatal: 'origin' does not appear to be a git repository` —— **不是密钥问题**。
+   `tools/sync.sh` 已内置自愈(每次检查并重建 origin + 分支跟踪),手动修复:
+   ```bash
+   git remote add origin git@github.com:Anjichen584/claude-opus-5.git
+   git config branch.main.remote origin && git config branch.main.merge refs/heads/main
+   ```
+2. **`/tmp` 会被清空**。部署密钥曾放 `/tmp/gh/`,每次重建都要重放;现已改到 `~/.ssh/github_deploy`。
+
 ### 环境被重建后的恢复步骤
 
 ```bash
