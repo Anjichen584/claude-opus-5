@@ -50,6 +50,7 @@ import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
+import { markRuneOwned } from '@game/meta/Codex';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
@@ -213,6 +214,7 @@ export class GameScene {
     const gift = RUNE_POOL.get(runeIds[Math.floor(Math.random() * runeIds.length)])!;
     playerComp.runeBag.push(gift.id);
     playerComp.equippedRunes[gift.skill] = gift.id;
+    markRuneOwned(meta.data.codex, gift.id);
 
     // 挑战词条:初始药剂增减
     playerComp.potionCharges = Math.max(0, playerComp.potionCharges + runMods.eff.potion);
@@ -277,7 +279,7 @@ export class GameScene {
     pc.rage = 100;
 
     // 功能建筑
-    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily', label: string, icon: string, x: number, y: number): void => {
+    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily' | 'codex', label: string, icon: string, x: number, y: number): void => {
       const e = w.create();
       w.add(e, new Transform(x * M, y * M));
       w.add(e, new CampStation(kind, label, icon));
@@ -287,6 +289,7 @@ export class GameScene {
     station('forge', '星辉铸台', '📜', 4.6, H - 3.0);
     station('classpick', '职业试炼场', '🏵', W / 2, 2.2);
     station('daily', '混沌祭坛', '🗓', W / 2, H - 2.4);
+    station('codex', '星陨图鉴', '📖', W - 4.6, H - 3.0);
 
     // 训练木桩 ×2(不死,DPS 计)
     for (const dy of [-2.2, 2.2]) {

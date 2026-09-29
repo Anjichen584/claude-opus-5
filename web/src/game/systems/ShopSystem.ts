@@ -5,6 +5,8 @@ import { M, RARITY_COLORS, UI } from '@game/constants';
 import {
   Inventory, Player, SfxEvent, ShopStand, ToastEvent, Transform,
 } from '@game/components';
+import { meta } from '@game/meta/Save';
+import { markRuneOwned } from '@game/meta/Codex';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { bindOf } from '@game/meta/Bindings';
 
@@ -76,6 +78,7 @@ export class ShopSystem implements System {
           return;
         }
         p.runeBag.push(rune.id);
+        if (markRuneOwned(meta.data.codex, rune.id)) meta.save();
         world.emit(new ToastEvent(`◈ 购入符文「${rune.name}」`, '#B067E8'));
         break;
       }

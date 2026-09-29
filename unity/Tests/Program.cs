@@ -97,6 +97,7 @@ namespace StarfallKnights.Tests
             TestClock();
             TestMetaSave();
             TestRunSequence();
+            TestCodex();
             TestChapters();
             TestTelegraphs();
             TestWeakspots();
@@ -639,6 +640,66 @@ namespace StarfallKnights.Tests
             var granted = set3.GrantRandomQRune(new Rng(5));
             Check(granted != null && granted.Skill == "warden_q_quake", "开局赠符来自本职业 Q 技能位");
             Check(set3.SkillId("Q") == "warden_q_quake" && set3.SkillId("R") == "warden_r_roar", "技能 id 映射与 JSON 一致");
+        }
+
+        // ---------------- 图鉴(收录) ----------------
+
+        private static void TestCodex()
+        {
+            Suite("图鉴(收录 / 进度 / 存档清洗)");
+            var codex = new Codex();
+            Check(Codex.EnemyTotal == 21 && Codex.RuneTotal == 36,
+                $"条目总数 21 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
+            Near(codex.Pct, 0f, 1e-6f, "收录率 0");
+
+            Check(codex.MarkKill(EnemyKind.Shroomling), "首次击杀返回 true(宿主弹新条目)");
+            Check(!codex.MarkKill(EnemyKind.Shroomling), "重复击杀返回 false");
+            Check(codex.KillsOf(EnemyKind.Shroomling) == 2, "击杀数累加");
+            Check(codex.EnemyFound == 1, "已收录 1 条");
+
+            Check(codex.MarkRune("rune_emberseed"), "首次获得符文返回 true");
+            Check(!codex.MarkRune("rune_emberseed"), "重复获得返回 false");
+            Check(!codex.MarkRune("rune_nope") && !codex.MarkRune(""),
+                "未知/空符文 id 被拒(不会画出幽灵条目)");
+            Check(codex.RunesOf("rune_emberseed") == 2, "符文获得次数累加");
+
+            // 全收录 = 100%
+            var full = new Codex();
+            foreach (var kv in Bestiary.Stats) full.MarkKill(kv.Key);
+            foreach (var r in RunePool.All()) full.MarkRune(r.Id);
+            Check(full.Complete, "全收录后 Complete = true");
+            Near(full.Pct, 1f, 1e-6f, "全收录 = 100%");
+
+            // 存档清洗:未知键 / 兜底 'monster' / 负数 / 非数字
+            var rawE = new Dictionary<string, object>
+            {
+                { "Shroomling", 3 },
+                { "monster", 99 },      // web 的兜底种类串,Unity 侧不是合法枚举 → 丢弃
+                { "WindBee", -2 },
+                { "OakGolem", 4.7f },
+                { "Dragon", 5 },
+            };
+            var rawR = new Dictionary<string, object>
+            {
+                { "rune_emberseed", 1 },
+                { "rune_fake", 5 },
+            };
+            var loaded = Codex.Sanitize(rawE, rawR);
+            Check(loaded.KillsOf(EnemyKind.Shroomling) == 3, "清洗保留合法计数");
+            Check(loaded.KillsOf(EnemyKind.WindBee) == 0 && loaded.KillsOf(EnemyKind.OakGolem) == 4,
+                "负数丢弃、小数取整");
+            Check(loaded.EnemyFound == 2 && loaded.RuneFound == 1, "未知键不进图鉴(进度不被本地化/脏数据撑爆)");
+            Check(Codex.Sanitize(null, null).EnemyFound == 0, "null 输入返回空图鉴(不抛异常)");
+
+            // 击杀榜
+            var top = new Codex();
+            top.MarkKill(EnemyKind.OakGolem);
+            for (int i = 0; i < 5; i++) top.MarkKill(EnemyKind.BossKazra);
+            top.MarkKill(EnemyKind.BossKazra);
+            var board = top.TopKills(2);
+            Check(board.Count == 2 && board[0].kind == EnemyKind.BossKazra && board[0].kills == 6,
+                "击杀榜按次数降序");
         }
 
         // ---------------- 章节与出怪池 ----------------

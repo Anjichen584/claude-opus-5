@@ -9,6 +9,8 @@
  */
 export const CURRENT_SAVE_VERSION = 2;
 
+import { emptyCodex, sanitizeCodex, type CodexData } from './Codex';
+
 export interface Settings {
   /** 音乐音量 0~1 */
   musicVol: number;
@@ -35,6 +37,8 @@ export interface SaveData {
   craftQueued: boolean;
   /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
+  /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存"见过没有+次数" */
+  codex: CodexData;
   settings: Settings;
   stats: { runs: number; clears: number; totalKills: number; bestTimeS: number };
 }
@@ -61,6 +65,7 @@ export function defaultSave(): SaveData {
     blueprintShards: 0,
     craftQueued: false,
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
+    codex: emptyCodex(),
     settings: {
       musicVol: 0.8, sfxVol: 0.35, uiScale: 1,
       screenShake: 1, hitstop: 1,
@@ -109,6 +114,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     altar: { ...d.altar, ...(parsed.altar ?? {}) },
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
     daily: { ...d.daily, ...(parsed.daily ?? {}) },
+    codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
     settings: {
       ...d.settings,
       ...(parsed.settings ?? {}),

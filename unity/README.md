@@ -27,6 +27,7 @@
 | `Skills/RunePool.cs` | `data/runes/pool.json(全 36 枚)` | 符文定义镜像(id/技能/名称/元素/地带四参数) |
 | `Dungeon/RunManagerLite.cs` | `game/dungeon/RunManager.ts` | 8 房序列(战战宝藏战精英战战Boss)/三章出怪池与精英编成/章节 Boss/夜间与章节缩放,OnSpawn/OnRoomCleared/OnVictory 回调 |
 | `Meta/MetaSave.cs` | `game/meta/Save.ts` | 局外存档 POCO(JsonUtility 兼容)+ 祭坛升价公式 |
+| `Meta/Codex.cs` | `game/meta/Codex.ts` | 图鉴(收录):只存"见过没有+次数",数值现读 `Bestiary`/`RunePool`;MarkKill/MarkRune/Sanitize/TopKills |
 | `Loot/Items.cs` | `game/loot/Items.ts` | 稀有度权重+幸运+保底(200 次必橙)、词条工厂 |
 | `Data/Balance.cs` | `data/balance.json`(节选) | 核心常量镜像 + `PxPerM`(=web 的 M=48)⚠ 双端修改需同步 |
 | `Data/Bestiary.cs` | `data/balance.json`(全量) | **自动生成**:21 种敌人属性行 + 三章配置 + 304 个行为参数常量(`python3 tools/gen_bestiary.py`) |
@@ -37,7 +38,7 @@
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 208 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
+bash unity/Tests/run.sh      # 226 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。
@@ -74,6 +75,7 @@ bash unity/Tests/run.sh      # 208 项断言:随机数/元素反应/伤害管线
 
 - 一章 Boss 南弥尔(腐木巨像)的四套招式:扫击/根须线/尖刺网格/环形风暴 —— 目前它只有"追击+接触"
 - 商店/秘境(事件房)/图纸/星灯交互、装备穿戴与词条 recompute
+- 图鉴 UI(逻辑层 `Meta/Codex.cs` 已就绪,缺 Unity 面板;web 端的实现见 `ui/CampUI.ts` 的 renderCodex)
 - 存档落盘(MetaSave 已备好,宿主接 PlayerPrefs 两行即可)
 - 普攻各职业差异(猎手连射弓/秘术师法杖/守卫重锤连击):参数在 `balance.json classes.*`,目前宿主仍用剑士三段连击
 - 每日挑战词条(RunMods)对局内数值的乘区

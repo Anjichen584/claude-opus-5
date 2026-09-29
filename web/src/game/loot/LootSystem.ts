@@ -9,6 +9,7 @@ import { ItemFactory } from './Items';
 import { salvage } from './Equip';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
+import { enemyEntry, markEnemyKill, markRuneOwned } from '@game/meta/Codex';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -29,6 +30,15 @@ export class LootSystem implements System {
     const lootMult = clock.isNight() ? balance.night.lootMult : 1; // 夜晚掉落翻倍(GDD §9)
     for (const kill of world.read(KillEvent)) {
       if (kill.kind === '') continue; // 非怪物死亡(保险)
+      // 图鉴收录:首次击杀弹提示(数值现读 balance,这里只记"见过没有+次数")
+      if (markEnemyKill(meta.data.codex, kill.kind)) {
+        const entry = enemyEntry(kill.kind);
+        if (entry) {
+          world.emit(new ToastEvent(
+            `📖 图鉴新条目:${entry.boss ? '★ ' : ''}${entry.name}`, entry.boss ? RARITY_COLORS.legendary : UI.gold));
+        }
+        meta.save();
+      }
       // 星尘精灵:一大袋星尘弹出,不走普通掉落
       if (kill.kind === 'stardustsprite') {
         const cfg = balance.enemies.stardustsprite;
@@ -48,7 +58,7 @@ export class LootSystem implements System {
       }
       // 装备:精英必掉蓝起步,Boss 必掉紫+30%橙(docs/03 §6)
       const isElite = kill.kind === 'oakgolem';
-      const isBoss = kill.kind === 'boss';
+      const isBoss = kill.kind.startsWith('boss'); // boss_nanmir / boss_velsha / boss_kazra
       // 图纸碎片:Boss 必掉(夜战 +1),局外货币立即入账
       if (isBoss) {
         const bp = balance.blueprint;
@@ -174,6 +184,10 @@ export class LootSystem implements System {
           world.emit(new ToastEvent(`重复符文 ${rune.name} → 星尘 +40`, UI.dim));
         } else {
           p.runeBag.push(rune.id);
+          if (markRuneOwned(meta.data.codex, rune.id)) {
+            world.emit(new ToastEvent(`📖 图鉴新符文:「${rune.name}」`, '#B067E8'));
+            meta.save();
+          }
           world.emit(new ToastEvent(`◈ 获得符文「${rune.name}」!Tab 镶嵌`, '#B067E8'));
           world.emit(new SfxEvent('ult'));
         }

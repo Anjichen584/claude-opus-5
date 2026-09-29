@@ -5,11 +5,12 @@ import { altarCost } from '@game/dungeon/Scaling';
 import { dailyChallenge, dailyKey, type DailyChallenge } from '@game/meta/Daily';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
+import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
 type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
-export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily';
+export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' | 'codex';
 
 const inside = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -31,6 +32,9 @@ export class CampUI {
   panel: CampPanel = 'none';
   selectedClass: Klass = 'blade';
   selectedChapter: 1 | 2 | 3 = 1;
+  /** 图鉴页签(怪物 / 符文)与选中项 */
+  codexTab: 'enemy' | 'rune' = 'enemy';
+  codexPick: string | null = null;
 
   private rects: Array<{ rect: Rect; act: string }> = [];
 
@@ -86,6 +90,9 @@ export class CampUI {
         }
       }
       if (r.act.startsWith('up_')) this.tryUpgrade(r.act.slice(3) as 'hp' | 'atk' | 'luck');
+      if (r.act === 'codex_enemy') { this.codexTab = 'enemy'; this.codexPick = null; }
+      if (r.act === 'codex_rune') { this.codexTab = 'rune'; this.codexPick = null; }
+      if (r.act.startsWith('cx_')) this.codexPick = r.act.slice(3);
     }
     if (!hit) this.panel = 'none'; // 点面板外关闭
     return null;
@@ -102,8 +109,140 @@ export class CampUI {
     if (this.panel === 'expedition') this.renderExpedition(ctx, w, h);
     else if (this.panel === 'altar') this.renderAltar(ctx, w, h);
     else if (this.panel === 'daily') this.renderDaily(ctx, w, h);
+    else if (this.panel === 'codex') this.renderCodex(ctx, w, h);
     else this.renderClasspick(ctx, w, h);
     ctx.restore();
+  }
+
+
+  // ---- 图鉴(收录) ----
+  private renderCodex(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pw = 700, ph = 470;
+    const px = w / 2 - pw / 2, py = h / 2 - ph / 2;
+    panelBox(ctx, px, py, pw, ph);
+
+    const prog = codexProgress(meta.data.codex);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('📖 星陨图鉴', w / 2, py + 32);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(
+      `怪物 ${prog.enemyFound}/${prog.enemyTotal} · 符文 ${prog.runeFound}/${prog.runeTotal}` +
+      (prog.enemyFound >= prog.enemyTotal && prog.runeFound >= prog.runeTotal ? ' · ★ 全收录!' : ''),
+      w / 2, py + 52);
+
+    // 页签
+    const tabs: Array<{ id: 'enemy' | 'rune'; label: string; act: string }> = [
+      { id: 'enemy', label: `👾 怪物 ${prog.enemyFound}/${prog.enemyTotal}`, act: 'codex_enemy' },
+      { id: 'rune', label: `◈ 符文 ${prog.runeFound}/${prog.runeTotal}`, act: 'codex_rune' },
+    ];
+    tabs.forEach((t, i) => {
+      const r: Rect = { x: px + 24 + i * 172, y: py + 64, w: 164, h: 30 };
+      const active = this.codexTab === t.id;
+      ctx.fillStyle = active ? '#2a3147' : '#1a1f30';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = active ? UI.gold : '#3a4154';
+      ctx.lineWidth = active ? 2 : 1;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = active ? UI.text : UI.dim;
+      ctx.font = '13px monospace';
+      ctx.fillText(t.label, r.x + r.w / 2, r.y + 20);
+      this.rects.push({ rect: r, act: t.act });
+    });
+
+    // 左侧网格
+    const gx = px + 24, gy = py + 106;
+    const cols = this.codexTab === 'enemy' ? 6 : 9;
+    const cell = this.codexTab === 'enemy' ? 46 : 34;
+    const keys = this.codexTab === 'enemy' ? ENEMY_KEYS : RUNE_KEYS;
+    const owned = this.codexTab === 'enemy' ? meta.data.codex.enemies : meta.data.codex.runes;
+
+    keys.forEach((k, i) => {
+      const cx = gx + (i % cols) * cell;
+      const cy = gy + Math.floor(i / cols) * cell;
+      const got = (owned[k] ?? 0) > 0;
+      const pick = this.codexPick === k;
+      ctx.fillStyle = got ? '#1f2740' : '#141826';
+      ctx.fillRect(cx, cy, cell - 6, cell - 6);
+      ctx.strokeStyle = pick ? UI.gold : got ? '#3a4154' : '#242a3a';
+      ctx.lineWidth = pick ? 2 : 1;
+      ctx.strokeRect(cx, cy, cell - 6, cell - 6);
+      ctx.fillStyle = got ? (isBossKey(k) ? UI.gold : UI.text) : '#3a4154';
+      ctx.font = `${this.codexTab === 'enemy' ? 16 : 13}px monospace`;
+      ctx.fillText(got ? this.codexGlyph(k) : '?', cx + (cell - 6) / 2, cy + (cell - 6) / 2 + 6);
+      this.rects.push({ rect: { x: cx, y: cy, w: cell - 6, h: cell - 6 }, act: `cx_${k}` });
+    });
+
+    // 右侧详情
+    const dx = gx + cols * cell + 16;
+    const dw = px + pw - 24 - dx;
+    ctx.fillStyle = 'rgba(19,23,36,0.7)';
+    ctx.fillRect(dx, gy - 28, dw, ph - 150);
+    ctx.strokeStyle = '#3a4154';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(dx, gy - 28, dw, ph - 150);
+    ctx.textAlign = 'left';
+    if (this.codexPick) this.renderCodexDetail(ctx, dx + 12, gy - 10, this.codexPick);
+    else {
+      ctx.fillStyle = UI.dim;
+      ctx.font = '12px monospace';
+      ctx.fillText('点左侧格子查看条目', dx + 12, gy - 8);
+      ctx.fillText('★ = Boss · 未收录显示 ?', dx + 12, gy + 10);
+    }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText('图鉴跨局保留 · 数值来自 balance.json(调平衡不会让老档失真)· [Esc/F] 关闭', w / 2, py + ph - 12);
+  }
+
+  /** 未读条目用 ? 剪影,已读用图标(怪物用首字,Boss 用 ★) */
+  private codexGlyph(key: string): string {
+    if (this.codexTab === 'rune') {
+      const r = runeEntry(key);
+      return r?.element === 'fire' ? '🔥' : r?.element === 'ice' ? '❄' : r?.element === 'bolt' ? '⚡' : r?.element === 'toxin' ? '☠' : '◈';
+    }
+    if (isBossKey(key)) return '★';
+    const name = enemyEntry(key)?.name ?? key;
+    return name.slice(0, 1);
+  }
+
+  private renderCodexDetail(ctx: CanvasRenderingContext2D, x: number, y: number, key: string): void {
+    const line = (text: string, dy: number, color: string = UI.text, font = '12px monospace'): void => {
+      ctx.fillStyle = color;
+      ctx.font = font;
+      ctx.fillText(text, x, y + dy);
+    };
+    if (this.codexTab === 'enemy') {
+      const e = enemyEntry(key);
+      if (!e) return;
+      line(`${e.boss ? '★ ' : ''}${e.name}`, 14, e.boss ? UI.gold : UI.text, 'bold 15px monospace');
+      line(`出没:第${e.chapter}章 ${e.chapterName}`, 36, UI.dim);
+      const kills = meta.data.codex.enemies[key] ?? 0;
+      line(`击杀:${kills}`, 54, UI.dim);
+      line('── 属性 ──', 78, '#5a6377');
+      line(`血量 ${e.hp}   攻击 ${e.atk}`, 96);
+      line(`防御 ${e.def}   速度 ${e.speed} m/s`, 112);
+      line(`体型 ${e.bodyRadius} m`, 128, UI.dim);
+      line('── 行为 ──', 152, '#5a6377');
+      // 按 15 字折行
+      const chars = [...e.hint];
+      for (let i = 0; i < chars.length; i += 15) {
+        line(chars.slice(i, i + 15).join(''), 170 + (i / 15) * 16, UI.text);
+      }
+    } else {
+      const r = runeEntry(key);
+      if (!r) return;
+      line(`◈ ${r.name}`, 14, '#B067E8', 'bold 15px monospace');
+      line(`职业:${r.klassName} · 技能位 ${r.skillSlot}`, 36, UI.dim);
+      line(`元素:${r.element ?? '无(纯净星辉)'}`, 54, UI.dim);
+      line(`次数:${meta.data.codex.runes[key] ?? 0}`, 70, UI.dim);
+      line('── 效果 ──', 94, '#5a6377');
+      const chars = [...r.desc];
+      for (let i = 0; i < chars.length; i += 15) {
+        line(chars.slice(i, i + 15).join(''), 112 + (i / 15) * 16, UI.text);
+      }
+    }
   }
 
   /** 当日挑战信息(营地渲染与面板共用) */
