@@ -109,17 +109,34 @@ export interface ActorState {
   /** 已死亡(播放死亡序列,不循环) */
   dead?: boolean;
   dashing?: boolean;
+  /** 正在普攻(具体播哪个动作由 `attackAction()` 决定) */
   attacking?: boolean;
+  /** 正在吟唱(敌人读条等) */
   casting?: boolean;
   hurt?: boolean;
   moving?: boolean;
 }
 
-/** 由状态推动作(纯函数) */
-export function actionOf(s: ActorState): AnimAction {
+/**
+ * 普攻该播哪个动作:**远程职业走 `cast`**。
+ *
+ * 这是**代码口径**不是美术口径 —— 挥剑与拉弓本来就是两套姿态,所以猎手/秘术师的
+ * `cast` 序列就是它们的普攻序列(美术管线那边也是按这个排的批)。
+ * 抽成函数是因为这条规则以前散在调用点里写成 `attacking && !shotKlass` / `casting && shotKlass`
+ * 一对双重否定,谁改谁错,而且漏一处就会「打起来了还在跑」。
+ */
+export function attackAction(isShot: boolean): AnimAction {
+  return isShot ? 'cast' : 'atk';
+}
+
+/**
+ * 由状态推动作(纯函数)。
+ * @param attack 普攻形态(见 `attackAction()`);默认近战 `atk`。敌人吟唱走 `casting` 这条路。
+ */
+export function actionOf(s: ActorState, attack: AnimAction = 'atk'): AnimAction {
   if (s.dead) return 'die';
   if (s.dashing) return 'dash';
-  if (s.attacking) return 'atk';
+  if (s.attacking) return attack;
   if (s.casting) return 'cast';
   if (s.hurt) return 'hurt';
   if (s.moving) return 'walk';

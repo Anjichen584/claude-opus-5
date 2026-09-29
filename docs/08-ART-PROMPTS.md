@@ -223,9 +223,12 @@ no anti-aliasing, no motion blur, no shadow, no text`)。**战斗动作的一致
 > 修法不是补一行参数了事,而是把「组件字段 → 动作时钟」抽成纯函数 `clocksOf`(`gfx/anim.ts`)并补单测:
 > 以后漏字段会被测试抓住,而不是靠人盯着画面猜。
 
-### 动画序列 · 批次 28 待出:**猎手翻滚第 3 帧 / 受击 / 死亡**(2026-09-29 排好队,额度一到就出)
+### 动画序列 · 批次 28 下半:**猎手翻滚 3 / 受击 2 / 死亡 4**(2026-09-29 已出,**9 张一次过零重出**)
 
-出图额度按用户轮计(单轮 10 张),批 28 上半已打满,所以这一批**先把提示词与姿势表定死**,下轮直接生成。
+**这一批的结论(与轮 27 对比才有意义)**:轮 27 两次重出(`cast_1` 画小、`die_3` 剑飘),这一批 9 张**全部一次过**。
+差别不在提示词更长,而在**参考图的选择**:这一批的姿势参考**只用同职业自己的帧** ——
+`ref_ranger_cast3`(站直收弓)当翻滚第 3 帧的锚点,`ref_ranger_walk1/3` 当受击参考,身份参考仍是 `ref_ranger`(站立)。
+拿剑士的帧当姿势参考会把铠甲和大剑一起带过来(上一批重出的正是这类漂移),而且模型的"同尺寸"判断会锚到错的人身上。
 
 参考图:主参考 `public/sprites/ranger.png`(8× 放大,身份/配色/尺寸),姿势参考用**同一职业的已有帧**
 (不要拿剑士的帧当姿势参考 —— 模型会把铠甲一起带过来):
@@ -248,7 +251,18 @@ no anti-aliasing, no motion blur, no shadow, no text`)。**战斗动作的一致
 4. `isolated on a flat solid magenta (#FF00FF) background, no shadow, no text`(公共尾串)。
 
 ```bash
-# 生成后:登记进 tools/process_frames.py 的 SEQUENCES(ranger_hurt: frames=2, anchor=1;
-# ranger_die: frames=4, anchor=1;ranger_dash 已是 frames=3, anchor=3)→ 跑管线 → 补 SPRITE_NAMES → npm test
+# 实际执行(2026-09-29 下半批,一次跑通):
+# 登记 ranger_hurt(2,anchor=1) / ranger_die(4,anchor=1);ranger_dash 已是 (3,anchor=3)
 python3 tools/process_frames.py ranger
+# → 42x48(ranger_dash)/ 42x50(ranger_hurt)/ 58x48(ranger_die),锚点帧身体高全部 = 46 ✅
 ```
+
+**九张一次过之后的固定验收顺序**(照做就行,别跳):
+
+1. **肉眼看拼图**:九帧拼成一张图,重点看三件事 —— 动作接得上不上、道具(弓/斗篷)有没有飘、
+   有没有哪帧明显「画小」(画小是锚点定比例下最隐蔽的失败,单看一帧看不出来);
+2. 管线打印的**锚点帧身体高必须 = 46**(不等于 46 就是锚点选错、或那一帧被画小了);
+3. `SPRITE_NAMES` 补 9 名 → `npm test`:资产守卫(读 `_anim_metrics.json`)**自动纳入**新序列,
+   帧数对不上 / 漏登记 / 画布不一致都会当场红;
+4. 提交只提成品(`web/public/sprites/`),源帧按体积政策留在本地。
+

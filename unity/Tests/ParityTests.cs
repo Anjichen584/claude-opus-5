@@ -101,6 +101,25 @@ namespace StarfallKnights.Tests
                 $"走路一圈 = frames/fps({cycle:0.####}s vs C# {AnimRules.CycleSec(AnimAction.Walk):0.####}s)");
             check(Math.Abs(AnimRules.CycleSec(AnimAction.Walk) / 2.0 - cycle / 2.0) < 1e-4f,
                 "两帧资产翻帧步长 = 走路半圈(与 json 推导值一致)");
+
+            // 普攻形态 parity:json 里"这把武器是不是弓箭" ↔ C# 的 Shot/Combo ↔ 动画走 cast 还是 atk,三方对齐。
+            // 这条链以前全在各调用点现算(而且 Unity 侧**根本没接**),漂了没人知道。
+            var classes = MiniJson.Opt(doc, "classes");
+            foreach (var (klass, hero, isShot) in new[]
+            {
+                ("blade", HeroClass.Blade, false), ("warden", HeroClass.Warden, false),
+                ("ranger", HeroClass.Ranger, true), ("arcanist", HeroClass.Arcanist, true),
+            })
+            {
+                var row = MiniJson.Opt(classes, klass);
+                if (row == null) { check(false, $"classes.{klass} 存在"); continue; }
+                bool jsonShot = MiniJson.Opt(row, "bow") != null;   // 数据里远程带 bow 段、近战带 combo 段
+                check(jsonShot == isShot, $"classes.{klass}:json 是{(isShot ? "弓箭" : "近战")}流派(带 {(isShot ? "bow" : "combo")} 段)");
+                check(BasicAttack.KindOf(hero) == (isShot ? BasicAttack.Kind.Shot : BasicAttack.Kind.Combo),
+                    $"classes.{klass}:codegen 的 KindOf 与 json 一致");
+                var want = isShot ? AnimAction.Cast : AnimAction.Atk;
+                check(AnimRules.AttackAction(isShot) == want, $"classes.{klass}:普攻动作 = {want}(远程走 cast)");
+            }
             // 动作时钟:一次性动作的动作总时长必须 = frames/fps,否则"序列放完就停住"的时机两端不同
             foreach (var (key, act) in new[]
             {

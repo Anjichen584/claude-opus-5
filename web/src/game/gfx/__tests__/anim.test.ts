@@ -2,9 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import balance from '@data/balance.json';
+import { basicSpec } from '@game/combat/BasicAttack';
+import type { Klass } from '@game/meta/Leaderboard';
 import {
-  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, clocksOf, cycleSec, elapsed, frameIndex,
-  frameList, frameName, spriteFor, twoFrame, twoFrameFlip, type AnimAction,
+  ANIM, ACTION_PRIORITY, actionOf, attackAction, bobPx, clockFor, clocksOf, cycleSec, elapsed,
+  frameIndex, frameList, frameName, spriteFor, twoFrame, twoFrameFlip, type AnimAction,
 } from '@game/gfx/anim';
 import { SPRITE_NAMES } from '@game/gfx/spriteDraw';
 
@@ -46,6 +48,47 @@ describe('动作判定(状态 → 动作)', () => {
     expect(actionOf({ attacking: true, moving: true })).toBe('atk');
     expect(actionOf({ attacking: true, dashing: true })).toBe('dash');
     expect(actionOf({ dead: true, dashing: true, attacking: true })).toBe('die');
+  });
+});
+
+describe('普攻形态(attackAction)—— 远程职业的普攻就是 cast', () => {
+  it('近战走 atk,远程走 cast', () => {
+    expect(attackAction(false)).toBe('atk');
+    expect(attackAction(true)).toBe('cast');
+  });
+
+  it('四个职业逐个走**真实路径**(basicSpec → kind → attackAction),形态与美术批次对得上', () => {
+    // 第一版这条守卫写成读 `classes[x].basic.kind` —— json 里**没有**这个字段,
+    // 于是四个职业全判成近战、断言空洞地通过了(假守卫)。改成调 GameScene 用的那个 basicSpec。
+    const want: Record<string, AnimAction> = {
+      blade: 'atk', warden: 'atk',        // 近战:挥砍序列
+      ranger: 'cast', arcanist: 'cast',   // 远程:拉弓/吟唱序列
+    };
+    for (const [klass, expectAction] of Object.entries(want)) {
+      const kind = basicSpec(klass as Klass, balance).kind;
+      expect(kind, `${klass} 的普攻形态`).toBe(expectAction === 'atk' ? 'combo' : 'shot');
+      expect(attackAction(kind === 'shot'), `${klass} 普攻该播 ${expectAction}`).toBe(expectAction);
+    }
+    expect(Object.keys(want).sort(), '四职业全覆盖(漏一个 = 这条守卫形同虚设)')
+      .toEqual(Object.keys(balance.classes).sort());
+  });
+
+  it('猎手普攻真的会播到拉弓序列(端到端:形态 → 动作 → 帧名)', () => {
+    const has = loaded(['ranger_cast_1', 'ranger_cast_2', 'ranger_cast_3']);
+    const action = attackAction(true);
+    expect(action).toBe('cast');
+    // 注意计时器给的是**剩余**:0.49/0.5 → 已进行 0.01s → 还在第 1 帧(起手)
+    const c = clocksOf({ attackT: 0.49, attackDur: 0.5 });
+    expect(spriteFor('ranger', action, clockFor(action, 99, c), has)).toBe('ranger_cast_1');
+  });
+
+  it('形态参数一路传到 actionOf:普攻中不会被判成"没在攻击"', () => {
+    expect(actionOf({ attacking: true }, attackAction(true))).toBe('cast');
+    expect(actionOf({ attacking: true }, attackAction(false))).toBe('atk');
+    expect(actionOf({ attacking: true, moving: true }, attackAction(true)), '边走边射也该播拉弓').toBe('cast');
+    // 优先级表是 die > dash > atk > cast > hurt:普攻压过受击(与 ACTION_PRIORITY 一致,别凭直觉写)
+    expect(actionOf({ attacking: true, hurt: true })).toBe('atk');
+    expect(actionOf({ hurt: true })).toBe('hurt');
   });
 });
 

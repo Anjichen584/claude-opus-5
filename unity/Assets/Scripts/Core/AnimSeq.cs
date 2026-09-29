@@ -91,12 +91,22 @@ namespace StarfallKnights.Core
             return MathF.Sin(t * MathF.PI * 2f * stepsPerS) * Bestiary.AnimBobAmplitudePx;
         }
 
-        /// <summary>状态 → 动作(纯函数;与 web actionOf 同一套优先级)</summary>
-        public static AnimAction ActionOf(bool dead, bool dashing, bool attacking, bool casting, bool hurt, bool moving)
+        /// <summary>
+        /// 普攻该播哪个动作:**远程职业走 Cast**(web 侧 <c>attackAction()</c> 的镜像)。
+        /// 这是**代码口径**不是美术口径 —— 挥剑与拉弓是两套姿态,所以猎手/秘术师的 cast 序列就是他们的普攻序列。
+        /// 抽成规则是因为这条以前散在调用点里写成一对双重否定(`attacking && !shot` / `casting && shot`),
+        /// 谁改谁错,而且漏一处就会「打起来了还在跑」。
+        /// </summary>
+        public static AnimAction AttackAction(bool isShot) => isShot ? AnimAction.Cast : AnimAction.Atk;
+
+        /// <summary>状态 → 动作(纯函数;与 web actionOf 同一套优先级)。</summary>
+        /// <param name="attack">普攻形态(见 <see cref="AttackAction"/>);默认近战 Atk。敌人吟唱走 <paramref name="casting"/>。</param>
+        public static AnimAction ActionOf(bool dead, bool dashing, bool attacking, bool casting, bool hurt, bool moving,
+            AnimAction attack = AnimAction.Atk)
         {
             if (dead) return AnimAction.Die;
             if (dashing) return AnimAction.Dash;
-            if (attacking) return AnimAction.Atk;
+            if (attacking) return attack;
             if (casting) return AnimAction.Cast;
             if (hurt) return AnimAction.Hurt;
             if (moving) return AnimAction.Walk;

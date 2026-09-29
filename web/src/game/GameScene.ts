@@ -64,7 +64,7 @@ import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
-import { actionOf, bobPx, clockFor, clocksOf, spriteFor, twoFrame } from '@game/gfx/anim';
+import { actionOf, attackAction, bobPx, clockFor, clocksOf, spriteFor, twoFrame } from '@game/gfx/anim';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -1790,16 +1790,16 @@ export class GameScene {
               // 远程职业的普攻走"施法"动作:近战挥砍与拉弓/吟唱本来就是两套姿态
               // (序列没到位时自动降到待机,所以现在接线不会画出错东西)。
               const base = KLASS_SPRITE[p.klass];
-              const shotKlass = basicSpec(p.klass, balance).kind === 'shot';
+              // 远程职业的普攻走 `cast` 动作(挥剑与拉弓是两套姿态)—— 规则在 anim.ts attackAction
+              const isShot = basicSpec(p.klass, balance).kind === 'shot';
               const action = actionOf({
                 // 死亡:倒地那 1.5s(respawn.delay)播死亡序列,复活后自然回待机
                 dead: p.respawnT > 0,
                 dashing: p.dashT > 0,
-                attacking: attacking && !shotKlass,
-                casting: attacking && shotKlass,
+                attacking,
                 hurt: h.flash > 0,
                 moving: p.moving,
-              });
+              }, attackAction(isShot));
               // 计时器给的是"剩余",动作时钟要的是"已进行"(见 anim.ts clockFor)
               const animClock = clockFor(action, clock.runTime, clocksOf({
                 dashT: p.dashT, dashDur: p.dashDur,

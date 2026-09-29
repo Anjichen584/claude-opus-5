@@ -67,7 +67,9 @@ SEQUENCES: dict[str, Seq] = {
     # ---- 猎手(远程职业:普攻在代码里走 cast 动作 —— 拉弓与挥剑本来就是两套姿态)----
     "ranger_walk": Seq(frames=4, target_h=46, anchor=1),
     "ranger_cast": Seq(frames=3, target_h=46, anchor=3),   # 锚点:收弓站直那帧
-    "ranger_dash": Seq(frames=3, target_h=46, anchor=3),   # 锚点:起身帧(第 3 帧下轮补)
+    "ranger_dash": Seq(frames=3, target_h=46, anchor=3),   # 锚点:起身站直那帧(第 3 帧)
+    "ranger_hurt": Seq(frames=2, target_h=46, anchor=1),   # 锚点:中招瞬间(还站得直,第 2 帧是踉跄后仰)
+    "ranger_die": Seq(frames=4, target_h=46, anchor=1),    # 锚点:第 1 帧(受创但还站着,整套里最接近站立)
 }
 
 PAD = 2  # 画布四周留白

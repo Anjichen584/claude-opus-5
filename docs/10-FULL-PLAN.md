@@ -146,8 +146,8 @@
 | 24 | 无尽模式(原三章之后接无限章) | W+U | 20 层后仍不崩(数值溢出测试) |
 | 25 | 事件房补齐到 8 个 + 汇总面板 | W | 8 个抉择全部有记录可回看 |
 | 26 | 音频第二遍:每章 BGM + 3 Boss 主题 + 环境声 | W | 8 首曲目切换无断层 |
-| 27 | 动画批次 1:剑士 6 动作序列 | W+U | ✅ **完成**(2026-09-29):**6 个动作 20 帧全入**(走 4/普攻 3/翻滚 3/受击 2/死亡 4/施法 3),管线 `tools/process_frames.py`(锚点帧定比例 + 同画布 + 脚底贴底 + **度量清单**用于守卫)、`balance.anim` + `gfx/anim.ts`(回退链 + `clockFor` 动作时钟 + 死亡接 `respawn.delay`)、Unity `AnimRules`/parity;顺带修掉 **Unity 玩家基准数值的手抄漂移**(hp 100→120 / atk 12→14 / 速度 4.6→4.2):`player` 段进 codegen + parity,手抄常量退役;web 327 / C# 547 |
-| 28 | 动画批次 2:猎手 + 秘术师 12 组 | W+U | 🚧 **进行中**(2026-09-29):猎手 **走路 4 + 拉弓 3** 已入(翻滚/受击/死亡待出图额度);顺手把节奏类问题收干净 —— web 修掉**第二套走路实现**(`frame2` 里硬编码的 8 次/秒,比玩家快一倍且不跟 `balance.anim` 联动),抽成 `twoFrame()` + 源码守卫;Unity 补齐 `AnimRules` 的动作时钟镜像(`Elapsed`/`ClocksOf`/`ClockFor`/`CycleSec`/`TwoFrameFlip`)与**推导量 parity**(web 336 / C# 578) |
+| 27 | 动画批次 1:剑士 6 动作序列 | W+U | ✅ **完成**(2026-09-29):**6 个动作 19 帧全入**(走 4/普攻 3/翻滚 3/受击 2/死亡 4/施法 3),管线 `tools/process_frames.py`(锚点帧定比例 + 同画布 + 脚底贴底 + **度量清单**用于守卫)、`balance.anim` + `gfx/anim.ts`(回退链 + `clockFor` 动作时钟 + 死亡接 `respawn.delay`)、Unity `AnimRules`/parity;顺带修掉 **Unity 玩家基准数值的手抄漂移**(hp 100→120 / atk 12→14 / 速度 4.6→4.2):`player` 段进 codegen + parity,手抄常量退役;web 327 / C# 547 |
+| 28 | 动画批次 2:猎手 + 秘术师 12 组 | W+U | 🚧 **进行中**(2026-09-29):**猎手 6/6 全部完成(16 帧)**;顺手收干净三件事 —— ① web 修掉**第二套走路实现**(`frame2` 里硬编码的 8 次/秒,比玩家快一倍且不跟 `balance.anim` 联动)→ `twoFrame()` + 源码守卫;② Unity 补齐 `AnimRules` 动作时钟镜像(`Elapsed`/`ClocksOf`/`ClockFor`/`CycleSec`/`TwoFrameFlip`)+ **推导量 parity**;③ 「**远程普攻走 cast**」从调用点里的双重否定提成同名规则 `attackAction()/AttackAction()`,并加**三方 parity**(json 武器段 ↔ KindOf ↔ 动作)。剩**秘术师 6 组**(web 340 / C# 595) |
 | 29 | 动画批次 3:守卫 + 营地 NPC | W | 同上 |
 | 30 | Beta 验收 + 5 人试玩 + 平衡第二遍 | 人 | §3 M2 全部打勾;试玩记录归档 |
 | **M3 · RC(31–44)** | | | |

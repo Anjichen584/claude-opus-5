@@ -192,6 +192,87 @@
     "frames": 3,
     "targetH": 46
   },
+  "ranger_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        34,
+        45
+      ],
+      [
+        37,
+        46
+      ]
+    ],
+    "canvas": [
+      42,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "ranger_die": {
+    "anchor": 1,
+    "anchorBody": [
+      31,
+      46
+    ],
+    "bodies": [
+      [
+        31,
+        46
+      ],
+      [
+        37,
+        46
+      ],
+      [
+        37,
+        32
+      ],
+      [
+        54,
+        27
+      ]
+    ],
+    "canvas": [
+      58,
+      48
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "ranger_hurt": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        32,
+        40
+      ]
+    ],
+    "canvas": [
+      42,
+      50
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
   "ranger_walk": {
     "anchor": 1,
     "anchorBody": [

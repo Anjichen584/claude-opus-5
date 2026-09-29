@@ -1755,6 +1755,16 @@ namespace StarfallKnights.Tests
             Check(AnimRules.ActionOf(false, true, true, false, false, false) == AnimAction.Dash, "翻滚压过攻击");
             Check(AnimRules.ActionOf(true, true, true, false, false, true) == AnimAction.Die, "死亡压过一切");
 
+            // 普攻形态:远程职业的普攻就是 Cast(与 web attackAction 同名同义)
+            Check(AnimRules.AttackAction(false) == AnimAction.Atk, "近战普攻走 atk");
+            Check(AnimRules.AttackAction(true) == AnimAction.Cast, "远程普攻走 cast(拉弓序列就是猎手的普攻序列)");
+            Check(AnimRules.ActionOf(false, false, true, false, false, false, AnimRules.AttackAction(true)) == AnimAction.Cast,
+                "形态参数一路传到 ActionOf:远程普攻不会被判成 atk");
+            Check(AnimRules.ActionOf(false, false, true, false, false, true, AnimRules.AttackAction(true)) == AnimAction.Cast,
+                "边走边射也播拉弓");
+            Check(AnimRules.ActionOf(false, false, true, false, true, false) == AnimAction.Atk,
+                "普攻压过受击(优先级表 die > dash > atk > cast > hurt,别凭直觉写)");
+
             // 帧号:循环取模、一次性停末帧、坏数据不产生 NaN
             Check(AnimRules.FrameIndex(0f, 8f, 4, true) == 0, "循环:第 0 帧");
             Check(AnimRules.FrameIndex(0.13f, 8f, 4, true) == 1, "循环:第 1 帧(1/8 秒之后)");
