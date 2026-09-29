@@ -78,4 +78,6 @@ export const SPRITE_NAMES = [
   'ui_panel', 'icon_slash', 'icon_shot', 'icon_dash', 'icon_ult',
   // 第三批之三:怪物第二帧(补齐一只登记一只,未登记的在 frame2 里自动回落第一帧)
   'oakgolem_f2', 'snowpuff_f2',
+  'iceturtle_f2', 'blizzardhawk_f2', 'frostmage_f2',
+  'dunebeetle_f2', 'flamedancer_f2', 'duststinger_f2',
 ] as const;

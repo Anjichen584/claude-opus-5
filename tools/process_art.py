@@ -109,7 +109,13 @@ def key_out(img: Image.Image) -> Image.Image:
     bg = sum(c[1] for c in corners) // 4
     bb = sum(c[2] for c in corners) // 4
 
+    # 幕布判定:品红幕布必须按通道判(白/浅蓝精灵与品红的"通道和距"很小,
+    # 早先用 sum-abs 会把雪绒球这类白色精灵整只吃掉 → 见 CHANGELOG 2f0cf7 后修复)
+    magenta_bg = br > 180 and bb > 180 and bg < 120
+
     def is_bg(p):
+        if magenta_bg:
+            return p[0] > 165 and p[2] > 165 and p[1] < 110
         return abs(p[0] - br) + abs(p[1] - bg) + abs(p[2] - bb) < DIST * 3
 
     # 洪泛:仅清除与边缘连通的幕布像素
@@ -135,7 +141,6 @@ def key_out(img: Image.Image) -> Image.Image:
 
     # 品红幕布:封闭孔洞里的残留(洪泛够不到)按纯色距直接清除
     # (品红几乎不会出现在角色本体上,安全;绿幕不做全局清除以保护绿色生物)
-    magenta_bg = br > 180 and bb > 180 and bg < 120
     if magenta_bg:
         for y in range(h):
             for x in range(w):
@@ -164,9 +169,112 @@ def key_out(img: Image.Image) -> Image.Image:
     return img
 
 
+# 双帧动画对:两帧必须同画布,且按【主体】对齐 —— 不能按全图 bbox,
+# 否则带落叶/沙尘/雪粉的那一帧 bbox 变宽变高,底锚绘制时身体就会跳、还会一大一小。
+PAIRS = [
+    "shroomling", "windbee", "blightwolf", "cinderrat", "oakgolem", "snowpuff",
+    "iceturtle", "blizzardhawk", "frostmage", "dunebeetle", "flamedancer", "duststinger",
+]
+MIN_ALPHA = 40
+
+
+def components(img: Image.Image):
+    """连通域(4 邻域)按面积降序:用于把主体与碎屑(落叶/沙尘/火星)分开。"""
+    a = img.getchannel("A")
+    px = a.load()
+    w, h = img.size
+    seen = bytearray(w * h)
+    comps = []
+    for y0 in range(h):
+        row = y0 * w
+        for x0 in range(w):
+            i0 = row + x0
+            if seen[i0] or px[x0, y0] <= MIN_ALPHA:
+                continue
+            stack = [(x0, y0)]
+            seen[i0] = 1
+            minx = maxx = x0
+            miny = maxy = y0
+            area = 0
+            while stack:
+                x, y = stack.pop()
+                area += 1
+                if x < minx: minx = x
+                elif x > maxx: maxx = x
+                if y < miny: miny = y
+                elif y > maxy: maxy = y
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h:
+                        i = ny * w + nx
+                        if not seen[i] and px[nx, ny] > MIN_ALPHA:
+                            seen[i] = 1
+                            stack.append((nx, ny))
+            if area > 20:
+                comps.append((area, (minx, miny, maxx + 1, maxy + 1)))
+    comps.sort(reverse=True)
+    return comps
+
+
+def body_box(img: Image.Image):
+    """主体包围盒:最大连通域 + 面积≥其 5% 的部件(分离的手/帽/尾算同一主体)。"""
+    comps = components(img)
+    if not comps:
+        return img.getbbox()
+    big = [c for c in comps if c[0] >= comps[0][0] * 0.05]
+    return (
+        min(c[1][0] for c in big), min(c[1][1] for c in big),
+        max(c[1][2] for c in big), max(c[1][3] for c in big),
+    )
+
+
+def process_pair(name: str, target_h: int) -> bool:
+    fb = SRC / f"{name}.png"
+    ff = SRC / f"{name}_f2.png"
+    if not fb.exists() or not ff.exists():
+        return False
+    imgs = [key_out(Image.open(fb)), key_out(Image.open(ff))]
+    full = [i.getbbox() for i in imgs]           # 含碎屑:裁剪用,保证不丢图
+    bodies = [body_box(i) for i in imgs]         # 仅主体:缩放/对齐用
+    if any(b is None for b in full) or any(b is None for b in bodies):
+        return False
+
+    body_h = [b[3] - b[1] for b in bodies]
+    scale = target_h / max(body_h)               # 共用缩放比:压扁帧保持自身比例
+    crops = [i.crop(f) for i, f in zip(imgs, full)]
+    crops = [
+        c.resize((max(1, round(c.width * scale)), max(1, round(c.height * scale))), Image.NEAREST)
+        for c in crops
+    ]
+    # 主体在裁剪坐标里的位置(缩放后)
+    body_rel = []
+    for (fx0, fy0, _, _), (bx0, by0, bx1, by1) in zip(full, bodies):
+        body_rel.append((
+            (bx0 - fx0) * scale, (by0 - fy0) * scale, (bx1 - fx0) * scale, (by1 - fy0) * scale,
+        ))
+
+    cw = max(c.width for c in crops) + 2
+    below = [c.height - br[3] for c, br in zip(crops, body_rel)]   # 主体底边之下的碎屑高度
+    ch = int(max(body_rel[i][3] - body_rel[i][1] + below[i] for i in range(2))) + 2
+
+    for suffix, c, br in zip(("", "_f2"), crops, body_rel):
+        canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        dx = int(round(cw / 2 - (br[0] + br[2]) / 2))              # 主体水平居中
+        dy = int(round(ch - 1 - br[3]))                            # 主体底边对齐
+        dx = max(0, min(cw - c.width, dx))
+        dy = max(0, min(ch - c.height, dy))
+        canvas.alpha_composite(c, (dx, dy))
+        canvas.save(OUT / f"{name}{suffix}.png")
+    print(f"{name}: pair {cw}x{ch} (主体高 {target_h})")
+    return True
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    pair_bases = set(PAIRS)
     for name, target_h in TARGETS.items():
+        # 已成对的基名/二帧由 process_pair 统一处理(同画布 + 对齐)
+        if name in pair_bases or name.endswith("_f2"):
+            continue
         f = SRC / f"{name}.png"
         if not f.exists():
             continue  # 瘦身工作流:源图已清、成品在 public/sprites,跳过
@@ -200,6 +308,14 @@ def main() -> None:
         img = img.resize((max(1, round(img.width * scale)), size), Image.NEAREST)
         img.save(OUT / f"{name}.png")
         print(f"{name}: fx {img.width}x{img.height}")
+
+    for name in PAIRS:
+        target = TARGETS.get(name)
+        if target is None:
+            print(f"{name}: 未登记目标尺寸,跳过")
+            continue
+        if not process_pair(name, target):
+            print(f"{name}: 缺源图,跳过")
 
     for name, size in PANEL.items():
         pf = SRC / f"{name}.png"
