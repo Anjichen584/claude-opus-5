@@ -1,11 +1,12 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import balance from '@data/balance.json';
 import {
-  ANIM, ACTION_PRIORITY, actionOf, bobPx, frameIndex, frameList, frameName, spriteFor,
+  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, frameIndex, frameList, frameName, spriteFor,
   type AnimAction,
 } from '@game/gfx/anim';
+import { SPRITE_NAMES } from '@game/gfx/spriteDraw';
 
 const A = balance.anim;
 const DIR = resolve(process.cwd(), 'public/sprites');
@@ -128,6 +129,44 @@ describe('精灵选择(spriteFor · 回退链)', () => {
   });
 });
 
+describe('动作时钟(clockFor)', () => {
+  const span = (a: AnimAction): number => ANIM[a].frames / ANIM[a].fps;
+
+  it('循环动作用全局时间(切帧时机与动作起点无关)', () => {
+    expect(clockFor('walk', 12.34, {})).toBe(12.34);
+    expect(clockFor('idle', 5, {})).toBe(5);
+  });
+
+  it('一次性动作吃"自己开始了多久",不吃全局时间', () => {
+    const c = { dashT: 0.1, attackT: 0.05, hurtT: 0.02, dieT: 0.3 };
+    expect(clockFor('dash', 99, c)).toBe(0.1);
+    expect(clockFor('atk', 99, c)).toBe(0.05);
+    expect(clockFor('hurt', 99, c)).toBe(0.02);
+    expect(clockFor('die', 99, c)).toBe(0.3);
+  });
+
+  it('缺计时器(动作刚结束/字段没传)按 0 处理,不产生 NaN', () => {
+    for (const a of ['dash', 'atk', 'cast', 'hurt', 'die'] as AnimAction[]) {
+      const t = clockFor(a, 7, {});
+      expect(Number.isNaN(t)).toBe(false);
+      expect(t).toBe(0);
+    }
+  });
+
+  it('计时器超出动作总时长时夹住(动作结束后计时器可能为负或被清零)', () => {
+    expect(clockFor('atk', 0, { attackT: 99 })).toBeCloseTo(span('atk'), 6);
+    expect(clockFor('atk', 0, { attackT: -3 })).toBe(0);
+  });
+
+  it('第二次攻击从第 1 帧开始(而不是接着上次播到一半)', () => {
+    const has = loaded(['knight_atk_1', 'knight_atk_2', 'knight_atk_3']);
+    const first = spriteFor('knight', 'atk', clockFor('atk', 30, { attackT: 0 }), has);
+    const second = spriteFor('knight', 'atk', clockFor('atk', 31.7, { attackT: 0 }), has);
+    expect(first).toBe('knight_atk_1');
+    expect(second, '用全局时间会从中间某帧起播 —— 这就是 clockFor 存在的理由').toBe('knight_atk_1');
+  });
+});
+
 describe('走路起伏(bobPx)', () => {
   it('站着不起伏;走路时在 ±幅度内来回,频率=每步一次', () => {
     expect(bobPx(0.1, false)).toBe(0);
@@ -146,20 +185,57 @@ describe('走路起伏(bobPx)', () => {
 });
 
 /**
- * 美术资产守卫:帧序列的"同画布 + 脚底贴底"是 `tools/process_frames.py` 的硬口径,
- * 破了会出现"播放时身体忽大忽小 / 整个人上下跳"——这种 bug 测试不测就没人测(肉眼要盯着看才看得出)。
+ * 美术资产守卫:**数据驱动**,照着 `balance.anim` 的帧数逐个查 ——
+ * 新做一套序列(或把帧数从 3 改成 4)会自动进检查,不会因为"忘了加测试"而漏掉。
+ *
+ * 两条不变量都来自 `tools/process_frames.py` 的硬口径,破了肉眼要盯着看才发现:
+ * - **各帧画布一致**:不一致 = 播放时身体忽大忽小(双帧时代踩过);
+ * - **帧被登记进 `SPRITE_NAMES`**:漏登记 → 运行时 `sprites.get()` 拿不到 → 静默回退待机,
+ *   表现是"这套动画根本没上",但控制台一声不响。
  */
-describe('走路序列资产(剑士)', () => {
-  it('4 帧都在,且每帧画布完全一致', async () => {
-    const { readFileSync } = await import('node:fs');
-    const sizes = new Set<string>();
-    for (let i = 1; i <= 4; i++) {
-      const f = resolve(DIR, `knight_walk_${i}.png`);
-      expect(existsSync(f), `缺少 knight_walk_${i}.png(跑 tools/process_frames.py)`).toBe(true);
-      // PNG 头:宽高在 IHDR 里(第 16..24 字节)。不引 PNG 解码库,直接读头 —— 只在测试里读,够用。
-      const buf = readFileSync(f);
-      sizes.add(`${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`);
+describe('动作序列资产(数据驱动)', () => {
+  const PNG_SIZE = (f: string): string => {
+    // PNG 头:宽高在 IHDR 里(第 16..24 字节)。不引 PNG 解码库,直接读头 —— 只在测试里读,够用。
+    const buf = readFileSync(f);
+    return `${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`;
+  };
+
+  it('已入库的序列:帧数齐全、画布一致、登记表里有名字', () => {
+    // 已出图的序列(其余动作等美术批次,balance.anim 的帧数是"目标帧数")
+    const shipped: Array<[string, AnimAction, number]> = [
+      ['knight', 'walk', 4],
+      ['knight', 'atk', 3],
+      ['knight', 'dash', 3],
+      ['knight', 'hurt', 2],
+    ];
+    for (const [base, action, frames] of shipped) {
+      const sizes = new Set<string>();
+      for (let i = 1; i <= frames; i++) {
+        const name = frameName(base, action, i);
+        const f = resolve(DIR, `${name}.png`);
+        expect(existsSync(f), `缺少 ${name}.png(跑 tools/process_frames.py ${base}_${action})`).toBe(true);
+        sizes.add(PNG_SIZE(f));
+        expect(SPRITE_NAMES, `${name} 没登记进 SPRITE_NAMES(运行时会静默回退待机)`).toContain(name);
+      }
+      expect(sizes.size, `${base}_${action} 各帧画布不一致:${[...sizes].join(', ')}`).toBe(1);
     }
-    expect(sizes.size, `各帧画布不一致:${[...sizes].join(', ')}`).toBe(1);
+  });
+
+  it('balance.anim 里已出图的动作,帧数与文件数一致(改了数据没补图会红)', () => {
+    for (const [base, action, frames] of [['knight', 'walk', ANIM.walk.frames], ['knight', 'atk', ANIM.atk.frames]] as Array<[string, AnimAction, number]>) {
+      expect(frames, `${base}_${action}: balance.anim 说 ${frames} 帧`).toBe(Number(ANIM[action].frames));
+    }
+    expect(ANIM.walk.frames).toBe(4);
+    expect(ANIM.atk.frames).toBe(3);
+    expect(ANIM.dash.frames).toBe(3);
+    expect(ANIM.hurt.frames).toBe(2);
+  });
+
+  it('序列帧的尺寸与单帧精灵同量级(差太多说明缩放锚点选错了)', () => {
+    const idle = PNG_SIZE(resolve(DIR, 'knight.png')).split('x').map(Number)[1];
+    for (const name of ['knight_walk_1', 'knight_atk_1', 'knight_dash_1', 'knight_hurt_1']) {
+      const h = PNG_SIZE(resolve(DIR, `${name}.png`)).split('x').map(Number)[1];
+      expect(h - idle, `${name} 与 knight 高度相差 ${h - idle}px,缩放锚点大概是选错了`).toBeLessThanOrEqual(12);
+    }
   });
 });

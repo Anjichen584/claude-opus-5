@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 from PIL import Image
 
@@ -35,13 +36,31 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "web" / "art_src" / "frames"
 OUT = ROOT / "web" / "public" / "sprites"
 
-# 序列登记:<序列基名>: (动作, 帧数, 目标身高px, 源文件前缀)
-# 基名 = 出图用的前缀;成品名 = f"{base}_{seq}_{i}.png"
-SEQUENCES: dict[str, tuple[str, int, int]] = {
-    # 剑士走路 4 帧(10-FULL-PLAN 轮 27 / 动画批次 1)—— 目标高与既有 knight.png(46px)一致
-    "knight_walk": 4,
+class Seq(NamedTuple):
+    """一套序列的登记信息。
+
+    - `frames`: 帧数(源文件 `<base>_1..N.png`);
+    - `target_h`: 锚点帧的身体高度目标值(px)—— 与既有单帧精灵同高,否则切动作时会"变一个人大小";
+    - `anchor`: **用第几帧来定缩放**(1 起)。这一项必须人工挑:身体连通域会把剑/披风一起框进去,
+      挥砍帧比站立帧高一大截,按"身体高度取中位数"归一会把整个人缩错(第一版就是这么错的)。
+      挑法:**选整套里最接近站立姿态的那一帧**,让它的身体高度落到 `target_h`。
+    """
+    frames: int
+    target_h: int
+    anchor: int
+
+
+# 序列登记。成品名 = f"{基名}_{序号}.png"(序号 1 起,与 balance.anim 的帧数对齐)
+SEQUENCES: dict[str, Seq] = {
+    # 剑士走路 4 帧(10-FULL-PLAN 轮 27 动画批次 1)—— 目标高与既有 knight.png(46px)一致
+    "knight_walk": Seq(frames=4, target_h=46, anchor=1),
+    # 普攻 3 帧:锚点取收招帧(身体最直,剑挂在身前不算身高)
+    "knight_atk": Seq(frames=3, target_h=46, anchor=3),
+    # 翻滚 3 帧:锚点取起身帧(第 2 帧是抱团,本来就该比站立矮)
+    "knight_dash": Seq(frames=3, target_h=46, anchor=3),
+    # 受击 2 帧:锚点取踉跄帧
+    "knight_hurt": Seq(frames=2, target_h=46, anchor=2),
 }
-TARGET_H = {"knight_walk": 46}  # 每套序列的目标身高(px)
 
 PAD = 2  # 画布四周留白
 
@@ -65,7 +84,8 @@ def load_frames(seq: str, n: int) -> list[Image.Image] | None:
     return frames
 
 
-def process_sequence(seq: str, n: int, target_h: int) -> bool:
+def process_sequence(seq: str, spec: Seq) -> bool:
+    n, target_h = spec.frames, spec.target_h
     frames = load_frames(seq, n)
     if frames is None:
         return False
@@ -74,10 +94,13 @@ def process_sequence(seq: str, n: int, target_h: int) -> bool:
     if any(b is None for b in bodies):
         print(f"{seq}: 有帧找不到主体,跳过")
         return False
+    if not 1 <= spec.anchor <= n:
+        print(f"{seq}: anchor={spec.anchor} 越界(1..{n})")
+        return False
 
-    # 统一缩放:身体高度取中位数(避免被某个极端姿势带偏),所有帧同一比例
-    heights = sorted(b[3] - b[1] for b in bodies)
-    ref_h = heights[len(heights) // 2]
+    # 统一缩放:所有帧用**同一个**比例,比例由锚点帧(人工挑的最接近站立的那一帧)定。
+    # 逐帧各自缩放到目标高会让抬手/挑剑那帧一大一小(双帧时代同一个坑)。
+    ref_h = bodies[spec.anchor - 1][3] - bodies[spec.anchor - 1][1]
     scale = target_h / ref_h
 
     scaled: list[Image.Image] = []
@@ -116,10 +139,10 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     only = sys.argv[1] if len(sys.argv) > 1 else None
     done = 0
-    for base, n in SEQUENCES.items():
+    for base, spec in SEQUENCES.items():
         if only and not base.startswith(only):
             continue
-        if process_sequence(base, n, TARGET_H[base]):
+        if process_sequence(base, spec):
             done += 1
     print(f"✅ 处理 {done} 套序列")
 

@@ -64,7 +64,7 @@ import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
-import { ANIM, actionOf, bobPx, spriteFor } from '@game/gfx/anim';
+import { actionOf, bobPx, clockFor, spriteFor } from '@game/gfx/anim';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -1781,16 +1781,24 @@ export class GameScene {
                 rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
                 sx = 1 + punch * 0.08;
               }
-              // 动作序列(anim.ts):动作判定 + 帧选择 + 缺序列自动降级,帧数/帧率走 balance.anim
+              // 动作序列(anim.ts):动作判定 + 帧选择 + 缺序列自动降级,帧数/帧率走 balance.anim。
+              // 远程职业的普攻走"施法"动作:近战挥砍与拉弓/吟唱本来就是两套姿态
+              // (序列没到位时自动降到待机,所以现在接线不会画出错东西)。
               const base = KLASS_SPRITE[p.klass];
+              const shotKlass = basicSpec(p.klass, balance).kind === 'shot';
               const action = actionOf({
                 dashing: p.dashT > 0,
-                attacking,
+                attacking: attacking && !shotKlass,
+                casting: attacking && shotKlass,
                 hurt: h.flash > 0,
                 moving: p.moving,
               });
-              // 循环动作吃全局时间(取模),一次性动作吃"这个动作开始了多久"
-              const animClock = ANIM[action].loop ? clock.runTime : (action === 'atk' || action === 'dash' ? prog * p.attackDur : p.animT);
+              // 计时器给的是"剩余",动作时钟要的是"已进行"(见 anim.ts clockFor)
+              const animClock = clockFor(action, clock.runTime, {
+                dashT: p.dashT > 0 ? p.dashDur - p.dashT : undefined,
+                attackT: p.attackT > 0 ? p.attackDur - p.attackT : undefined,
+                hurtT: h.flash > 0 ? balance.feel.flashSec - h.flash : undefined,
+              });
               const spriteName = spriteFor(base, action, animClock, (n) => sprites.get(n) !== null);
               const bob = bobPx(clock.runTime, action === 'walk');
               const ok = drawSprite(ctx, spriteName, ix, iy + bob, {

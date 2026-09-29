@@ -152,3 +152,27 @@ bouncing frame」句式生成;`snowpuff_f2` 第一版是细线稿被管线误吃
 
 处理:`python3 tools/process_frames.py knight_walk` → 50×55 同画布 4 帧(身体统一缩放 + 脚底贴底),
 接进 `balance.anim` + `gfx/anim.ts`(`knight_walk_1..4`)。
+
+### 动画序列 · 批次 1 续:普攻 / 翻滚 / 受击(2026-09-29)
+
+公共尾串同上(`three-quarter front view, flat solid magenta background, pixel art with crisp hard edges,
+no anti-aliasing, no motion blur, no shadow, no text`)。**战斗动作的一致性要求比走路更高**:
+走路只要剪影连贯,战斗动作还要"和实际判定对得上"——
+
+| 序列 | 帧 | 姿势 | 与逻辑的对应 |
+|---|---|---|---|
+| `knight_atk` | 1 | 剑离肩、举到头顶后上方,身体后仰蓄力 | 起手(前摇)|
+| | 2 | 挥砍到身前下方,前腿弓步 | `attackDur` 中点 ≈ 命中时刻 |
+| | 3 | 收招,剑垂在身前,身体前倾 | 连招窗口 |
+| `knight_dash` | 1 | 屈膝前扑,压缩成弹簧 | 翻滚起手 |
+| | 2 | 抱成球(整体比站立矮一截,这是设计) | 无敌帧中段 |
+| | 3 | 起身,剑回到肩上(与待机帧衔接) | 翻滚收尾 |
+| `knight_hurt` | 1 | 仰头闭眼、双臂张开 | 受击瞬间(对应 `feel.flashSec`) |
+| | 2 | 踉跄后退一步、抬手格挡 | 受击恢复 |
+
+> **管线新增一条纪律(踩到了)**:序列帧的缩放**不能按"身体连通域高度取中位数"归一** ——
+> 连通域会把剑一起框进去,挥砍帧比站立帧高一大截(`knight_atk_2` 量出来 854×871 vs `ref` 352×368)。
+> 改为**登记表里人工指定"锚点帧"**(整套里最接近站立姿态的那一帧),所有帧按锚点帧算同一个比例。
+> 锚点选错的后果有测试兜着:尺寸与单帧精灵差 >12px 直接红。
+
+处理:`python3 tools/process_frames.py knight`(一次处理已登记的全部序列)。

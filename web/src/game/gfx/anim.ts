@@ -33,6 +33,41 @@ export const ANIM: Record<AnimAction, AnimSpec> = {
 /** 动作优先级:同时满足多个条件时,取靠前的(翻滚 > 攻击 > 受击 > 移动 > 待机) */
 export const ACTION_PRIORITY: AnimAction[] = ['die', 'dash', 'atk', 'cast', 'hurt', 'walk', 'idle'];
 
+/**
+ * 动作时钟所需的计时器(玩家/敌人都能用 —— 字段名保持中性)。
+ * 每个"一次性动作"都吃**自己开始了多久**:用全局时间会让第 2 次攻击从第 3 帧开始播。
+ */
+export interface AnimClocks {
+  /** 翻滚已进行(秒) */
+  dashT?: number;
+  /** 本次攻击段已进行(秒) */
+  attackT?: number;
+  /** 施法已进行(秒) */
+  castT?: number;
+  /** 受击已进行(秒) */
+  hurtT?: number;
+  /** 死亡已进行(秒) */
+  dieT?: number;
+}
+
+/**
+ * 本帧该用哪个时钟喂 `spriteFor`。
+ * - 循环动作(待机/走路)用全局时间:切换时机与动作起点无关,取模后自然不会漂;
+ * - 一次性动作用各自的已进行时间,并**夹在 [0, 总时长]** 内(动作结束后计时器可能被清零或为负)。
+ */
+export function clockFor(action: AnimAction, globalT: number, c: AnimClocks): number {
+  const span = ANIM[action].frames / ANIM[action].fps;
+  const clamp = (t: number | undefined): number => Math.max(0, Math.min(span, t ?? 0));
+  switch (action) {
+    case 'dash': return clamp(c.dashT);
+    case 'atk': return clamp(c.attackT);
+    case 'cast': return clamp(c.castT);
+    case 'hurt': return clamp(c.hurtT);
+    case 'die': return clamp(c.dieT);
+    default: return globalT;
+  }
+}
+
 export interface ActorState {
   /** 已死亡(播放死亡序列,不循环) */
   dead?: boolean;
