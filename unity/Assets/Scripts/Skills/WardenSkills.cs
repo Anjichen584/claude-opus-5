@@ -59,7 +59,7 @@ namespace StarfallKnights.Skills
             var p = w.Player;
             foreach (var e in new List<Actor>(w.EnemiesInCone(p.Pos, p.Face, QRangeM, QArcDeg * MathF.PI / 180f)))
             {
-                HitOne(p.Unit, e, QMult, element);
+                HitOne(p.Unit, e, QMult, element, p.Pos);
                 e.Unit.StunT = MathF.Max(e.Unit.StunT, QStunS);
             }
             if (RuneQ?.GroundZone != null)
@@ -84,7 +84,7 @@ namespace StarfallKnights.Skills
                 var dir = new Vector2(MathF.Cos(p.Face), MathF.Sin(p.Face));
                 foreach (var e in new List<Actor>(w.EnemiesInCone(p.Pos, p.Face, ERangeM, EArcDeg * MathF.PI / 180f)))
                 {
-                    HitOne(p.Unit, e, EMult, element);
+                    HitOne(p.Unit, e, EMult, element, p.Pos);
                     e.Vel += dir * EKnockbackM;
                 }
                 // 镜像 web:符文地带落在落点前方 0.8m
@@ -103,7 +103,7 @@ namespace StarfallKnights.Skills
             var p = w.Player;
             foreach (var e in new List<Actor>(w.EnemiesWithin(p.Pos, RRadiusM)))
             {
-                HitOne(p.Unit, e, RMult, element);
+                HitOne(p.Unit, e, RMult, element, p.Pos);
                 var away = e.Pos - p.Pos;
                 if (away.LengthSquared() > 0.0001f) e.Vel += Vector2.Normalize(away) * RKnockbackM;
                 e.Unit.SlowT = MathF.Max(e.Unit.SlowT, RSlowS);

@@ -97,6 +97,11 @@ namespace StarfallKnights.Tests
             TestClock();
             TestMetaSave();
             TestRunSequence();
+            TestChapters();
+            TestTelegraphs();
+            TestWeakspots();
+            TestCreatureAI();
+            TestBossAI();
             TestClassSkillSet();
             ParityTests.Run(Check, Near, Suite);
 
@@ -636,11 +641,323 @@ namespace StarfallKnights.Tests
             Check(set3.SkillId("Q") == "warden_q_quake" && set3.SkillId("R") == "warden_r_roar", "技能 id 映射与 JSON 一致");
         }
 
+        // ---------------- 章节与出怪池 ----------------
+
+        private static void TestChapters()
+        {
+            Suite("三章出怪 / 精英编成 / 章节 Boss");
+            Check(Bestiary.ChapterOf(1).Name == "翠语林地" && Bestiary.ChapterOf(2).Name == "霜语冰原"
+                  && Bestiary.ChapterOf(3).Name == "烬语荒漠", "三章名称与 balance 一致");
+            Near(Bestiary.ChapterOf(2).StatMult, 1.35f, 1e-3f, "章 2 杂兵乘区 1.35");
+            Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
+            Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
+                  && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
+            Check(Bestiary.Stats.Count == 21, $"图鉴覆盖 21 种敌人(实际 {Bestiary.Stats.Count})");
+
+            for (int chapter = 1; chapter <= 3; chapter++)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w);
+                var run = new RunManagerLite();
+                var kinds = new List<EnemyKind>();
+                run.OnSpawn = (k, hp, atk, spd) => kinds.Add(k);
+                run.SetChapter(chapter);
+                for (int d = 0; d < 8; d++) run.NextRoom(w);
+
+                bool poolOk = true;
+                foreach (var k in kinds)
+                {
+                    if (EnemyKinds.IsBoss(k)) continue;
+                    int kc = EnemyKinds.ChapterOf(k);
+                    // 元素杂兵(1 章归属)三章通用,其余必须属于本章
+                    if (kc != chapter && kc != 1) poolOk = false;
+                }
+                Check(poolOk, $"章 {chapter}:杂兵全部来自本章出怪池");
+                Check(kinds.Contains(EnemyKinds.BossOf(chapter)), $"章 {chapter}:Boss = {EnemyKinds.BossOf(chapter)}");
+
+                var comp = RunManagerLite.EliteComp[chapter];
+                int hits = 0;
+                foreach (var k in comp) if (kinds.Contains(k)) hits++;
+                Check(hits >= comp.Length - 1, $"章 {chapter}:精英编成命中 {hits}/{comp.Length} 种");
+            }
+
+            var wB = new LogicWorld();
+            MakePlayer(wB);
+            var runB = new RunManagerLite();
+            runB.SetChapter(3);
+            float bossHp = -1f;
+            runB.OnSpawn = (k, hp, atk, spd) => { if (EnemyKinds.IsBoss(k)) bossHp = hp; };
+            for (int d = 0; d < 8; d++) runB.NextRoom(wB);
+            Near(bossHp, Bestiary.Of(EnemyKind.BossKazra).Hp, 0.01f, "章 3 Boss 血量不被章节乘区二次放大");
+        }
+
+        // ---------------- 预警区域 ----------------
+
+        private static void TestTelegraphs()
+        {
+            Suite("预警区域(敌方/玩家侧)");
+            var w = new LogicWorld();
+            var p = MakePlayer(w, Vector2.Zero);
+            float hp0 = p.Unit.Hp;
+            TelegraphSystem.Add(w, Vector2.Zero, 1.5f, 0.5f, 20f, 1f, Element.Ice, true);
+            Advance(w, 0.4f);
+            Near(p.Unit.Hp, hp0, 0.001f, "预警期内不结算(留反应窗口)");
+            Advance(w, 0.2f);
+            Check(p.Unit.Hp < hp0, "到点结算伤害");
+
+            var w2 = new LogicWorld();
+            var p2 = MakePlayer(w2, Vector2.Zero);
+            TelegraphSystem.Add(w2, new Vector2(5f, 0f), 1.0f, 0.2f, 20f, 1f, null, true);
+            Advance(w2, 0.4f);
+            Near(p2.Unit.Hp, 100f, 0.001f, "站在圈外不受伤");
+
+            var w3 = new LogicWorld();
+            var p3 = MakePlayer(w3, Vector2.Zero);
+            w3.PlayerInvulnerable = true;
+            TelegraphSystem.Add(w3, Vector2.Zero, 1.5f, 0.1f, 20f, 1f, null, true);
+            Advance(w3, 0.3f);
+            Near(p3.Unit.Hp, 100f, 0.001f, "无敌帧内预警伤害被吃掉");
+
+            var w4 = new LogicWorld();
+            MakePlayer(w4, Vector2.Zero);
+            var e4 = MakeEnemy(w4, new Vector2(0.5f, 0f), 400f);
+            TelegraphSystem.Add(w4, Vector2.Zero, 1.5f, 0.1f, 20f, 1.0f, Element.Ice, false, 1.0f, 0.25f, 0.4f);
+            Advance(w4, 0.5f);
+            Check(e4.Unit.Hp < 400f, "玩家侧预警命中敌人");
+            Check(w4.Zones.Count == 1 && w4.Zones[0].Element == Element.Ice, "预警结算后留下冰雾地带");
+        }
+
+        // ---------------- 方向性弱点 ----------------
+
+        private static void TestWeakspots()
+        {
+            Suite("方向性弱点(傀儡绕背 / 冰龟正面)");
+            var w = new LogicWorld();
+            var p = MakePlayer(w, new Vector2(0f, 0f), 100f);
+
+            var golem = MakeEnemy(w, new Vector2(1.5f, 0f), 5000f);
+            golem.Unit.BackstabMult = Bestiary.OakGolemBackstabMult;
+            golem.Unit.FaceRad = 0f; // 面朝 +X
+            int front = DamagePipeline.Deal(new DealOpts
+            {
+                Source = p.Unit, Target = golem.Unit, Mult = 1f, CanCrit = false,
+                HasHitAngle = true, HitAngleRad = MathF.PI,
+            });
+            int back = DamagePipeline.Deal(new DealOpts
+            {
+                Source = p.Unit, Target = golem.Unit, Mult = 1f, CanCrit = false,
+                HasHitAngle = true, HitAngleRad = 0f,
+            });
+            Check(back > front, $"傀儡绕背伤害更高(正面 {front} < 背面 {back})");
+            Near(back / (float)front, Bestiary.OakGolemBackstabMult, 0.05f, "绕背倍率 = 2.0");
+
+            var turtle = MakeEnemy(w, new Vector2(1.5f, 0f), 5000f);
+            turtle.Unit.FrontDR = Bestiary.IceTurtleFrontDR;
+            turtle.Unit.FaceRad = 0f;
+            int tFront = DamagePipeline.Deal(new DealOpts
+            {
+                Source = p.Unit, Target = turtle.Unit, Mult = 1f, CanCrit = false,
+                HasHitAngle = true, HitAngleRad = MathF.PI,
+            });
+            int tBack = DamagePipeline.Deal(new DealOpts
+            {
+                Source = p.Unit, Target = turtle.Unit, Mult = 1f, CanCrit = false,
+                HasHitAngle = true, HitAngleRad = 0f,
+            });
+            Check(tFront < tBack, $"冰壳龟正面减伤生效(正面 {tFront} < 背面 {tBack})");
+            Near(tFront / (float)tBack, 1f - Bestiary.IceTurtleFrontDR, 0.06f, "正面伤害 ×0.5");
+        }
+
+        // ---------------- 杂兵 AI ----------------
+
+        private static void TestCreatureAI()
+        {
+            Suite("杂兵 AI(炮台/风筝/滚撞/钻地/精灵)");
+            var ai = new CreatureAI();
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, Vector2.Zero);
+                var vine = MakeEnemy(w, new Vector2(4f, 0f), 500f);
+                vine.Kind = EnemyKind.ThornVine;
+                for (int i = 0; i < 180; i++) ai.Update(w, 1f / 60f);
+                Check(w.Telegraphs.Count > 0, "荆棘藤妖在玩家脚下放地刺预警");
+                Near(vine.Pos.X, 4f, 0.01f, "藤妖不移动(固定炮台)");
+            }
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, Vector2.Zero);
+                var mage = MakeEnemy(w, new Vector2(1.0f, 0f), 500f);
+                mage.Kind = EnemyKind.FrostMage;
+                float d0 = Vector2.Distance(mage.Pos, w.Player.Pos);
+                for (int i = 0; i < 300; i++) ai.Update(w, 1f / 60f);
+                float d1 = Vector2.Distance(mage.Pos, w.Player.Pos);
+                Check(d1 >= d0, $"法师与玩家保持距离({d0:0.00}m → {d1:0.00}m)");
+            }
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, new Vector2(0f, 3f));
+                var puff = MakeEnemy(w, Vector2.Zero, 500f);
+                puff.Kind = EnemyKind.SnowPuff;
+                float maxSpeed = 0f;
+                for (int i = 0; i < 400; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxSpeed = MathF.Max(maxSpeed, puff.Vel.Length());
+                }
+                Check(maxSpeed >= Bestiary.SnowPuffRollSpeedM - 0.01f, $"雪绒球会滚撞(峰值 {maxSpeed:0.0} m/s)");
+            }
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, new Vector2(0f, 4f));
+                var beetle = MakeEnemy(w, Vector2.Zero, 500f);
+                beetle.Kind = EnemyKind.DuneBeetle;
+                bool sawTelegraph = false;
+                float startDist = Vector2.Distance(beetle.Pos, w.Player.Pos);
+                for (int i = 0; i < 900; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    if (w.Telegraphs.Count > 0) sawTelegraph = true;
+                }
+                Check(sawTelegraph, "沙暴甲虫钻出前会预警");
+                Check(Vector2.Distance(beetle.Pos, w.Player.Pos) < startDist, "甲虫地下阶段会接近玩家");
+            }
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, Vector2.Zero);
+                var sprite = MakeEnemy(w, new Vector2(2f, 0f), 20f);
+                sprite.Kind = EnemyKind.StardustSprite;
+                float d0 = Vector2.Distance(sprite.Pos, w.Player.Pos);
+                for (int i = 0; i < 120; i++) ai.Update(w, 1f / 60f);
+                Check(Vector2.Distance(sprite.Pos, w.Player.Pos) > d0, "星尘精灵会逃离玩家");
+                for (int i = 0; i < 700; i++) ai.Update(w, 1f / 60f);
+                Check(sprite.Unit.Dead, "精灵存活到期后自行消失");
+            }
+
+            {
+                // 回归:两个新 Boss 必须由 BossAI 独占驱动,CreatureAI 不能碰
+                var w = new LogicWorld();
+                MakePlayer(w, new Vector2(0f, 6f));
+                var velsha = MakeEnemy(w, new Vector2(4f, 0f), 5000f);
+                velsha.Kind = EnemyKind.BossVelsha;
+                var kazra = MakeEnemy(w, new Vector2(2f, 0f), 5000f);
+                kazra.Kind = EnemyKind.BossKazra;
+                for (int i = 0; i < 60; i++) ai.Update(w, 1f / 60f);
+                Near(velsha.Vel.Length(), 0f, 1e-4f, "薇尔莎不受杂兵 AI 驱动(速度由 BossAI 决定)");
+                Near(kazra.Vel.Length(), 0f, 1e-4f, "卡兹拉不受杂兵 AI 驱动");
+            }
+
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, new Vector2(0f, 5f));
+                var rat = MakeEnemy(w, Vector2.Zero, 100f);
+                rat.Kind = EnemyKind.CinderRat;
+                rat.Unit.StunT = 1.0f;
+                ai.Update(w, 1f / 60f);
+                Near(rat.Vel.Length(), 0f, 0.001f, "眩晕时怪物不移动");
+                rat.Unit.StunT = 0f;
+                ai.Update(w, 1f / 60f);
+                float normal = rat.Vel.Length();
+                rat.Unit.SlowT = 2f;
+                rat.Unit.SlowPct = 0.5f;
+                ai.Update(w, 1f / 60f);
+                Check(rat.Vel.Length() < normal + 0.001f, "减速状态下速度不超过常态");
+            }
+        }
+
+        // ---------------- Boss AI ----------------
+
+        private static void TestBossAI()
+        {
+            Suite("Boss AI(薇尔莎 / 卡兹拉)");
+            var ai = new BossAI();
+            var spawned = new List<EnemyKind>();
+
+            {
+                var w = new LogicWorld();
+                var pTank = MakePlayer(w, new Vector2(0f, 0f));
+                pTank.Unit.HpMax = 100000f;
+                pTank.Unit.Hp = 100000f;   // 靶子:本测试只看 Boss 行为,不让玩家被打死
+                var boss = MakeEnemy(w, new Vector2(4f, 0f), Bestiary.Of(EnemyKind.BossVelsha).Hp);
+                boss.Kind = EnemyKind.BossVelsha;
+                boss.Unit.Atk = Bestiary.Of(EnemyKind.BossVelsha).Atk;
+                ai.SpawnMinion = (k, pos) => spawned.Add(k);
+                var phases = new List<int>();
+                ai.OnPhaseChanged = (a, ph, msg) => phases.Add(ph);
+
+                for (int i = 0; i < 600; i++) { ai.Update(w, 1f / 60f); w.Tick(1f / 60f); }
+                Check(w.Projectiles.Count > 0 || w.Telegraphs.Count > 0, "薇尔莎会丢冰弹环/暴风雪");
+                Check(ai.PhaseOf(boss) == 1, "满血时是 P1");
+
+                boss.Unit.Hp = boss.Unit.HpMax * 0.6f;
+                ai.Update(w, 1f / 60f);
+                Check(ai.PhaseOf(boss) == 2 && phases.Contains(2), "掉到 65% 血进 P2");
+
+                boss.Unit.Hp = boss.Unit.HpMax * 0.25f;
+                for (int i = 0; i < 20; i++) ai.Update(w, 1f / 60f);
+                Check(ai.PhaseOf(boss) == 3 && phases.Contains(3), "掉到 30% 血进 P3(狂怒)");
+
+                bool icezone = false;
+                for (int i = 0; i < 1200; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    w.Tick(1f / 60f);
+                    foreach (var z in w.Zones) if (z.Element == Element.Ice) icezone = true;
+                }
+                Check(spawned.Contains(EnemyKind.SnowPuff), "P2 起召唤雪绒球");
+                Check(icezone, "暴风雪爆点留下冰雾地带");
+            }
+
+            {
+                spawned.Clear();
+                var ai2 = new BossAI();
+                var w2 = new LogicWorld();
+                var pTank2 = MakePlayer(w2, new Vector2(0f, 0f));
+                pTank2.Unit.HpMax = 100000f;
+                pTank2.Unit.Hp = 100000f;
+                var boss2 = MakeEnemy(w2, new Vector2(3f, 0f), Bestiary.Of(EnemyKind.BossKazra).Hp);
+                boss2.Kind = EnemyKind.BossKazra;
+                boss2.Unit.Atk = Bestiary.Of(EnemyKind.BossKazra).Atk;
+                ai2.SpawnMinion = (k, pos) => spawned.Add(k);
+                boss2.Unit.Hp = boss2.Unit.HpMax * 0.5f;
+                ai2.Update(w2, 1f / 60f);
+                Check(ai2.PhaseOf(boss2) == 2, "50% 血时处于 P2");
+
+                bool sawTelegraph = false;
+                for (int i = 0; i < 1500; i++)
+                {
+                    ai2.Update(w2, 1f / 60f);
+                    w2.Tick(1f / 60f);
+                    if (w2.Telegraphs.Count > 0) sawTelegraph = true;
+                }
+                Check(sawTelegraph, "钻地突袭会留下预警(小心脚下)");
+                Check(spawned.Contains(EnemyKind.CinderRat), "会召唤烬鼠群");
+
+                boss2.Unit.Hp = boss2.Unit.HpMax * 0.2f;
+                boss2.Pos = new Vector2(2f, 0f);
+                // P3 熔痕只在"真的在追人"时出现(web: walk 状态 + 速度 > 20px/s),
+                // 所以这里模拟玩家风筝:每帧把玩家拉到 5m 外,让 Boss 一直处于追击移动中
+                bool fireTrail = false;
+                for (int i = 0; i < 400; i++)
+                {
+                    pTank2.Pos = boss2.Pos + new Vector2(5f, 0f);
+                    ai2.Update(w2, 1f / 60f);
+                    w2.Tick(1f / 60f);
+                    foreach (var z in w2.Zones) if (z.Element == Element.Fire) fireTrail = true;
+                }
+                Check(fireTrail, "P3 追击移动时淌下熔痕地带");
+            }
+        }
+
         // ---------------- 房间序列 ----------------
 
         private static void TestRunSequence()
         {
-            Suite("房间序列(9 房:战斗/宝藏/精英/Boss)");
+            Suite("房间序列(8 房:战/战/宝藏/战/精英/战/战/Boss)");
             var w = new LogicWorld();
             MakePlayer(w);
             var run = new RunManagerLite();
@@ -651,16 +968,16 @@ namespace StarfallKnights.Tests
             run.OnVictory = () => { };
 
             bool treasure0 = false, elite0 = false, boss0 = false;
-            for (int d = 0; d < 9; d++)
+            for (int d = 0; d < 8; d++)
             {
                 Check(run.NextRoom(w), $"第 {d + 1} 房间可进入");
                 if (run.Room == RoomKind.Treasure) treasure0 = true;
                 if (run.Room == RoomKind.Elite) elite0 = true;
                 if (run.Room == RoomKind.Boss) boss0 = true;
             }
-            Check(!run.NextRoom(w), "第 10 次请求返回 false(序列结束)");
+            Check(!run.NextRoom(w), "第 9 次请求返回 false(序列结束)");
             Check(treasure0 && elite0 && boss0, "序列包含 宝藏/精英/Boss 房");
-            Check(spawned.Contains(EnemyKind.BossNanmir), "Boss 房会生成腐木巨像·南弥尔");
+            Check(spawned.Contains(EnemyKind.BossNanmir), "一章 Boss 房生成腐木巨像·南弥尔");
             Check(spawned.Count > 20, $"战斗房按预算出怪(本次共 {spawned.Count} 只)");
 
             // 清房逻辑:敌人清空 → Cleared, Boss 房触发 OnVictory
@@ -671,7 +988,7 @@ namespace StarfallKnights.Tests
             run2.OnVictory = () => won2 = true;
             var kinds2 = new List<EnemyKind>();
             run2.OnSpawn = (k, hp, atk, spd) => kinds2.Add(k);
-            for (int d = 0; d < 9; d++) run2.NextRoom(w2);
+            for (int d = 0; d < 8; d++) run2.NextRoom(w2);
             Check(kinds2.Count > 0, "清房链路上确实生成过敌人");
             w2.Enemies.Clear();
             run2.Tick(w2);

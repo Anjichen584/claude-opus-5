@@ -24,6 +24,9 @@ namespace StarfallKnights.UnityLayer
         private SysV2 _dashDir = new(1, 0);
         private float _dashSpeed;
 
+        /// <summary>当前是否处于无敌(翻滚/技能无敌帧)——逻辑层读它判定敌人伤害。</summary>
+        public bool Invulnerable => _iframes > 0f || _dashT > 0f;
+
         private static readonly float[] ComboMults = { 1.0f, 1.0f, 1.6f };
         private static readonly float[] ComboTimes = { 0.32f, 0.32f, 0.45f };
 
@@ -111,10 +114,14 @@ namespace StarfallKnights.UnityLayer
                 foreach (var e in new System.Collections.Generic.List<Actor>(
                     w.EnemiesInCone(Actor.Pos, Actor.Face, 2.0f, 110f * Mathf.Deg2Rad)))
                 {
+                    // 命中方向 = 从出手点指向目标(镜像 web hitAngle):带它才能算绕背/正面减伤
+                    var to = e.Pos - Actor.Pos;
                     DamagePipeline.Deal(new DealOpts
                     {
                         Source = Actor.Unit, Target = e.Unit,
                         Mult = ComboMults[_combo - 1], CanCrit = true,
+                        HasHitAngle = to.LengthSquared() > 0.0001f,
+                        HitAngleRad = to.LengthSquared() > 0.0001f ? Mathf.Atan2(to.Y, to.X) : 0f,
                     });
                     Skills.Rage = Mathf.Min(100, Skills.Rage + 4);
                 }

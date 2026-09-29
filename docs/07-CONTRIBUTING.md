@@ -107,9 +107,17 @@ sudo ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
 > 别用 apt 里的 `mono-*`:最高只支持 C# 7.2,而本工程用了 C# 9 的目标类型 `new()`;
 > apt 也没有 `dotnet-sdk-8.0` 包。
 
-**改数值的规矩**:web 的 `data/*.json` 是唯一权威。只改 JSON 会让
-`ParityTests` 直接红(它会把两边逐键比对);改 C# 侧的 const 时,
-`Skills/*.cs` 里的 `Parity` 字典也要同步,否则同样报"多出/缺失的键"。
+**改数值的规矩**:web 的 `data/*.json` 是唯一权威。
+
+- 敌人/章节数值(图鉴)是**生成**的:`python3 tools/gen_bestiary.py` → `unity/Assets/Scripts/Data/Bestiary.cs`,
+  改完 balance.json 只要重跑脚本;手改生成物会被 parity 测试抓出来。
+- 技能/符文数值目前是手写镜像:`Skills/*.cs` 的 const + 同文件里的 `Parity` 字典一起改,
+  两边不一致会报"数值不一致 / 多出 / 缺失"。
+- 别直接改 C# 而不动 JSON:测试会红(CI 也跑同一套)。
+
+**加一只怪要动几处**:① `balance.json enemies` 加行 ② `EnemyKind` 加枚举 + `EnemyKinds.ChapterOf` 认章节
+③ `Bestiary`(跑生成脚本) ④ `CreatureAI` 或 `BossAI` 加行为 ⑤ `GameBootstrap.ColorOf` 加个占位色
+⑥ `unity/Tests/Program.cs` 补行为断言。
 
 ### 已知的三次"环境小坑"(别浪费时间排查)
 

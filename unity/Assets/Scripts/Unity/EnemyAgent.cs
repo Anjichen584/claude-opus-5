@@ -4,22 +4,23 @@ using SysV2 = System.Numerics.Vector2;
 
 namespace StarfallKnights.UnityLayer
 {
-    /// <summary>敌人视图+基础追击 AI(逻辑驱动):追玩家/接触伤害/受击闪白/眩晕减速生效。</summary>
+    /// <summary>
+    /// 敌人视图(纯表现):位置同步 + 受击闪白 + 眩晕发暗。
+    /// AI 全在逻辑层(Dungeon/CreatureAI、BossAI),本类不再自己走位——
+    /// 这样"怪怎么打"能被 dotnet 测试覆盖,Unity 只负责把它画出来。
+    /// </summary>
     public sealed class EnemyAgent : MonoBehaviour
     {
         public Actor Actor { get; private set; }
 
-        private float _speed;
-        private float _contactCd;
         private float _lastHp;
         private float _flash;
         private Renderer _rd;
         private Color _baseColor;
 
-        public void Bind(Actor actor, float speedMps)
+        public void Bind(Actor actor)
         {
             Actor = actor;
-            _speed = speedMps;
             _lastHp = actor.Unit.Hp;
             _rd = GetComponent<Renderer>();
             _baseColor = _rd.material.color;
@@ -30,44 +31,24 @@ namespace StarfallKnights.UnityLayer
         {
             if (Actor == null) return;
             float dt = Time.deltaTime;
-            _contactCd -= dt;
 
-            // 受击闪白(血量下降侦测)
             if (Actor.Unit.Hp < _lastHp) _flash = 0.09f;
             _lastHp = Actor.Unit.Hp;
+
             if (_flash > 0)
             {
                 _flash -= dt;
                 _rd.material.color = Color.Lerp(_baseColor, Color.white, Mathf.Clamp01(_flash * 11f));
             }
-
-            var boot = GameBootstrap.I;
-            var player = boot.Player;
-            if (player == null) return;
-            var u = Actor.Unit;
-            if (u.StunT > 0) { Sync(); return; }
-
-            if (_speed > 0)
+            else if (Actor.Unit.StunT > 0)
             {
-                var to = player.Actor.Pos - Actor.Pos;
-                float d = to.Length();
-                if (d > 0.01f)
-                {
-                    float slow = u.SlowT > 0 ? 1f - u.SlowPct : 1f;
-                    Actor.Pos += to / d * _speed * slow * dt;
-                    Actor.Face = Mathf.Atan2(to.Y, to.X);
-                }
-                if (d < 0.85f && _contactCd <= 0)
-                {
-                    _contactCd = 0.8f;
-                    player.Hurt(u.Atk);
-                }
+                _rd.material.color = Color.Lerp(_baseColor, Color.black, 0.45f);
             }
-            Sync();
-        }
+            else
+            {
+                _rd.material.color = _baseColor;
+            }
 
-        private void Sync()
-        {
             transform.position = GameBootstrap.ToUnity(Actor.Pos);
         }
     }

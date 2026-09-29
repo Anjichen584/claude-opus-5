@@ -15,10 +15,14 @@ namespace StarfallKnights.Core
         public readonly List<Actor> Enemies = new();
         public readonly List<Zone> Zones = new();
         public readonly List<Projectile> Projectiles = new();
+        public readonly List<Combat.Telegraph> Telegraphs = new();
         public readonly GameClock Clock = new();
 
         /// <summary>敌人死亡回调(掉落/特效由宿主接)。</summary>
         public Action<Actor> OnEnemyDied;
+
+        /// <summary>玩家当前是否无敌(翻滚/闪现无敌帧)——宿主每帧写入,敌人伤害与地带都尊重它。</summary>
+        public bool PlayerInvulnerable;
 
         public void Tick(float dt)
         {
@@ -35,6 +39,7 @@ namespace StarfallKnights.Core
                 }
             }
             ProjectileSystem.Tick(this, dt);
+            TelegraphSystem.Tick(this, dt);
             ZoneSystem.Tick(this, dt);
         }
 

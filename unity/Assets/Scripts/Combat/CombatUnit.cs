@@ -15,6 +15,12 @@ namespace StarfallKnights.Combat
         public float CritRate;
         public float CritDmg = 1.5f;
         public bool IsPlayerTeam;
+        /// <summary>朝向(弧度,镜像 web Transform.face;傀儡绕背/冰龟正面减伤要读它)。</summary>
+        public float FaceRad;
+        /// <summary>背部弱点倍率(&gt;1 生效,橡木傀儡 = 2.0)。</summary>
+        public float BackstabMult;
+        /// <summary>正面减伤(0~1,冰壳龟 = 0.5:从正面打只吃一半)。</summary>
+        public float FrontDR;
 
         /// <summary>元素印记 → 剩余秒数。</summary>
         public readonly Dictionary<Element, float> Marks = new();

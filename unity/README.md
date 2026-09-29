@@ -25,20 +25,26 @@
 | `Skills/WardenSkills.cs` | `SkillSystem.ts`(守卫路径) | Q岩震击(眩晕)/E壁垒冲锋(击退)/R大地怒吼(全周击退+减速) |
 | `Skills/ClassSkillSet.cs` | `SkillSystem.ts(klass 分派)` | 四职业分派适配层:怒气/CDR/冷却/符文位统一代理,切职业只改一个枚举 |
 | `Skills/RunePool.cs` | `data/runes/pool.json(全 36 枚)` | 符文定义镜像(id/技能/名称/元素/地带四参数) |
-| `Dungeon/RunManagerLite.cs` | `game/dungeon/RunManager.ts(一章)` | 9 房序列/精英房/加权预算出怪池/夜间缩放,OnSpawn/OnRoomCleared/OnVictory 回调 |
+| `Dungeon/RunManagerLite.cs` | `game/dungeon/RunManager.ts` | 8 房序列(战战宝藏战精英战战Boss)/三章出怪池与精英编成/章节 Boss/夜间与章节缩放,OnSpawn/OnRoomCleared/OnVictory 回调 |
 | `Meta/MetaSave.cs` | `game/meta/Save.ts` | 局外存档 POCO(JsonUtility 兼容)+ 祭坛升价公式 |
 | `Loot/Items.cs` | `game/loot/Items.ts` | 稀有度权重+幸运+保底(200 次必橙)、词条工厂 |
 | `Data/Balance.cs` | `data/balance.json`(节选) | 核心常量镜像 + `PxPerM`(=web 的 M=48)⚠ 双端修改需同步 |
+| `Data/Bestiary.cs` | `data/balance.json`(全量) | **自动生成**:21 种敌人属性行 + 三章配置 + 304 个行为参数常量(`python3 tools/gen_bestiary.py`) |
+| `Combat/Telegraphs.cs` | `TelegraphStrike` / Boss 预警 | 预警区域:亮圈 → 到点结算 → 可残留元素地带 |
+| `Dungeon/CreatureAI.cs` | `EnemySystem/CritterSystem/EliteSystem/TundraSystem/DesertSystem` | 18 种杂兵 AI:炮台/风筝/滚撞/旋壳/俯冲/钻地/抛毒沼/瞬跳/精灵逃跑 |
+| `Dungeon/BossAI.cs` | `VelshaSystem/KazraSystem` | 双 Boss:三阶段血线、P3 提速、冰弹环/暴风雪/召唤、钻地突袭/熔痕 |
 
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 159 项断言:随机数/元素反应/伤害管线/地带/弹幕/四职业技能/掉落/时钟/存档/房间序列/双端 parity
+bash unity/Tests/run.sh      # 208 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。
-- `unity/Tests/ParityTests.cs` 会**直接读 `web/src/data/skills/*.json` 与 `runes/pool.json`**,
-  与 C# 镜像逐键比对(本次 88 个技能数值键 + 36 枚符文五字段),任一边改了数值而另一边没跟上都会红。
+- `unity/Tests/ParityTests.cs` 会**直接读 web 的数据文件**,与 C# 镜像逐键比对:
+  88 个技能数值键 + 36 枚符文五字段 + **304 个图鉴数值键**(敌人/章节/Boss),任一边改了数值而另一边没跟上都会红。
+- 图鉴是**生成的**:改 `balance.json` 后跑 `python3 tools/gen_bestiary.py` 再提交;
+  手改 `Data/Bestiary.cs` 会被 parity 测试抓出来。
 - CI(`.github/workflows/deploy.yml` 的 `logic-test` job)会跑同一套测试;本地缺 dotnet 时脚本会打印安装命令。
 
 ## 设计约定
@@ -66,12 +72,14 @@ bash unity/Tests/run.sh      # 159 项断言:随机数/元素反应/伤害管线
 
 ## 尚未镜像(Web 端已有)
 
-- 第二三章(冰原/荒漠)出怪表与 Boss 薇尔莎/卡兹拉行为
-- 商店/秘境/图纸/星灯交互、装备穿戴 recompute
+- 一章 Boss 南弥尔(腐木巨像)的四套招式:扫击/根须线/尖刺网格/环形风暴 —— 目前它只有"追击+接触"
+- 商店/秘境(事件房)/图纸/星灯交互、装备穿戴与词条 recompute
 - 存档落盘(MetaSave 已备好,宿主接 PlayerPrefs 两行即可)
 - 普攻各职业差异(猎手连射弓/秘术师法杖/守卫重锤连击):参数在 `balance.json classes.*`,目前宿主仍用剑士三段连击
+- 每日挑战词条(RunMods)对局内数值的乘区
 
-> 已知数据死字段:`blade_q_cleave.pullM`(1.5m 拉拽)在 web 与 C# 两边都还没有消费,仅作数据保留。
+> 已知数据死字段(web 与 C# 两边都未消费,仅作数据保留):
+> `blade_q_cleave.pullM`(拉拽 1.5m)、`shroomling.spore`(孢子云)、`frostslime.split`(分裂)。
 
 ## 快速开始(Unity 2022.3 LTS+)
 
@@ -98,3 +106,8 @@ bash unity/Tests/run.sh      # 159 项断言:随机数/元素反应/伤害管线
    守卫 E 在落点**前方 0.8m**;秘术师 R 的领域时长随怒气 ×(1+0.5×ratio)。
 4. **箭雨落点**是准星方向(限程 rangeM)周围按 `sqrt(rand)*radiusM` 的**均匀圆盘**,不是线性半径。
 5. `M = 48 px/m`:web 里直接用像素写的常量(如落点抖动 30px)在 C# 里换算成米。
+6. **Boss 不吃房间深度**:web 里 `scaleHp(cfg.hp, 0, night)` 用的是 depth **0**,只有杂兵才乘房间深度。
+7. **方向性弱点**要传命中角(`DealOpts.HasHitAngle`):傀儡从背后打 ×2、冰龟从正面打 ×0.5,
+   角度定义同 web = `atan2(目标 - 落点)`。
+8. **杂兵与 Boss 的驱动权要分开**:`CreatureAI` 必须显式跳过薇尔莎/卡兹拉,否则两套 AI 会抢速度
+   (这条是写测试时才发现的真 bug)。

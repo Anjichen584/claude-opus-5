@@ -83,11 +83,25 @@ namespace StarfallKnights.Skills
         protected static float FanOffset(int i, int count, float spreadRad)
             => (i - (count - 1) / 2f) * spreadRad;
 
-        protected static void HitOne(CombatUnit source, Actor target, float mult, Element? element)
+        protected static void HitOne(CombatUnit source, Actor target, float mult, Element? element,
+            Vector2? impactFrom = null)
         {
+            // 命中方向(镜像 web hitAngle = atan2(目标-落点)):傀儡绕背/冰龟正面减伤都读它
+            bool hasAngle = false;
+            float angle = 0f;
+            if (impactFrom.HasValue)
+            {
+                var to = target.Pos - impactFrom.Value;
+                if (to.LengthSquared() > 0.0001f)
+                {
+                    hasAngle = true;
+                    angle = MathF.Atan2(to.Y, to.X);
+                }
+            }
             DamagePipeline.Deal(new DealOpts
             {
                 Source = source, Target = target.Unit, Mult = mult, Element = element, CanCrit = true,
+                HasHitAngle = hasAngle, HitAngleRad = angle,
             });
         }
 
@@ -98,14 +112,14 @@ namespace StarfallKnights.Skills
             foreach (var e in new List<Actor>(w.EnemiesWithin(at, radiusM)))
             {
                 if (withinFrom.HasValue && Vector2.Distance(e.Pos, withinFrom.Value) > withinR) continue;
-                HitOne(w.Player.Unit, e, mult, element);
+                HitOne(w.Player.Unit, e, mult, element, at);
             }
         }
 
         protected static void HitCone(LogicWorld w, Vector2 origin, float faceRad, float rangeM, float arcDeg, float mult, Element? element)
         {
             foreach (var e in new List<Actor>(w.EnemiesInCone(origin, faceRad, rangeM, arcDeg * MathF.PI / 180f)))
-                HitOne(w.Player.Unit, e, mult, element);
+                HitOne(w.Player.Unit, e, mult, element, origin);
         }
 
         /// <summary>按符文参数在指定位置落地元素地带(GroundZone = [radiusM, lifeS, tickS, mult])。</summary>

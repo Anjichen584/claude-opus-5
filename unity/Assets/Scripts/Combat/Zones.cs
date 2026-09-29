@@ -43,9 +43,11 @@ namespace StarfallKnights.Combat
                             });
                         }
                     }
-                    else if (w.Player != null && Vector2.Distance(w.Player.Pos, z.Pos) <= z.RadiusM)
+                    else if (w.Player != null && Vector2.Distance(w.Player.Pos, z.Pos) <= z.RadiusM
+                             && !w.PlayerInvulnerable)
                     {
-                        w.Player.Unit.Hp -= z.Atk * z.Mult; // 玩家侧简化(无敌帧由宿主控制)
+                        // 镜像 web:走受伤入口,尊重翻滚/闪现的无敌帧
+                        w.Player.Unit.Hp -= z.Atk * z.Mult;
                     }
                 }
                 if (z.LifeS <= 0) w.Zones.RemoveAt(i);

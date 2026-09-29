@@ -14,6 +14,9 @@ namespace StarfallKnights.Combat
         public float AtkOverride;   // <=0 表示用 Source.Atk
         public bool CanCrit;
         public int ChainDepth;
+        /// <summary>命中方向(弧度):配合目标的 BackstabMult/FrontDR 做方向性弱点判定。</summary>
+        public bool HasHitAngle;
+        public float HitAngleRad;
     }
 
     /// <summary>反应回调载荷(渲染/连锁传播由宿主接收处理)。</summary>
@@ -72,7 +75,19 @@ namespace StarfallKnights.Combat
             float defRed = Formulas.DefenseReduction(o.Target.Def);
             float vuln = o.Target.VulnT > 0 ? o.Target.VulnPct : 0f;
             float chainMul = (float)Math.Pow(Balance.ChainDecay, o.ChainDepth);
-            int amount = Formulas.FinalDamage(atk, o.Mult * elemBonus * chainMul, crit,
+
+            // 方向性弱点(镜像 web DamagePipeline):
+            // · 橡木傀儡:从背后命中 cos(hitAngle-face) > 0.35 → ×2(教学绕后)
+            // · 冰壳龟:从正面命中 cos(hitAngle-face) < -0.35 → ×(1-frontDR)
+            float dirMul = 1f;
+            if (o.HasHitAngle && (o.Target.BackstabMult > 1f || o.Target.FrontDR > 0f))
+            {
+                float align = MathF.Cos(o.HitAngleRad - o.Target.FaceRad);
+                if (o.Target.BackstabMult > 1f && align > 0.35f) dirMul *= o.Target.BackstabMult;
+                if (o.Target.FrontDR > 0f && align < -0.35f) dirMul *= 1f - o.Target.FrontDR;
+            }
+
+            int amount = Formulas.FinalDamage(atk, o.Mult * elemBonus * chainMul * dirMul, crit,
                 o.Source?.CritDmg ?? 1f, defRed, vuln);
 
             o.Target.Hp -= amount;
