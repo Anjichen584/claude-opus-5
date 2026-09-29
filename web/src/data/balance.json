@@ -885,6 +885,22 @@
       "rare": 0.6,
       "epic": 0.3,
       "legendary": 0.1
+    },
+    "$doc": "商店(10-FULL-PLAN 轮 22 深化):货单随机化(每件商品 ±jitter 定价)、特惠摊位(deal*)、符文货架(shelfRunes 个槽)、议价(haggle 段)。货单规则见 loot/ShopStock.ts,议价规则见同文件的 haggleOutcome(纯函数,两端镜像)。",
+    "shelfRunes": 2,
+    "consStands": 2,
+    "priceJitter": 0.12,
+    "dealChance": 0.4,
+    "dealOff": 0.3,
+    "haggle": {
+      "$doc": "议价:每店仅一次。幸运只提高\"至少小成功\"的概率,**不**提高大成功概率(bigChance 固定)—— 否则幸运会变成\"议价必大成功\",把商人的博弈变成无脑按钮。",
+      "bigChance": 0.15,
+      "successChance": 0.5,
+      "luckPerPoint": 0.02,
+      "luckMax": 0.25,
+      "bigOff": 0.35,
+      "off": 0.15,
+      "markup": 0.2
     }
   },
   "classes": {
@@ -986,7 +1002,23 @@
     "blessingAtk": 0.1,
     "blessingSpeed": 0.1,
     "fountainMin": 80,
-    "fountainMax": 150
+    "fountainMax": 150,
+    "$doc": "秘境房(轮 22:3 座 → 从 6 座池子里抽 totemPick 座,不再每次都是同样三块碑)。totems 是 id 清单:web 的 RunManager 与 Unity 的 EventRules 都读它,id → 处理的映射两边都要有(ParityTests.CheckShop 逐 id 比对,漏一个立刻红)。",
+    "totemPick": 3,
+    "totems": [
+      "blood",
+      "blessing",
+      "fountain",
+      "gamble",
+      "sacrifice",
+      "relic"
+    ],
+    "gambleCost": 60,
+    "gambleMult": 3,
+    "gambleWinChance": 0.4,
+    "sacrificeHpFrac": 0.3,
+    "sacrificeCons": 3,
+    "relicDustFallback": 60
   },
   "blueprint": {
     "$doc": "图纸与铸台(10-FULL-PLAN 轮 20):Boss 掉碎片 + 概率掉整张图纸 → 铸台学会 → 铸造指定橙装(下局开局携带);局内背包右键重铸词条。",

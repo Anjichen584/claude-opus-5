@@ -6,6 +6,8 @@ import {
   Health, Inventory, KillEvent, Pickup, Player, ShopStand, Stats, Transform, Velocity,
 } from '@game/components';
 import { LootSystem } from '@game/loot/LootSystem';
+import { Merchant } from '@game/components';
+import { haggleOutcome } from '@game/loot/ShopStock';
 import { ShopSystem } from '@game/systems/ShopSystem';
 import { meta } from '@game/meta/Save';
 import { BLUEPRINTS } from '@game/loot/Blueprint';
@@ -154,5 +156,101 @@ describe('蓝图:整张图纸能从 Boss 身上掉出来', () => {
       meta.data.blueprintShards = saved.shards;
       meta.data.blueprints = saved.bps;
     }
+  });
+});
+
+describe('议价(轮 22):商人真的能改价签', () => {
+  const shopWith = (prices: number[]) => {
+    const { w, pe, p } = makeWorld();
+    p.stardust = 5000;
+    const stands = prices.map((price, i) => {
+      const e = w.create();
+      w.add(e, new Transform(0, 0));
+      w.add(e, new ShopStand('item', price, null, null, null, price));
+      void i;
+      return e;
+    });
+    const merc = w.create();
+    w.add(merc, new Transform(0, 0));
+    w.add(merc, new Merchant());
+    const input = new FakeInput();
+    return { w, pe, p, stands, merc, shop: new ShopSystem(input as unknown as Input), input };
+  };
+
+  it('议价改的是**最贵那件**的价签,其余货位不动', () => {
+    const { w, stands, shop, input } = shopWith([50, 400, 120]);
+    input.press('KeyF');
+    shop.update(w, 1 / 60);
+    const prices = stands.map((e) => w.mustGet(e, ShopStand).price);
+    expect(prices[1], '最贵那件没被议价').not.toBe(400);
+    expect(prices[0]).toBe(50);
+    expect(prices[2]).toBe(120);
+    expect(w.mustGet(stands[1], ShopStand).haggled).toBe(1);
+  });
+
+  it('议价结果三档都会出现,且都写进了价签(不会出现"按了没反应")', () => {
+    // 每局重播种:不同种子应当给出不同结果 —— 固定种子会让玩家发现"每局第一家店都一样"
+    const bySeed = new Map<string, number>();
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 60; seed++) {
+      const { w, stands, shop, input } = shopWith([500]);
+      shop.reseed(seed * 7919);
+      shop.update(w, 1 / 60);
+      input.press('KeyF');
+      shop.update(w, 1 / 60);
+      const st = w.mustGet(stands[0], ShopStand);
+      expect(st.haggled).toBe(1);
+      expect(st.price, '议价必须改变价签(涨或降都行)').not.toBe(500);
+      seen.add(String(st.price));
+      bySeed.set(String(st.price), (bySeed.get(String(st.price)) ?? 0) + 1);
+    }
+    expect(seen.size, '60 个种子里议价只出一种结果,随机是不是没接').toBeGreaterThan(1);
+  });
+
+  it('同种子重放结果一致(玩家反馈里说"那次议价",能对着种子复现)', () => {
+    const run = (seed: number): number => {
+      const { w, stands, shop, input } = shopWith([333]);
+      shop.reseed(seed);
+      shop.update(w, 1 / 60);
+      input.press('KeyF');
+      shop.update(w, 1 / 60);
+      return w.mustGet(stands[0], ShopStand).price;
+    };
+    expect(run(1234)).toBe(run(1234));
+  });
+
+  it('一家店只能议一次(第二次不动价签,只发提示)', () => {
+    const { w, stands, shop, input } = shopWith([200]);
+    input.press('KeyF'); shop.update(w, 1 / 60);
+    const after1 = w.mustGet(stands[0], ShopStand).price;
+    input.press('KeyF'); shop.update(w, 1 / 60);
+    expect(w.mustGet(stands[0], ShopStand).price).toBe(after1);
+    expect(w.mustGet(stands[0], ShopStand).haggled).toBe(1);
+  });
+
+  it('已经售出的货位不会被议价(议完了才发现买不起,是纯浪费)', () => {
+    const { w, stands, shop, input } = shopWith([300, 90]);
+    w.mustGet(stands[0], ShopStand).sold = true;
+    input.press('KeyF');
+    shop.update(w, 1 / 60);
+    expect(w.mustGet(stands[1], ShopStand).price).not.toBe(90);
+    expect(w.mustGet(stands[0], ShopStand).haggled).toBe(0);
+  });
+
+  it('货架空了时议价不会崩(只发一句提示)', () => {
+    const { w, stands, shop, input } = shopWith([300]);
+    w.mustGet(stands[0], ShopStand).sold = true;
+    expect(() => { input.press('KeyF'); shop.update(w, 1 / 60); }).not.toThrow();
+    expect(w.mustGet(stands[0], ShopStand).haggled).toBe(0);
+  });
+
+  it('商人比摊位优先(站在商人跟前按 F 是议价,不是买最贵的装备)', () => {
+    const { w, p, stands, shop, input } = shopWith([100]);
+    input.press('KeyF');
+    shop.update(w, 1 / 60);
+    // 无论议价成败,装备都还在(没被买走)
+    expect(w.mustGet(stands[0], ShopStand).sold).toBe(false);
+    expect(p.consumables).toEqual([]);
+    void haggleOutcome;
   });
 });

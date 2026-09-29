@@ -976,6 +976,70 @@ namespace StarfallKnights.Data
         public const float BlueprintReforgeRerollMax = 3f;
         /// <summary>blueprint.dropChance</summary>
         public const float BlueprintDropChance = 0.35f;
+        /// <summary>shop.prices.rare</summary>
+        public const float ShopPricesRare = 60f;
+        /// <summary>shop.prices.epic</summary>
+        public const float ShopPricesEpic = 140f;
+        /// <summary>shop.prices.legendary</summary>
+        public const float ShopPricesLegendary = 320f;
+        /// <summary>shop.potionPrice</summary>
+        public const float ShopPotionPrice = 40f;
+        /// <summary>shop.runePrice</summary>
+        public const float ShopRunePrice = 90f;
+        /// <summary>shop.thirdStandWeights.rare</summary>
+        public const float ShopThirdStandWeightsRare = 0.6f;
+        /// <summary>shop.thirdStandWeights.epic</summary>
+        public const float ShopThirdStandWeightsEpic = 0.3f;
+        /// <summary>shop.thirdStandWeights.legendary</summary>
+        public const float ShopThirdStandWeightsLegendary = 0.1f;
+        /// <summary>shop.shelfRunes</summary>
+        public const float ShopShelfRunes = 2f;
+        /// <summary>shop.consStands</summary>
+        public const float ShopConsStands = 2f;
+        /// <summary>shop.priceJitter</summary>
+        public const float ShopPriceJitter = 0.12f;
+        /// <summary>shop.dealChance</summary>
+        public const float ShopDealChance = 0.4f;
+        /// <summary>shop.dealOff</summary>
+        public const float ShopDealOff = 0.3f;
+        /// <summary>shop.haggle.bigChance</summary>
+        public const float ShopHaggleBigChance = 0.15f;
+        /// <summary>shop.haggle.successChance</summary>
+        public const float ShopHaggleSuccessChance = 0.5f;
+        /// <summary>shop.haggle.luckPerPoint</summary>
+        public const float ShopHaggleLuckPerPoint = 0.02f;
+        /// <summary>shop.haggle.luckMax</summary>
+        public const float ShopHaggleLuckMax = 0.25f;
+        /// <summary>shop.haggle.bigOff</summary>
+        public const float ShopHaggleBigOff = 0.35f;
+        /// <summary>shop.haggle.off</summary>
+        public const float ShopHaggleOff = 0.15f;
+        /// <summary>shop.haggle.markup</summary>
+        public const float ShopHaggleMarkup = 0.2f;
+        /// <summary>events.bloodHpMult</summary>
+        public const float EventBloodHpMult = 0.75f;
+        /// <summary>events.blessingAtk</summary>
+        public const float EventBlessingAtk = 0.1f;
+        /// <summary>events.blessingSpeed</summary>
+        public const float EventBlessingSpeed = 0.1f;
+        /// <summary>events.fountainMin</summary>
+        public const float EventFountainMin = 80f;
+        /// <summary>events.fountainMax</summary>
+        public const float EventFountainMax = 150f;
+        /// <summary>events.totemPick</summary>
+        public const float EventTotemPick = 3f;
+        /// <summary>events.gambleCost</summary>
+        public const float EventGambleCost = 60f;
+        /// <summary>events.gambleMult</summary>
+        public const float EventGambleMult = 3f;
+        /// <summary>events.gambleWinChance</summary>
+        public const float EventGambleWinChance = 0.4f;
+        /// <summary>events.sacrificeHpFrac</summary>
+        public const float EventSacrificeHpFrac = 0.3f;
+        /// <summary>events.sacrificeCons</summary>
+        public const float EventSacrificeCons = 3f;
+        /// <summary>events.relicDustFallback</summary>
+        public const float EventRelicDustFallback = 60f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1430,6 +1494,38 @@ namespace StarfallKnights.Data
             { "blueprint.reforgeCost", BlueprintReforgeCost },
             { "blueprint.reforgeRerollMax", BlueprintReforgeRerollMax },
             { "blueprint.dropChance", BlueprintDropChance },
+            { "shop.prices.rare", ShopPricesRare },
+            { "shop.prices.epic", ShopPricesEpic },
+            { "shop.prices.legendary", ShopPricesLegendary },
+            { "shop.potionPrice", ShopPotionPrice },
+            { "shop.runePrice", ShopRunePrice },
+            { "shop.thirdStandWeights.rare", ShopThirdStandWeightsRare },
+            { "shop.thirdStandWeights.epic", ShopThirdStandWeightsEpic },
+            { "shop.thirdStandWeights.legendary", ShopThirdStandWeightsLegendary },
+            { "shop.shelfRunes", ShopShelfRunes },
+            { "shop.consStands", ShopConsStands },
+            { "shop.priceJitter", ShopPriceJitter },
+            { "shop.dealChance", ShopDealChance },
+            { "shop.dealOff", ShopDealOff },
+            { "shop.haggle.bigChance", ShopHaggleBigChance },
+            { "shop.haggle.successChance", ShopHaggleSuccessChance },
+            { "shop.haggle.luckPerPoint", ShopHaggleLuckPerPoint },
+            { "shop.haggle.luckMax", ShopHaggleLuckMax },
+            { "shop.haggle.bigOff", ShopHaggleBigOff },
+            { "shop.haggle.off", ShopHaggleOff },
+            { "shop.haggle.markup", ShopHaggleMarkup },
+            { "events.bloodHpMult", EventBloodHpMult },
+            { "events.blessingAtk", EventBlessingAtk },
+            { "events.blessingSpeed", EventBlessingSpeed },
+            { "events.fountainMin", EventFountainMin },
+            { "events.fountainMax", EventFountainMax },
+            { "events.totemPick", EventTotemPick },
+            { "events.gambleCost", EventGambleCost },
+            { "events.gambleMult", EventGambleMult },
+            { "events.gambleWinChance", EventGambleWinChance },
+            { "events.sacrificeHpFrac", EventSacrificeHpFrac },
+            { "events.sacrificeCons", EventSacrificeCons },
+            { "events.relicDustFallback", EventRelicDustFallback },
         };
     }
 

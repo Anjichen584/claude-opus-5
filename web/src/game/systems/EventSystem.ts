@@ -5,6 +5,11 @@ import { M, RARITY_COLORS, UI } from '@game/constants';
 import {
   EventTotem, Health, Inventory, Pickup, Player, SfxEvent, ToastEvent, Transform, Velocity,
 } from '@game/components';
+import { CONSUMABLE_IDS, CONS_VISUAL, consumableDef } from '@game/loot/Consumables';
+import {
+  totemBlocker, totemBlockerText, totemName, resolveTotem, type TotemKind,
+} from '@game/loot/EventRules';
+import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { recompute } from '@game/loot/Equip';
 import type { ItemFactory } from '@game/loot/Items';
 import { Rng } from '@engine/core/Rng';
@@ -13,9 +18,9 @@ import { bindOf } from '@game/meta/Bindings';
 const EV = balance.events;
 
 /**
- * 秘境房三选一图腾:
- * 血之契约(-25%生命上限 → 紫装)/ 星辰祝福(+10%攻速移速,本局)/ 星尘涌泉(+80~150✦)。
- * 选择其一后全部石化。走近按 F。
+ * 秘境房三选一图腾(轮 22 深化):碑池 6 座,每次抽 3 座(见 loot/EventRules.ts 的表)。
+ * 结算走纯函数 `resolveTotem`,所以"该给什么"不写在这里 —— 这里只负责**落到世界**(改组件/掉东西/发提示)。
+ * 选择其一后全部石化;不能选的碑(星尘不足/会把自己祭死)会明确说出原因。
  */
 export class EventSystem implements System {
   nearbyTotem: Entity | null = null;
@@ -25,6 +30,21 @@ export class EventSystem implements System {
     private readonly input: Input,
     private readonly factory: ItemFactory,
   ) {}
+
+  /** 本职业还没拿到的符文里随机一枚(集齐返回 null → 残骸折星尘) */
+  private pickUnusedRune(world: World, pe: Entity): string | null {
+    const p = world.mustGet(pe, Player);
+    const prefix = `${p.klass}_`;
+    const bag = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix) && !p.runeBag.includes(r.id));
+    if (bag.length === 0) return null;
+    return this.rng.pick(bag).id;
+  }
+
+  private runesLeft(world: World, pe: Entity): number {
+    const p = world.mustGet(pe, Player);
+    const prefix = `${p.klass}_`;
+    return [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix) && !p.runeBag.includes(r.id)).length;
+  }
 
   update(world: World, dt: number): void {
     this.nearbyTotem = null;
@@ -50,9 +70,23 @@ export class EventSystem implements System {
 
     const totem = world.mustGet(best, EventTotem);
     const tr = world.mustGet(best, Transform);
-    switch (totem.kind) {
+    const kind = totem.kind as TotemKind;
+
+    // 先问"能不能选"(纯函数):不能选就说清原因,而且**不封印**别的碑(玩家可以改选)
+    const blocker = totemBlocker(kind, { hp: hp.hp, stardust: p.stardust, runesLeft: this.runesLeft(world, pe) });
+    if (blocker !== null) {
+      world.emit(new ToastEvent(`${totemName(kind)}:${totemBlockerText(blocker)}`, UI.dim));
+      return;
+    }
+
+    const res = resolveTotem(kind, this.rng, { hp: hp.hp, stardust: p.stardust, runesLeft: 0 }, {
+      runeId: this.pickUnusedRune(world, pe),
+      consPool: CONSUMABLE_IDS,
+    });
+
+    switch (res.kind) {
       case 'blood': {
-        p.runHpMult *= EV.bloodHpMult;
+        p.runHpMult *= res.hpMult;
         recompute(world, pe);
         if (hp.hp > hp.max) hp.hp = hp.max;
         const item = this.factory.make(
@@ -61,23 +95,49 @@ export class EventSystem implements System {
         world.add(drop, new Transform(tr.x, tr.y + 20));
         world.add(drop, new Velocity());
         world.add(drop, new Pickup('item', item));
-        world.emit(new ToastEvent(`🩸 血之契约:生命上限 -25%,获得 ${item.name}`, RARITY_COLORS.epic));
+        world.emit(new ToastEvent(`🩸 血之契约:生命上限 ×${res.hpMult},获得 ${item.name}`, RARITY_COLORS.epic));
         break;
       }
       case 'blessing': {
-        p.runBuffAtk += EV.blessingAtk;
-        p.runBuffSpeed += EV.blessingSpeed;
+        p.runBuffAtk += res.atk;
+        p.runBuffSpeed += res.speed;
         recompute(world, pe);
-        world.emit(new ToastEvent(`✨ 星辰祝福:攻击+${EV.blessingAtk * 100}% 移速+${EV.blessingSpeed * 100}%(本局)`, UI.gold));
+        world.emit(new ToastEvent(`✨ 星辰祝福:攻击+${res.atk * 100}% 移速+${res.speed * 100}%(本局)`, UI.gold));
         break;
       }
       case 'fountain': {
-        const dust = this.rng.int(EV.fountainMin, EV.fountainMax);
-        p.stardust += dust;
-        world.emit(new ToastEvent(`⛲ 星尘涌泉:+${dust}✦`, UI.gold));
+        p.stardust += res.dust;
+        world.emit(new ToastEvent(`⛲ 星尘涌泉:+${res.dust}✦`, UI.gold));
+        break;
+      }
+      case 'gamble': {
+        p.stardust -= res.spent;
+        p.stardust += res.dust;
+        world.emit(new ToastEvent(
+          res.won ? `🎲 赌赢了!✦${res.spent} → ✦${res.dust}(×${res.mult})` : `🎲 赌输了,✦${res.spent} 进了商人的袖子`,
+          res.won ? UI.gold : UI.hpLow));
+        break;
+      }
+      case 'sacrifice': {
+        hp.hp = Math.max(1, hp.hp - res.hpCost);   // 安全阀:无论如何留一口气
+        for (const id of res.cons) p.consumables.push(id);
+        const names = res.cons.map((id) => consumableDef(id)?.name ?? id).join('、');
+        world.emit(new ToastEvent(`🕯 献祭之坛:-${res.hpCost} 生命 → ${names}`, CONS_VISUAL.shield.color));
+        break;
+      }
+      case 'relic': {
+        if (res.runeId) {
+          p.runeBag.push(res.runeId);
+          const rune = RUNE_POOL.get(res.runeId);
+          world.emit(new ToastEvent(`☄ 陨星残骸:「${rune?.name ?? res.runeId}」—— Tab 镶嵌`, '#B067E8'));
+        } else {
+          p.stardust += res.dust;
+          world.emit(new ToastEvent(`☄ 残骸里只剩灰烬:符文已集齐 → ✦${res.dust}`, UI.dim));
+        }
         break;
       }
     }
+    void EV;
     world.emit(new SfxEvent('ult'));
     // 三选一:全部封印
     for (const e of world.query(EventTotem)) world.mustGet(e, EventTotem).used = true;

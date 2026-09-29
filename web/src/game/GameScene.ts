@@ -14,7 +14,7 @@ import {
   MidBossStag,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
-  SfxEvent, ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
+  Merchant, SfxEvent, ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
   ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
@@ -60,7 +60,7 @@ import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { buildFromBlueprint, blueprintOf } from '@game/loot/Blueprint';
-import { CONS_VISUAL, type ConsumableId } from '@game/loot/Consumables';
+import { CONS_VISUAL, consumableDef, type ConsumableId } from '@game/loot/Consumables';
 import { tutorial, formatHint } from '@game/meta/Tutorial';
 import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
@@ -189,6 +189,8 @@ export class GameScene {
     this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
     this.loot.factory.pityCount = meta.data.pity;
     this.shop = new ShopSystem(this.input);
+    // 议价随机源每局重播种:固定种子会让"每局第一家店的议价结果永远一样"
+    this.shop.reseed((meta.data.stats.runs + 1) * 2654435761);
     this.events = new EventSystem(this.input, this.loot.factory);
     this.run = new RunManager(this.loot.factory);
     this.run.chapter = chapter;
@@ -832,7 +834,8 @@ export class GameScene {
     // 瞄准助手是玩家系统的**唯一真相**:HUD 显示的目标就是真正打的目标。
     this.syncTouchHud();
     this.touch.update(this.renderer.width, this.renderer.height, {
-      interact: this.shop.nearbyStand !== null || this.events.nearbyTotem !== null,
+      interact: this.shop.nearbyStand !== null || this.shop.nearbyMerchant !== null
+        || this.events.nearbyTotem !== null,
       night: clock.isNight(),
       targetInRange: this.aimTargetInRange(),
     });
@@ -1692,24 +1695,79 @@ export class GameScene {
             ctx.textAlign = 'center';
             ctx.fillText('◈', tr.x, tr.y - 30 + bob);
           }
-          // 价签
+          // 价签(轮 22):被特惠或议价动过价 → 画划线原价,一眼看出"现在便宜多少"
           ctx.font = 'bold 12px monospace';
           ctx.lineWidth = 3;
           ctx.strokeStyle = '#0d0f1a';
           const tag = stand.sold ? '已售' : `✦${stand.price}`;
-          ctx.strokeText(tag, tr.x, tr.y + 14);
-          ctx.fillStyle = stand.sold ? UI.dim : UI.gold;
-          ctx.fillText(tag, tr.x, tr.y + 14);
+          const wasChanged = !stand.sold && stand.price !== stand.listPrice;
+          ctx.strokeText(tag, tr.x + (wasChanged ? 8 : 0), tr.y + 14);
+          ctx.fillStyle = stand.sold ? UI.dim : stand.deal || (wasChanged && stand.price < stand.listPrice) ? UI.hp : UI.gold;
+          ctx.fillText(tag, tr.x + (wasChanged ? 8 : 0), tr.y + 14);
+          if (wasChanged) {
+            ctx.strokeStyle = '#0d0f1a';
+            ctx.font = '11px monospace';
+            ctx.strokeText(`✦${stand.listPrice}`, tr.x - 20, tr.y + 14);
+            ctx.fillStyle = UI.dim;
+            ctx.fillText(`✦${stand.listPrice}`, tr.x - 20, tr.y + 14);
+            ctx.strokeStyle = UI.dim;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(tr.x - 20 - 11, tr.y + 10);
+            ctx.lineTo(tr.x - 20 + 11, tr.y + 10);
+            ctx.stroke();
+          }
+          // 特惠徽标
+          if (stand.deal && !stand.sold) {
+            ctx.fillStyle = UI.hpLow;
+            ctx.font = 'bold 11px monospace';
+            ctx.strokeStyle = '#0d0f1a';
+            ctx.lineWidth = 3;
+            ctx.strokeText(`特惠 -${Math.round(balance.shop.dealOff * 100)}%`, tr.x, tr.y - 44);
+            ctx.fillText(`特惠 -${Math.round(balance.shop.dealOff * 100)}%`, tr.x, tr.y - 44);
+          }
           ctx.globalAlpha = 1;
           if (near && !stand.sold) {
             const name = stand.wares === 'item' ? stand.item!.name
               : stand.wares === 'potion' ? '治疗药剂'
+              : stand.wares === 'cons' && stand.consId ? consumableDef(stand.consId)?.name ?? '消耗品'
               : `符文「${RUNE_POOL.get(stand.runeId!)?.name ?? '?'}」`;
             ctx.fillStyle = '#8fd4c8';
             ctx.font = 'bold 12px monospace';
             ctx.strokeText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
             ctx.fillText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
           }
+        } });
+      }
+
+      // ---- 流浪商人(轮 22):兜帽人形 + 头顶议价提示 ----
+      for (const e of w.query(Merchant, Transform)) {
+        const mc = w.mustGet(e, Merchant);
+        const tr = w.mustGet(e, Transform);
+        const nearM = this.shop.nearbyMerchant === e;
+        list.push({ y: tr.y, draw: () => {
+          const bob = Math.sin(mc.animT * 2.4) * 2;
+          if (drawSprite(ctx, 'npc_merchant', tr.x, tr.y + bob, { scale: 1 })) { /* 已出图则走贴图 */ } else {
+            // 程序化回退:斗篷 + 兜帽 + 一点货担
+            ctx.fillStyle = '#3b2f4a';
+            ctx.fillRect(tr.x - 9, tr.y - 26 + bob, 18, 24);
+            ctx.fillStyle = '#54406b';
+            ctx.beginPath();
+            ctx.arc(tr.x, tr.y - 28 + bob, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#1a1424';
+            ctx.fillRect(tr.x - 6, tr.y - 30 + bob, 12, 6);
+            ctx.fillStyle = '#8fd4c8';
+            ctx.fillRect(tr.x + 12, tr.y - 14 + bob, 6, 10);
+          }
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 11px monospace';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#0d0f1a';
+          const label = mc.haggled ? '商人(议过价了)' : '[F] 议价';
+          ctx.strokeText(label, tr.x, tr.y - 44);
+          ctx.fillStyle = mc.haggled ? UI.dim : nearM ? UI.gold : '#8fd4c8';
+          ctx.fillText(label, tr.x, tr.y - 44);
         } });
       }
 

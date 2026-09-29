@@ -6,14 +6,15 @@ import {
   BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
   DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
   FrostMage, FrostSlime, Health, IceTurtle, MidBossStag, SnowPuff,
-  OakGolem, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
+  OakGolem, Merchant, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { scaleAtk, scaleHp } from './Scaling';
 import { runMods } from './RunMods';
-import { shopConsumables, type ConsumableId } from '@game/loot/Consumables';
+import { rollStock } from '@game/loot/ShopStock';
+import { pickTotems, totemName, type TotemKind } from '@game/loot/EventRules';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 import {
@@ -120,55 +121,48 @@ export class RunManager {
       }
       case 'shop': {
         this.pendingWaves = 0;
-        const S = balance.shop;
-        const cy = (balance.arena.heightM / 2) * M;
-        // 三个装备摊:蓝 / 紫 / 加权第三摊
-        const rarities: Array<'rare' | 'epic' | 'legendary'> = ['rare', 'epic'];
-        const w3 = this.rng.next();
-        rarities.push(w3 < S.thirdStandWeights.legendary ? 'legendary' : w3 < S.thirdStandWeights.legendary + S.thirdStandWeights.epic ? 'epic' : 'rare');
-        rarities.forEach((rar, i) => {
-          const item = this.factory.make(this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), rar);
-          hold(9 + i * 4, cy - 2, 1.4);
-          const e = world.create();
-          world.add(e, new Transform((9 + i * 4) * M, cy - 2 * M));
-          world.add(e, new ShopStand('item', S.prices[rar], item));
+        const cy = balance.arena.heightM / 2;
+        const pl = world.mustGet(playerE, Player);
+        // 整间店的货单交给 rollStock(轮 22):定价 jitter / 特惠 / 符文货架 / 消耗品随机两摊
+        const stock = rollStock(this.rng, {
+          klass: pl.klass,
+          ownedRunes: pl.runeBag,
+          make: (slot, rarity) => this.factory.make(slot, rarity),
+          runes: [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(`${pl.klass}_`)),
+          centerY: cy,
         });
-        // 药剂摊 + 符文摊
-        hold(10, cy + 2, 1.4);
-        hold(15, cy + 2, 1.4);
-        const pot = world.create();
-        world.add(pot, new Transform(10 * M, cy + 2 * M));
-        world.add(pot, new ShopStand('potion', S.potionPrice));
-        // 消耗品摊(轮 21):从 4 种里随机摆 2 摊(**不重复**),价格由数据表给
-        const menu = shopConsumables();
-        const first = this.rng.pick(menu);
-        const second = this.rng.pick(menu.filter((d) => d.id !== first.id));
-        const pair: Array<[number, typeof first]> = [[11.8, first], [13.6, second]];
-        for (const [x, def] of pair) {
-          const st = world.create();
-          world.add(st, new Transform(x * M, cy + 2 * M));
-          world.add(st, new ShopStand('cons', def.price, null, null, def.id as ConsumableId));
+        for (const g of stock) {
+          hold(g.x, g.y, 1.4);
+          const e = world.create();
+          world.add(e, new Transform(g.x * M, g.y * M));
+          const stand = new ShopStand(g.wares, g.price, g.item, g.runeId, g.consId, g.listPrice);
+          stand.deal = g.deal;
+          world.add(e, stand);
         }
-        const klass = world.mustGet(playerE, Player).klass;
-        const prefix = `${klass}_`;
-        const runeIds = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix)).map((r) => r.id);
-        const rn = world.create();
-        world.add(rn, new Transform(15 * M, cy + 2 * M));
-        world.add(rn, new ShopStand('rune', S.runePrice, null, this.rng.pick(runeIds)));
-        world.emit(new ToastEvent('🛒 流浪商人:走近按 F 购买', '#8fd4c8'));
+        // 商人:站在店门口左侧,议价用(交互距离 3m,与摊位不抢手)
+        const merc = world.create();
+        world.add(merc, new Transform(7 * M, cy * M));
+        world.add(merc, new Merchant());
+        const deals = stock.filter((g) => g.deal).length;
+        const shelf = stock.filter((g) => g.wares === 'rune').length;
+        world.emit(new ToastEvent(
+          `🛒 流浪商人:${stock.length} 个货位${deals > 0 ? ' · 有特惠' : ''}`
+          + `${shelf > 0 ? ` · 符文货架 ×${shelf}` : ''} · 找商人可议价`,
+          '#8fd4c8'));
         break;
       }
       case 'event': {
         this.pendingWaves = 0;
         const cy = (balance.arena.heightM / 2) * M;
-        const kinds: Array<'blood' | 'blessing' | 'fountain'> = ['blood', 'blessing', 'fountain'];
+        // 轮 22:秘境不再永远是同样三块碑 —— 从 balance.events.totems 池子里抽 3 座(**不重复**)
+        const kinds: TotemKind[] = pickTotems(this.rng);
         kinds.forEach((k, i) => {
           hold(9.5 + i * 4, balance.arena.heightM / 2, 1.4);
           const e = world.create();
           world.add(e, new Transform((9.5 + i * 4) * M, cy));
           world.add(e, new EventTotem(k));
         });
-        world.emit(new ToastEvent('❓ 秘境:三座石碑,只能选一(按 F)', '#e8c07a'));
+        world.emit(new ToastEvent(`❓ 秘境:「${kinds.map(totemName).join(' / ')}」—— 只能选一(按 F)`, '#e8c07a'));
         break;
       }
       case 'midboss': {

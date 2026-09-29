@@ -383,6 +383,10 @@ export class PropObstacle {
 export class ShopStand {
   sold = false;
   animT = Math.random() * 10;
+  /** 是否本店特惠(UI 画「特惠 -30%」;价格已经打过折,这里只是标记) */
+  deal = false;
+  /** 议价调整过的次数(每件商品最多被议价影响 1 次 —— 见 ShopSystem) */
+  haggled = 0;
 
   constructor(
     public wares: 'item' | 'potion' | 'rune' | 'cons',
@@ -391,7 +395,20 @@ export class ShopStand {
     public runeId: string | null = null,
     /** wares='cons' 时卖的是哪种消耗品 */
     public consId: import('@game/loot/Consumables').ConsumableId | null = null,
+    /** 本摊常规价(特惠/议价前):UI 画划线的原价 */
+    public listPrice = price,
   ) {}
+}
+
+/**
+ * 流浪商人(轮 22):房中央站着的 NPC,走近按 F **议价** —— 一家店只能议一次。
+ * 单独一个组件而不是复用 ShopStand:商人不卖东西、不参与"最近的摊位"抢占,
+ * 交互距离也更宽(3m),否则玩家常常站不到他跟前。
+ */
+export class Merchant {
+  animT = Math.random() * 10;
+  /** 议价是否已经用过(每店一次) */
+  haggled = false;
 }
 
 /** 秘境房图腾:三选一事件(选中一个后全部失效) */
@@ -399,7 +416,7 @@ export class EventTotem {
   used = false;
   animT = Math.random() * 10;
 
-  constructor(public kind: 'blood' | 'blessing' | 'fountain') {}
+  constructor(public kind: import('@game/loot/EventRules').TotemKind) {}
 }
 
 /** ===== 第二章「霜语冰原」怪物 ===== */

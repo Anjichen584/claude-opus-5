@@ -42,6 +42,7 @@ namespace StarfallKnights.Tests
             CheckAnim(check, root);
             CheckReactions(check, root);
             CheckLoot(check, root);
+            CheckShop(check, root);
         }
 
         /// <summary>
@@ -228,7 +229,7 @@ namespace StarfallKnights.Tests
             var reactions = MiniJson.Opt(doc, "reactions");
             if (reactions != null) Walk(reactions, "reactions");
             // 橙装特效 / 消耗品 / 蓝图(轮 19–21):三段数值键同样进通用循环
-            foreach (var sect in new[] { "specials", "consumables", "blueprint" })
+            foreach (var sect in new[] { "specials", "consumables", "blueprint", "shop", "events" })
             {
                 var seg = MiniJson.Opt(doc, sect);
                 if (seg != null) Walk(seg, sect);
@@ -296,6 +297,95 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
             check(rowBad == 0, $"{enemies.Count} 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+        }
+
+        /// <summary>
+        /// 商店与秘境 parity(2026-09-29,轮 22)。
+        ///
+        /// 数值叶子由生成器进 parity,这里补两件生成器**做不到**的事:
+        /// 1. `events.totems` 是**字符串数组** → 被生成器跳过,必须逐 id 与 C# 清单比对
+        ///    (漏实现一座碑 = 玩家抽到一块按不动的石头,而数值 parity 全绿);
+        /// 2. 议价/献祭/特惠的**边界口径** —— 三档切分、幸运不吃大成功、失败永远存在、
+        ///    便宜货涨价不能"看起来没反应"、残血不许献祭。
+        /// </summary>
+        private static void CheckShop(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var events = MiniJson.Opt(doc, "events");
+            var shop = MiniJson.Opt(doc, "shop");
+            if (events == null || shop == null) { check(false, "balance.shop / balance.events 存在"); return; }
+
+            // ---- 碑池:字符串清单逐 id 比(生成器跳过字符串) ----
+            var jsonTotems = MiniJson.OptArr(events, "totems") ?? new List<object>();
+            check(jsonTotems.Count == ShopRules.Totems.Length,
+                $"碑池条数一致(JSON {jsonTotems.Count} vs C# {ShopRules.Totems.Length})");
+            int bad = 0; string firstBad = "";
+            for (int i = 0; i < Math.Min(jsonTotems.Count, ShopRules.Totems.Length); i++)
+            {
+                if (jsonTotems[i] as string != ShopRules.Totems[i]) { bad++; if (firstBad == "") firstBad = jsonTotems[i] as string; }
+            }
+            check(bad == 0, $"碑 id 逐项一致{(bad > 0 ? "，首个不一致:" + firstBad : "")}");
+            check(ShopRules.MissingTotems().Count == 0,
+                "每座碑都有实现(数据加了碑而没写处理 = 玩家抽到一块按不动的石头)");
+            check(jsonTotems.Count >= (int)Bestiary.EventTotemPick, "碑池不小于每次抽取数");
+
+            // ---- 抽取:数量对、不重复、四座以上池子时不会永远同一组 ----
+            var rolls = new List<float> { 0.11f, 0.42f, 0.73f, 0.95f, 0.28f, 0.61f };
+            var picked = ShopRules.PickTotems(rolls);
+            check(picked.Count == (int)Bestiary.EventTotemPick, $"抽 {Bestiary.EventTotemPick} 座碑");
+            var uniq = new HashSet<string>(picked);
+            check(uniq.Count == picked.Count, "抽出的碑不重复");
+            var picked2 = ShopRules.PickTotems(new List<float> { 0.9f, 0.1f, 0.5f, 0.3f, 0.7f, 0.2f });
+            check(string.Join(",", picked2) != string.Join(",", picked), "不同随机序列给出不同组合(池子真的在转)");
+
+            // ---- 议价:三档 + 幸运的范围 + 失败永远存在 ----
+            float bigC = Bestiary.ShopHaggleBigChance;
+            float sucC = Bestiary.ShopHaggleSuccessChance;
+            float luckMax = Bestiary.ShopHaggleLuckMax;
+            check(bigC + sucC + luckMax <= 0.9f + 1e-4f, $"大成功+小成功+幸运上限 ≤ 0.9(失败永远存在):{bigC + sucC + luckMax}");
+            check(ShopRules.HaggleOutcome(0f, 0f) == ShopRules.Haggle.Big, "roll=0 → 大成功");
+            check(ShopRules.HaggleOutcome(bigC + 0.001f, 0f) == ShopRules.Haggle.Success, "过了大成功线 → 小成功");
+            check(ShopRules.HaggleOutcome(0.999f, 0f) == ShopRules.Haggle.Fail, "高位 → 失败");
+            check(ShopRules.HaggleOutcome(bigC + 0.001f, 9999f) == ShopRules.Haggle.Success,
+                "幸运加满也不把「大成功线」往前推(否则幸运够了 = 议价必大成功)");
+            check(ShopRules.HaggleOutcome(bigC + sucC + luckMax - 0.001f, 0f) == ShopRules.Haggle.Fail
+                  && ShopRules.HaggleOutcome(bigC + sucC + luckMax - 0.001f, 100f) == ShopRules.Haggle.Success,
+                "幸运只提高「至少小成功」的概率(边界上刚好能翻过来)");
+            check(Math.Abs(ShopRules.LuckBonus(9999f) - luckMax) < Tol && ShopRules.LuckBonus(float.NaN) == 0f
+                  && ShopRules.LuckBonus(-5f) == 0f, "幸运加成有上限;NaN/负值当 0(否则概率会变 NaN)");
+            check(ShopRules.HaggleOutcome(0.999f, 9999f) == ShopRules.Haggle.Fail, "加满幸运仍可能失败");
+
+            // ---- 价格变更:方向对、下限 1、便宜货涨价也看得出 ----
+            check(ShopRules.HagglePrice(100, ShopRules.Haggle.Big) < 100
+                  && ShopRules.HagglePrice(100, ShopRules.Haggle.Success) < 100
+                  && ShopRules.HagglePrice(100, ShopRules.Haggle.Success) > ShopRules.HagglePrice(100, ShopRules.Haggle.Big),
+                "大成功比小成功更便宜,两者都比原价低");
+            check(ShopRules.HagglePrice(100, ShopRules.Haggle.Fail) > 100, "议价失败 = 涨价(有代价才有博弈)");
+            check(ShopRules.HagglePrice(1, ShopRules.Haggle.Fail) > 1,
+                "底价商品涨价也至少 +1(否则价签没动,看起来像按钮失灵)");
+            check(ShopRules.HagglePrice(1, ShopRules.Haggle.Big) >= 1, "降价下限 1");
+            check(ShopRules.PriceOf(100, 0.5f) == 100, "jitter 中点 = 基准价");
+            check(ShopRules.PriceOf(100, 0f) < 100 && ShopRules.PriceOf(100, 0.999f) > 100, "jitter 两端真的浮动");
+            check(ShopRules.PriceOf(1, 0f) >= 1, "定价下限 1");
+            int deal = ShopRules.DealPrice(200);
+            check(deal < 200 && deal >= (int)Math.Round(200 * (1f - Bestiary.ShopDealOff)) - 1, "特惠是打折且有下界");
+
+            // ---- 秘境:不能选的原因 + 献祭代价 ----
+            check(ShopRules.TotemBlocker("gamble", 100f, (int)Bestiary.EventGambleCost - 1) == "noStardust",
+                "星尘不够 → 赌局点不动(说得出原因)");
+            check(ShopRules.TotemBlocker("gamble", 100f, (int)Bestiary.EventGambleCost) == null, "星尘够了就能赌");
+            check(ShopRules.TotemBlocker("sacrifice", 1f, 0) == "hpTooLow", "1 点血不许献祭(那是自杀按钮)");
+            check(ShopRules.TotemBlocker("sacrifice", 2f, 0) == null, "2 点血可以献祭(代价 1,还剩 1)");
+            check(ShopRules.TotemBlocker("blood", 1f, 0) == null && ShopRules.TotemBlocker("fountain", 1f, 0) == null,
+                "不消耗资源的碑永远能选");
+            check(ShopRules.SacrificeHpCost(200f) == (int)Math.Ceiling(200f * Bestiary.EventSacrificeHpFrac),
+                "献祭代价按**当前**生命算");
+            check(ShopRules.GamblePayout(true) == (int)Math.Round(Bestiary.EventGambleCost * Bestiary.EventGambleMult)
+                  && ShopRules.GamblePayout(false) == 0, "赌局:赢 = 投入 × 倍数,输 = 0");
+            check(ShopRules.StockSlots(2) == 3 + 2 + 1 + (int)Bestiary.ShopConsStands, "货位数 = 装备 3 + 骨架 + 药 + 消耗品");
         }
 
         /// <summary>
