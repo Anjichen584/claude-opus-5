@@ -1051,6 +1051,45 @@
     "hintY": 0.86,
     "saveSlots": 3
   },
+  "anim": {
+    "$doc": "角色动作序列(docs/04-ART-PIPELINE.md §3)。帧数 = 一套序列有几张图,文件命名 {base}_{action}_{i}.png;缺整套序列时按 anim.ts 的回退链降级,不会崩也不会静默变样。",
+    "idle": {
+      "frames": 1,
+      "fps": 4,
+      "loop": true
+    },
+    "walk": {
+      "frames": 4,
+      "fps": 8,
+      "loop": true
+    },
+    "atk": {
+      "frames": 3,
+      "fps": 15,
+      "loop": false
+    },
+    "dash": {
+      "frames": 3,
+      "fps": 14,
+      "loop": false
+    },
+    "cast": {
+      "frames": 3,
+      "fps": 12,
+      "loop": false
+    },
+    "hurt": {
+      "frames": 2,
+      "fps": 10,
+      "loop": false
+    },
+    "die": {
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    "bobAmplitudePx": 1.0
+  },
   "touch": {
     "$doc": "触屏辅助:自动瞄准 / 自动攻击 / 按钮布局。数值就是手感,全部集中在数据里(见 game/input/AimAssist.ts)。 shotReachFrac 是远程普攻的有效射程比例(弹丸最后那段已经飞过头,不算\"该开火的距离\")。",
     "aimRangeM": 11.0,

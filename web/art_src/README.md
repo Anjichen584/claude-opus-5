@@ -18,3 +18,16 @@
 2. `python3 tools/process_art.py` 重新处理(双帧对会自动走主体对齐);
 3. `npm test` —— `sprites.test.ts` 会守卫"登记表 ↔ 成品文件"是否一致;
 4. 提交**只提成品**(`public/sprites/`),源图留在本地。
+
+## 序列帧(动作动画)
+
+多帧动作用 `web/art_src/frames/` 放源帧,由 `tools/process_frames.py` 处理(不是 `process_art.py` ——
+后者按单图处理,逐帧各自缩放会做出"一大一小"的动作):
+
+```bash
+# 1) 生成源帧 → web/art_src/frames/knight_walk_1..4.png(品红幕布)
+python3 tools/process_frames.py knight_walk   # 2) 同画布 + 脚底对齐 → public/sprites/knight_walk_i.png
+```
+
+登记进 `SPRITE_NAMES` → `balance.anim` 记帧数/帧率 → `npm test`(`gfx/__tests__/anim.test.ts` 会守卫
+"各帧画布一致"与回退链)。

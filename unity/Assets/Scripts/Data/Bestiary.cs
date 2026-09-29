@@ -784,6 +784,36 @@ namespace StarfallKnights.Data
         public const float TouchSafeMarginPx = 26f;
         /// <summary>touch.btnScale</summary>
         public const float TouchBtnScale = 1f;
+        /// <summary>anim.idle.frames</summary>
+        public const float AnimIdleFrames = 1f;
+        /// <summary>anim.idle.fps</summary>
+        public const float AnimIdleFps = 4f;
+        /// <summary>anim.walk.frames</summary>
+        public const float AnimWalkFrames = 4f;
+        /// <summary>anim.walk.fps</summary>
+        public const float AnimWalkFps = 8f;
+        /// <summary>anim.atk.frames</summary>
+        public const float AnimAtkFrames = 3f;
+        /// <summary>anim.atk.fps</summary>
+        public const float AnimAtkFps = 15f;
+        /// <summary>anim.dash.frames</summary>
+        public const float AnimDashFrames = 3f;
+        /// <summary>anim.dash.fps</summary>
+        public const float AnimDashFps = 14f;
+        /// <summary>anim.cast.frames</summary>
+        public const float AnimCastFrames = 3f;
+        /// <summary>anim.cast.fps</summary>
+        public const float AnimCastFps = 12f;
+        /// <summary>anim.hurt.frames</summary>
+        public const float AnimHurtFrames = 2f;
+        /// <summary>anim.hurt.fps</summary>
+        public const float AnimHurtFps = 10f;
+        /// <summary>anim.die.frames</summary>
+        public const float AnimDieFrames = 4f;
+        /// <summary>anim.die.fps</summary>
+        public const float AnimDieFps = 8f;
+        /// <summary>anim.bobAmplitudePx</summary>
+        public const float AnimBobAmplitudePx = 1f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1142,6 +1172,21 @@ namespace StarfallKnights.Data
             { "touch.btnTouchPadPx", TouchBtnTouchPadPx },
             { "touch.safeMarginPx", TouchSafeMarginPx },
             { "touch.btnScale", TouchBtnScale },
+            { "anim.idle.frames", AnimIdleFrames },
+            { "anim.idle.fps", AnimIdleFps },
+            { "anim.walk.frames", AnimWalkFrames },
+            { "anim.walk.fps", AnimWalkFps },
+            { "anim.atk.frames", AnimAtkFrames },
+            { "anim.atk.fps", AnimAtkFps },
+            { "anim.dash.frames", AnimDashFrames },
+            { "anim.dash.fps", AnimDashFps },
+            { "anim.cast.frames", AnimCastFrames },
+            { "anim.cast.fps", AnimCastFps },
+            { "anim.hurt.frames", AnimHurtFrames },
+            { "anim.hurt.fps", AnimHurtFps },
+            { "anim.die.frames", AnimDieFrames },
+            { "anim.die.fps", AnimDieFps },
+            { "anim.bobAmplitudePx", AnimBobAmplitudePx },
         };
     }
 

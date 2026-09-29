@@ -42,7 +42,7 @@
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 504 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/中Boss/掉落/时钟/存档/三章出怪/本地排行榜/新手引导与存档槽/触屏辅助瞄准/双端 parity(含 arena/touch 段与引导步骤表)
+bash unity/Tests/run.sh      # 546 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/中Boss/掉落/时钟/存档/三章出怪/本地排行榜/新手引导与存档槽/触屏辅助瞄准/动作序列帧号/双端 parity(含 arena/touch/anim 段与引导步骤表)
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。

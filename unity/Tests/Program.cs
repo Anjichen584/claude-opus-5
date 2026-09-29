@@ -607,6 +607,7 @@ namespace StarfallKnights.Tests
             TestMidBoss();
             TestTutorialAndSlots();
             TestAimAssist();
+            TestAnim();
             TestBossAI();
             TestClassSkillSet();
             TestRoomLayouts();
@@ -1732,6 +1733,49 @@ namespace StarfallKnights.Tests
                 && AimRules.AutoAttackRangeM(HeroClass.Ranger) < AimRules.DefaultRangeM,
                 $"锁定范围({AimRules.DefaultRangeM} m)盖得住四职业普攻");
             Check(AimRules.InAutoRange(3f, 3f) && !AimRules.InAutoRange(3.5f, 3f), "判死线:射程 + 余量内才开火");
+        }
+
+        /// <summary>角色动作序列(10-FULL-PLAN 轮 27 动画批次 1 的 Unity 镜像)。</summary>
+        private static void TestAnim()
+        {
+            Suite("角色动作序列(帧号 / 优先级 / 循环口径 / 起伏)");
+
+            // 动作清单与优先级:7 个动作全覆盖、无重复、死亡最高
+            Check(AnimRules.Priority.Length == 7, $"优先级覆盖 7 个动作(实际 {AnimRules.Priority.Length})");
+            Check(new HashSet<AnimAction>(AnimRules.Priority).Count == 7, "优先级无重复");
+            Check(AnimRules.Priority[0] == AnimAction.Die, "死亡优先级最高");
+
+            // 状态 → 动作
+            Check(AnimRules.ActionOf(false, false, false, false, false, false) == AnimAction.Idle, "什么都不做 = 待机");
+            Check(AnimRules.ActionOf(false, false, false, false, false, true) == AnimAction.Walk, "移动 = 走路");
+            Check(AnimRules.ActionOf(false, false, false, false, true, true) == AnimAction.Hurt, "受击压过移动");
+            Check(AnimRules.ActionOf(false, false, true, false, false, true) == AnimAction.Atk, "攻击压过移动");
+            Check(AnimRules.ActionOf(false, true, true, false, false, false) == AnimAction.Dash, "翻滚压过攻击");
+            Check(AnimRules.ActionOf(true, true, true, false, false, true) == AnimAction.Die, "死亡压过一切");
+
+            // 帧号:循环取模、一次性停末帧、坏数据不产生 NaN
+            Check(AnimRules.FrameIndex(0f, 8f, 4, true) == 0, "循环:第 0 帧");
+            Check(AnimRules.FrameIndex(0.13f, 8f, 4, true) == 1, "循环:第 1 帧(1/8 秒之后)");
+            Check(AnimRules.FrameIndex(0.5f, 8f, 4, true) == 0, "循环:一圈回到第 0 帧");
+            Check(AnimRules.FrameIndex(99f, 15f, 3, false) == 2, "一次性:停在最后一帧(不循环)");
+            Check(AnimRules.FrameIndex(-0.3f, 8f, 4, true) >= 0, "负时间安全");
+            Check(AnimRules.FrameIndex(0.5f, 8f, 1, true) == 0, "单帧序列恒为 0");
+            Check(AnimRules.FrameIndex(0.5f, 8f, 0, true) == 0, "帧数写错成 0 也返回合法下标");
+
+            // 循环口径:只有待机/走路
+            Check(AnimRules.Loop(AnimAction.Idle) && AnimRules.Loop(AnimAction.Walk), "待机与走路循环");
+            Check(!AnimRules.Loop(AnimAction.Atk) && !AnimRules.Loop(AnimAction.Dash) && !AnimRules.Loop(AnimAction.Die),
+                "攻击/翻滚/死亡不循环");
+
+            // 帧名与 web 美术管线一致(1 起、小写动作段)
+            Check(AnimRules.FrameName("knight", AnimAction.Walk, 1) == "knight_walk_1", "帧名 = {base}_{action}_{i}(1 起)");
+            Check(AnimRules.FrameName("ranger", AnimAction.Atk, 3) == "ranger_atk_3", "帧名动作段小写");
+
+            // 走路起伏:站着为 0、走路在 ±幅度内、每步一次
+            Check(AnimRules.BobPx(0.2f, false) == 0f, "站着不起伏");
+            Check(MathF.Abs(AnimRules.BobPx(0.2f, true)) <= Bestiary.AnimBobAmplitudePx + 1e-4f, "走路起伏不超幅度");
+            float stepsPerS = Bestiary.AnimWalkFps / Bestiary.AnimWalkFrames;
+            Near(AnimRules.BobPx(0f, true), AnimRules.BobPx(1f / stepsPerS, true), 1e-4f, "起伏周期 = 一步");
         }
 
         private static void TestBossAI()

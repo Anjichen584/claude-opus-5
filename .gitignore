@@ -5,6 +5,8 @@ dist/
 
 # AI 原画源图:体积大且可再生(见 web/art_src/README.md),只提交处理后的精灵
 web/art_src/*.png
+# 序列帧源图在子目录里(frames/),同样不进仓库 —— 只挡顶层那一版会让 4 帧走路源图 11 MB 直接入库(2026-09-29 差点踩到)
+web/art_src/**/*.png
 
 # C# 逻辑层测试的编译产物(本地产物,不进仓库)
 unity/Tests/bin/

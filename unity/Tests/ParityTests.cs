@@ -38,6 +38,59 @@ namespace StarfallKnights.Tests
             CheckClassBasics(check, near, root);
             CheckTutorial(check, near, root);
             CheckTouch(check, root);
+            CheckAnim(check, root);
+        }
+
+        /// <summary>
+        /// 动作表 parity(10-FULL-PLAN 轮 27 动画批次 1)。
+        /// 数值叶子已由 CheckBestiary 逐键比对;这里管三件数值比对覆盖不到的事:
+        /// 1. **布尔叶子 `loop`** 生成器跳过 → 必须单独比对(同教程步骤表、触屏开关的先例);
+        /// 2. 动作清单两端一致(少一个动作 = 某个状态在 Unity 里永远播待机);
+        /// 3. 只有待机/走路循环 —— 这条是**设计口径**,不是数值,所以得单独钉住。
+        /// </summary>
+        private static void CheckAnim(Action<bool, string> check, string root)
+        {
+            check(!string.IsNullOrEmpty(root), "动作表 parity 需要仓库根(含 web/src/data)");
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var a = MiniJson.Opt(doc, "anim");
+            if (a == null) { check(false, "balance.anim 存在"); return; }
+
+            var actions = new List<string>();
+            int loopBad = 0, framesBad = 0;
+            foreach (var kv in a)
+            {
+                if (kv.Key.StartsWith("$") || kv.Key == "bobAmplitudePx") continue;
+                if (kv.Value is not Dictionary<string, object> row) { check(false, $"anim.{kv.Key} 是对象"); continue; }
+                actions.Add(kv.Key);
+                bool loop = row.TryGetValue("loop", out var raw) && raw is bool b && b;
+                bool shouldLoop = kv.Key == "idle" || kv.Key == "walk";
+                if (loop != shouldLoop) loopBad++;
+                double frames = MiniJson.Num(row, "frames", 0);
+                if (frames < 1 || frames > 12) framesBad++;
+            }
+            check(loopBad == 0, $"只有待机/走路是循环动作(违规 {loopBad} 个)");
+            check(framesBad == 0, $"每个动作帧数在 1..12(违规 {framesBad} 个)");
+            check(actions.Count == 7, $"动作清单 7 个(实际 {actions.Count}:{string.Join("/", actions)})");
+
+            // 两端帧数/帧率对得上(生成常量 → 读回 C# 侧)
+            foreach (var (key, act) in new[]
+            {
+                ("idle", AnimAction.Idle), ("walk", AnimAction.Walk), ("atk", AnimAction.Atk),
+                ("dash", AnimAction.Dash), ("cast", AnimAction.Cast), ("hurt", AnimAction.Hurt), ("die", AnimAction.Die),
+            })
+            {
+                var row = MiniJson.Opt(a, key);
+                if (row == null) { check(false, $"anim.{key} 存在"); continue; }
+                check((int)MiniJson.Num(row, "frames", 0) == AnimRules.Frames(act),
+                    $"anim.{key}.frames 与 C# 一致({MiniJson.Num(row, "frames", 0)} vs {AnimRules.Frames(act)})");
+                check(Math.Abs(MiniJson.Num(row, "fps", 0) - AnimRules.Fps(act)) < 1e-4f,
+                    $"anim.{key}.fps 与 C# 一致");
+            }
+            check(Math.Abs(MiniJson.Num(a, "bobAmplitudePx", 0) - Bestiary.AnimBobAmplitudePx) < 1e-4f,
+                "anim.bobAmplitudePx 与 C# 一致");
         }
 
         /// <summary>
@@ -121,6 +174,9 @@ namespace StarfallKnights.Tests
             // 触屏手感数值(自动瞄准范围/粘性/续瞄、摇杆半径、按钮安全边距)
             var touch = MiniJson.Opt(doc, "touch");
             if (touch != null) Walk(touch, "touch");
+            // 角色动作表(帧数/帧率/起伏幅度)
+            var anim = MiniJson.Opt(doc, "anim");
+            if (anim != null) Walk(anim, "anim");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)

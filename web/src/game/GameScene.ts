@@ -64,6 +64,7 @@ import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
+import { ANIM, actionOf, bobPx, spriteFor } from '@game/gfx/anim';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -1780,10 +1781,19 @@ export class GameScene {
                 rot = (faceLeft ? 0.1 : -0.1) * punch * (1 + p.comboStage * 0.25);
                 sx = 1 + punch * 0.08;
               }
-              // 双帧走路动画:移动时以 8fps 切换迈步帧(未加载则回落站立帧)
+              // 动作序列(anim.ts):动作判定 + 帧选择 + 缺序列自动降级,帧数/帧率走 balance.anim
               const base = KLASS_SPRITE[p.klass];
-              const stride = p.moving && Math.floor(clock.runTime * 8) % 2 === 1 && sprites.get(`${base}_walk`) !== null;
-              const ok = drawSprite(ctx, stride ? `${base}_walk` : base, ix, iy, {
+              const action = actionOf({
+                dashing: p.dashT > 0,
+                attacking,
+                hurt: h.flash > 0,
+                moving: p.moving,
+              });
+              // 循环动作吃全局时间(取模),一次性动作吃"这个动作开始了多久"
+              const animClock = ANIM[action].loop ? clock.runTime : (action === 'atk' || action === 'dash' ? prog * p.attackDur : p.animT);
+              const spriteName = spriteFor(base, action, animClock, (n) => sprites.get(n) !== null);
+              const bob = bobPx(clock.runTime, action === 'walk');
+              const ok = drawSprite(ctx, spriteName, ix, iy + bob, {
                 flash: h.flash, faceLeft, rot, sx, sy,
                 alpha: p.dashT > 0 ? 0.7 : p.iframes > 0 ? 0.85 : 1,
               });

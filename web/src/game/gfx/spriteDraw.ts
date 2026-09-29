@@ -68,6 +68,8 @@ export const SPRITE_NAMES = [
   'snowpuff', 'iceturtle', 'blizzardhawk', 'frostmage', 'boss_velsha', 'snow_tile',
   'prop_pine', 'prop_icerock', 'prop_crystal',
   'knight_walk', 'ranger_walk', 'arcanist_walk', 'warden_walk',
+  // 走路 4 帧序列(10-FULL-PLAN 轮 27 动画批次 1;其余动作按批上,缺序列时 anim.ts 自动降级)
+  'knight_walk_1', 'knight_walk_2', 'knight_walk_3', 'knight_walk_4',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',

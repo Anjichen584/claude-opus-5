@@ -129,3 +129,26 @@ isolated on a flat solid magenta (#FF00FF) background, 16-bit retro RPG item ico
 全部用「第一帧成品放大图 + same creature as the reference, but in a mid-walk / wing-down /
 bouncing frame」句式生成;`snowpuff_f2` 第一版是细线稿被管线误吃,重绘为**实心白球**并强调
 `solid opaque body` 后正常。
+
+### 动画序列 · 批次 1:剑士走路 4 帧(2026-09-29)
+
+序列帧生成与单帧的关键差别:**一致性 > 单帧好看**。做法是拿成品 `public/sprites/knight.png`
+最近邻放大 8 倍贴到品红幕布上当参考图(`web/art_src/frames/ref_knight.png`),每帧都用同一段
+"same character / same style / same camera angle" 开头,只换姿势描述。
+
+> **踩过的坑(值得记住)**:第一版 4 帧的走路姿势很好,但模型把**肩上的大剑改成了胸前握持** ——
+> 单看每帧都漂亮,和待机帧放在一起就是"拔剑起手"。所以参考图 + 明确写死"sword stays resting on his
+> shoulder, do not move it into his hands"才保住剪影连续性。**序列的第一条验收标准是"和相邻状态接得上",
+> 不是"这一帧帅"**。
+
+| 帧 | 姿势 | 提示词要点 |
+|---|---|---|
+| 1 | 接触姿势(右腿在前) | right leg stepped forward with the boot planted, left leg trailing behind, arms swinging naturally |
+| 2 | 经过姿势 | both legs clearly together under the body, one knee lifted with the foot off the ground, body raised slightly |
+| 3 | 接触姿势(左腿在前) | LEFT leg clearly stepped forward with the boot planted, right leg stretched behind, torso leaning a little forward |
+| 4 | 经过姿势(另一侧) | legs close together with the OTHER knee lifted, arms swung the opposite way |
+
+公共尾串:`three-quarter front view, flat solid magenta background (RGB 255,0,255), pixel art with crisp hard edges, no anti-aliasing, no shadow, no text.`
+
+处理:`python3 tools/process_frames.py knight_walk` → 50×55 同画布 4 帧(身体统一缩放 + 脚底贴底),
+接进 `balance.anim` + `gfx/anim.ts`(`knight_walk_1..4`)。
