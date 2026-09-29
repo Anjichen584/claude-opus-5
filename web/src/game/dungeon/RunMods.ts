@@ -1,6 +1,7 @@
 import { mergeMods, NEUTRAL_MODS, type MergedMods, type RunMod } from '@game/meta/Daily';
 import { NEUTRAL_STRUCTURE, weeklyLabel, type StructureMods, type WeeklyRule } from '@game/meta/Weekly';
 import { multsOf } from './Abyss';
+import { loopMults, safeAtk, safeHp, safeMult } from './Endless';
 
 /**
  * 本局生效的挑战词条(模块级单例,和 clock 一样)。
@@ -12,6 +13,11 @@ class RunMods {
    * 这样已有的出怪与掉落调用点**一行都不用改**(与每日/周常同一套"系统侧只读乘区"的做法)。
    */
   abyss = 0;
+  /**
+   * 无尽模式的当前循环(轮 24;0 = 没开无尽)。乘区同样直接乘进 enemy()/dropMult ——
+   * 出怪与掉落的调用点一行都不用改(与深渊/挑战同一套做法)。
+   */
+  endlessLoop = 0;
   active = false;
   /** 'off' = 普通远征;'daily' = 每日挑战;'weekly' = 周常挑战 */
   mode: 'off' | 'daily' | 'weekly' = 'off';
@@ -45,8 +51,14 @@ class RunMods {
     this.abyss = idx;
   }
 
+  /** 设定无尽循环数(普通局/挑战局传 0) */
+  setEndlessLoop(loop: number): void {
+    this.endlessLoop = Number.isFinite(loop) ? Math.max(0, Math.floor(loop)) : 0;
+  }
+
   clear(): void {
     this.abyss = 0;
+    this.endlessLoop = 0;
     this.active = false;
     this.mode = 'off';
     this.key = '';
@@ -69,20 +81,27 @@ class RunMods {
   get eliteShift(): number { return this.structure.eliteShift; }
   get forcedLayout(): StructureMods['forcedLayout'] { return this.structure.forcedLayout; }
 
-  /** 出怪数值乘区(挑战词条 × 深渊档;夜战缩放由 Scaling 另行处理) */
+  /**
+   * 出怪数值乘区(挑战词条 × 深渊档 × 无尽循环;夜战缩放由 Scaling 另行处理)。
+   * **闸门在最后**:所有出怪路径都经过这里,所以无尽模式的溢出保护只需在这一处生效。
+   */
   enemy(hp: number, atk: number): [number, number] {
     const a = multsOf(this.abyss);
-    return [hp * this.eff.hp * a.hp, atk * this.eff.atk * a.atk];
+    const e = loopMults(this.endlessLoop);
+    return [
+      safeHp(hp * this.eff.hp * a.hp * e.hp),
+      safeAtk(atk * this.eff.atk * a.atk * e.atk),
+    ];
   }
 
   /** 掉落判定乘区 */
   get dropMult(): number {
-    return this.eff.drop * multsOf(this.abyss).loot;
+    return safeMult(this.eff.drop * multsOf(this.abyss).loot * loopMults(this.endlessLoop).loot);
   }
 
-  /** 星尘结算乘区(深渊给更多星尘 —— 难度要"值得打",不能只有惩罚) */
+  /** 星尘结算乘区(深渊/无尽给更多星尘 —— 难度要"值得打",不能只有惩罚) */
   get dustMult(): number {
-    return multsOf(this.abyss).dust;
+    return safeMult(multsOf(this.abyss).dust * loopMults(this.endlessLoop).dust);
   }
 
   /** HUD 展示用:当前深渊档的怪血/攻击乘区 */

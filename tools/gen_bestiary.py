@@ -112,6 +112,9 @@ def main() -> int:
     walk('Event', b['events'], json_path='events', name_prefix='')
     # 深渊难度层(轮 23):三层乘区 + 解锁条件;levels 是数组 → 常量名带下标(AbyssLevels0HpMult)
     walk('Abyss', b['abyss'], json_path='abyss', name_prefix='')
+    # 无尽模式(轮 24):乘区 + 两道闸门的上限 + 解锁门槛。**上限值也进 parity** ——
+    # 闸门常量一旦两端不一致,"溢出后顶到多少"就会漂,而这是本轮的验收门。
+    walk('Endless', b['endless'], json_path='endless', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -137,7 +140,8 @@ def main() -> int:
               + sum(1 for _ in leaves(b['consumables']))
               + sum(1 for _ in leaves(b['blueprint']))
               + sum(1 for _ in leaves(b['shop'])) + sum(1 for _ in leaves(b['events']))
-              + sum(1 for _ in leaves(b['abyss'])))
+              + sum(1 for _ in leaves(b['abyss']))
+              + sum(1 for _ in leaves(b['endless'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 

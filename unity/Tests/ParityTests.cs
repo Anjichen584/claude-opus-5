@@ -44,6 +44,7 @@ namespace StarfallKnights.Tests
             CheckLoot(check, root);
             CheckShop(check, root);
             CheckAbyss(check, root);
+            CheckEndless(check, root);
         }
 
         /// <summary>
@@ -230,7 +231,7 @@ namespace StarfallKnights.Tests
             var reactions = MiniJson.Opt(doc, "reactions");
             if (reactions != null) Walk(reactions, "reactions");
             // 橙装特效 / 消耗品 / 蓝图(轮 19–21):三段数值键同样进通用循环
-            foreach (var sect in new[] { "specials", "consumables", "blueprint", "shop", "events", "abyss" })
+            foreach (var sect in new[] { "specials", "consumables", "blueprint", "shop", "events", "abyss", "endless" })
             {
                 var seg = MiniJson.Opt(doc, sect);
                 if (seg != null) Walk(seg, sect);
@@ -385,6 +386,89 @@ namespace StarfallKnights.Tests
                 "Apply 把三层乘区作用到血/攻上");
             check(Math.Abs(AbyssRules.NightBonusMult - Bestiary.AbyssNightBonusMult) < Tol,
                 "夜战加成读数据表(不写死)");
+        }
+
+
+        /// <summary>
+        /// 无尽模式 parity(2026-09-29,轮 24)。数值叶子已由生成器逐键比对(含两道闸门的**上限值**),
+        /// 这里补三类生成器看不到的东西:
+        /// 1. **章节循环规则**(1→2→3→1)与负数/极端输入的安全 —— 移植时若写成"循环越大章越靠后",
+        ///    数值 parity 依然全绿,但第 100 循环会指向不存在的章节;
+        /// 2. **两道闸门真的夹住**:乘区上限 + 数值上限,极端循环数下必须仍是有限值(本轮验收门);
+        /// 3. **挑战局口径**:无尽是玩家自选开关,挑战局固定关 —— 与深渊"挑战固定普通档"同一条纪律。
+        /// </summary>
+        private static void CheckEndless(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var e = MiniJson.Opt(doc, "endless");
+            if (e == null) { check(false, "balance.endless 存在"); return; }
+
+            // 数值逐键(生成器已比,这里比的是"规则读的值"与 JSON 同源)
+            string[] keys = { "loopHp", "loopAtk", "loopLoot", "loopDust", "maxMult", "maxHp", "maxAtk", "unlockClears" };
+            float[] cs = { Bestiary.EndlessLoopHp, Bestiary.EndlessLoopAtk, Bestiary.EndlessLoopLoot, Bestiary.EndlessLoopDust,
+                           Bestiary.EndlessMaxMult, Bestiary.EndlessMaxHp, Bestiary.EndlessMaxAtk, Bestiary.EndlessUnlockClears };
+            int bad = 0;
+            for (int i = 0; i < keys.Length; i++)
+                if (Math.Abs((float)MiniJson.Num(e, keys[i]) - cs[i]) > Tol) bad++;
+            check(bad == 0, $"八条无尽数值与 C# 常量一致(异常 {bad} 处)");
+
+            // 章节循环
+            check(EndlessRules.ChapterOfLoop(0) == 1 && EndlessRules.ChapterOfLoop(1) == 2
+                  && EndlessRules.ChapterOfLoop(2) == 3 && EndlessRules.ChapterOfLoop(3) == 1
+                  && EndlessRules.ChapterOfLoop(7) == 2,
+                "章节按 1→2→3→1 循环(无尽复用三章内容,不出第四章)");
+            check(EndlessRules.ChapterOfLoop(-1) == 3 && EndlessRules.ChapterOfLoop(-4) == 3,
+                "负数循环给合法章节(坏档不该让游戏进不去)");
+
+            // 乘区:循环 0 中性、几何增长、封顶
+            var m0 = EndlessRules.LoopMultsOf(0);
+            check(m0.Hp == 1f && m0.Atk == 1f && m0.Loot == 1f && m0.Dust == 1f,
+                "循环 0 全中性(第一遍三章就是普通远征)");
+            var m1 = EndlessRules.LoopMultsOf(1);
+            var m2 = EndlessRules.LoopMultsOf(2);
+            check(m1.Hp > 1f && m2.Hp > m1.Hp && m2.Loot > m1.Loot, "乘区随循环递增");
+            check(m1.Loot < m1.Hp, "掉落涨得比血量慢(否则越打越轻松)");
+            check(Math.Abs(m1.Loot - Bestiary.EndlessLoopLoot) < Tol, "第 1 循环的掉落乘区就是数据表的值");
+
+            // 两道闸门:极端循环数下仍有限、且顶到上限
+            var mBig = EndlessRules.LoopMultsOf(200000);
+            check(!float.IsNaN(mBig.Hp) && !float.IsInfinity(mBig.Hp) && mBig.Hp <= Bestiary.EndlessMaxMult,
+                "极端循环数下乘区封顶而不是溢出成 Infinity");
+            var (hpBig, atkBig) = EndlessRules.Apply(200000, 100f, 20f);
+            check(hpBig <= Bestiary.EndlessMaxHp && !float.IsInfinity(hpBig) && hpBig >= 1f,
+                $"溢出时血量顶到上限(实测 {hpBig:0})");
+            check(atkBig == Bestiary.EndlessMaxAtk, $"攻击顶到上限 {Bestiary.EndlessMaxAtk:0}");
+            check(EndlessRules.SafeHp(float.NaN) >= 1f && EndlessRules.SafeHp(float.PositiveInfinity) <= Bestiary.EndlessMaxHp,
+                "NaN/Infinity 进闸门也出得来有限值(伤害公式不会被污染)");
+            check(EndlessRules.SafeMult(1e9f) == Bestiary.EndlessMaxMult && EndlessRules.SafeMult(float.NaN) == Bestiary.EndlessMaxMult
+                  && EndlessRules.SafeMult(1.5f) == 1.5f,
+                "乘区闸门:不取整、NaN 走上限、正常值原样过");
+
+            // 解锁与纪录
+            int need = (int)Bestiary.EndlessUnlockClears;
+            check(need > 0 && !EndlessRules.Unlocked(need - 1) && EndlessRules.Unlocked(need),
+                "无尽看任意难度通关数(门槛读数据表)");
+            check(!EndlessRules.Unlocked(-5), "负通关数不误判成解锁");
+            var rec = EndlessRules.RecordRun(23, 2, 10, 1);
+            check(rec.bestFloor == 23 && rec.bestLoop == 2, "刷新纪录时取更大的值");
+            var rec2 = EndlessRules.RecordRun(5, 0, 23, 2);
+            check(rec2.bestFloor == 23 && rec2.bestLoop == 2, "打得更差不会把纪录改小");
+            check(EndlessRules.RecordRun(-3, -1, 0, 0).bestFloor == 0, "负数层数不污染纪录");
+            check(EndlessRules.IsNewRecord(24, 23) && !EndlessRules.IsNewRecord(23, 23),
+                "只有严格超过才算刷新(平纪录不弹两次提示)");
+
+            // 展示文案(两端一致,免得结算页一个说"层"一个说"关")
+            check(EndlessRules.LoopLabel(0).Contains("循环 1") && EndlessRules.LoopLabel(0).Contains("第1章"),
+                "循环标签含循环数与章节");
+            check(EndlessRules.FloorLabel(0) == "第 1 层" && EndlessRules.FloorLabel(12) == "第 12 层",
+                "层标签下限 1(还没进房间时不显示第 0 层)");
+            check(EndlessRules.LockReason(1).Contains("/"), "锁着的原因说得清");
+
+            // 挑战局口径:无尽是自选开关,宿主默认关(与深渊"挑战固定普通档"同纪律)
+            check(!new RunManagerLite().Endless, "RunManagerLite 默认不开无尽(挑战局固定关)");
         }
 
         /// <summary>

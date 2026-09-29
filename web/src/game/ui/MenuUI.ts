@@ -16,6 +16,11 @@ export interface RunStats {
   hitsTaken: number;
   /** 本局单次最高伤害(与排行榜共用同一数据源) */
   maxHit: number;
+  /** 无尽模式:本局到达的层数与循环数(0 = 不是无尽局;结算页显示"撑到第几层") */
+  endlessFloor: number;
+  endlessLoop: number;
+  /** 无尽:本局是否刷新历史最高层 */
+  endlessRecord: boolean;
 }
 
 /**
@@ -150,14 +155,26 @@ export class MenuUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = rs.victory ? UI.gold : UI.hpLow;
     ctx.font = 'bold 40px monospace';
-    ctx.fillText(rs.victory ? '✦ 章节通关 ✦' : '骑士倒下了…', w / 2, h * 0.32);
+    // 无尽模式没有"胜利":标题按层数说话(这个模式唯一的成就感就是撑得更远)
+    const title = rs.endlessFloor > 0
+      ? (rs.endlessRecord ? `♾ 新纪录:第 ${rs.endlessFloor} 层!` : `♾ 无尽 · 第 ${rs.endlessFloor} 层`)
+      : rs.victory ? '✦ 章节通关 ✦' : '骑士倒下了…';
+    ctx.fillText(title, w / 2, h * 0.32);
+    if (rs.endlessFloor > 0) {
+      ctx.fillStyle = UI.dim;
+      ctx.font = '14px monospace';
+      ctx.fillText(`循环 ${rs.endlessLoop + 1}(每循环更硬、掉落更好) · 历史最高 ${meta.data.endlessBest} 层`,
+        w / 2, h * 0.32 + 26);
+    }
 
     // 统计行:图标 + 左对齐文字(图标未就绪时自动只画文字,布局不塌)
     const rows: Array<[string, string]> = [
       [STAT_ICON.kill, `击杀  ${rs.kills}`],
       [STAT_ICON.taken, `受击  ${rs.hitsTaken} 次${rs.hitsTaken === 0 ? '(无伤!)' : ''}`],
       [STAT_ICON.dps, `最高单次伤害  ${Math.round(rs.maxHit)}`],
-      [STAT_ICON.chest, `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}`],
+      [STAT_ICON.chest, rs.endlessFloor > 0
+        ? `推进房间  ${rs.rooms}(无尽跨循环连续计数)`
+        : `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}`],
       [STAT_ICON.time, `用时  ${fmtTime(rs.timeS)}`],
       [STAT_ICON.stardust, `星尘收入  ✦${rs.stardustGained}(已存入钱包)`],
     ];

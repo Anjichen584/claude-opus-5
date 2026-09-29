@@ -1090,6 +1090,22 @@ namespace StarfallKnights.Data
         public const float AbyssLevels2EliteWaves = 2f;
         /// <summary>abyss.nightBonusMult</summary>
         public const float AbyssNightBonusMult = 1.1f;
+        /// <summary>endless.loopHp</summary>
+        public const float EndlessLoopHp = 1.35f;
+        /// <summary>endless.loopAtk</summary>
+        public const float EndlessLoopAtk = 1.18f;
+        /// <summary>endless.loopLoot</summary>
+        public const float EndlessLoopLoot = 1.12f;
+        /// <summary>endless.loopDust</summary>
+        public const float EndlessLoopDust = 1.15f;
+        /// <summary>endless.maxMult</summary>
+        public const float EndlessMaxMult = 1e+06f;
+        /// <summary>endless.maxHp</summary>
+        public const float EndlessMaxHp = 1e+09f;
+        /// <summary>endless.maxAtk</summary>
+        public const float EndlessMaxAtk = 1e+06f;
+        /// <summary>endless.unlockClears</summary>
+        public const float EndlessUnlockClears = 4f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1601,6 +1617,14 @@ namespace StarfallKnights.Data
             { "abyss.levels.2.unlockAbyss", AbyssLevels2UnlockAbyss },
             { "abyss.levels.2.eliteWaves", AbyssLevels2EliteWaves },
             { "abyss.nightBonusMult", AbyssNightBonusMult },
+            { "endless.loopHp", EndlessLoopHp },
+            { "endless.loopAtk", EndlessLoopAtk },
+            { "endless.loopLoot", EndlessLoopLoot },
+            { "endless.loopDust", EndlessLoopDust },
+            { "endless.maxMult", EndlessMaxMult },
+            { "endless.maxHp", EndlessMaxHp },
+            { "endless.maxAtk", EndlessMaxAtk },
+            { "endless.unlockClears", EndlessUnlockClears },
         };
     }
 

@@ -43,6 +43,18 @@ describe('存档迁移', () => {
     expect(migrateSave({ ...v1, v: 2, abyssClears: 'nope' }).data.abyssClears).toHaveLength(levels);
   });
 
+  /** 无尽纪录(轮 24):老档补 0,负数/NaN 夹回 —— 结算页读它显示"历史最高 N 层" */
+  it('无尽纪录:老档补 0,负数与 NaN 夹回', () => {
+    expect(migrateSave(v1).data.endlessBest).toBe(0);
+    expect(migrateSave(v1).data.endlessBestLoop).toBe(0);
+    const d = migrateSave({ ...v1, v: 2, endlessBest: -9, endlessBestLoop: 'x' }).data;
+    expect(d.endlessBest).toBe(0);
+    expect(d.endlessBestLoop).toBe(0);
+    const ok = migrateSave({ ...v1, v: 2, endlessBest: 23.7, endlessBestLoop: 2 }).data;
+    expect(ok.endlessBest).toBe(23);
+    expect(ok.endlessBestLoop).toBe(2);
+  });
+
   it('蓝图字段:非字符串/重复项被洗掉,合法 id 原样保留', () => {
     const dirty = { ...v1, v: 2, blueprints: ['bp_a', 'bp_a', 7, null, '', 'bp_b'], craftQueuedId: 42 };
     const d = migrateSave(dirty).data;

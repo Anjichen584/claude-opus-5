@@ -80,6 +80,15 @@ namespace StarfallKnights.Dungeon
         /// <summary>深渊难度档(轮 23;0 = 普通远征)。乘区叠在章节乘区之后(见 Scale)。</summary>
         public int Abyss { get; private set; } = AbyssRules.Normal;
 
+        /// <summary>无尽模式(轮 24)。挑战局请传 false:**挑战要全服同条件**(与深渊同款口径)。</summary>
+        public bool Endless { get; private set; }
+
+        /// <summary>第几循环(0 = 第一遍三章)。乘区见 <see cref="EndlessRules.LoopMultsOf"/>。</summary>
+        public int Loop { get; private set; }
+
+        /// <summary>进过的房间数(镜像 web RunManager.roomsEntered);<see cref="Floor"/> 由它推。</summary>
+        public int RoomsEntered { get; private set; }
+
         /// <summary>宿主实现:实例化敌人(种类 + 已缩放的血/攻/速)。</summary>
         public Action<EnemyKind, float, float, float> OnSpawn;
         /// <summary>房间清空(宿主放传送门/奖励)。</summary>
@@ -88,6 +97,8 @@ namespace StarfallKnights.Dungeon
         public Action OnVictory;
         /// <summary>房间开始(宿主播报章节/房间类型/预警清理)。</summary>
         public Action<RoomKind, int> OnRoomStart;
+        /// <summary>无尽模式:Boss 房清空 = 进入下一循环(替代 <see cref="OnVictory"/>)。</summary>
+        public Action OnLoop;
 
         private readonly Random _rng = new();
         private const int RoomCount = 8;      // 镜像 balance.rooms.count
@@ -116,6 +127,32 @@ namespace StarfallKnights.Dungeon
 
         public int CurrentChapter => Chapter;
 
+        /// <summary>当前层(镜像 web floor = roomsEntered + 1;下限 1 —— 还没进房间时是第 1 层)。</summary>
+        public int Floor => RoomsEntered + 1 <= 1 ? 1 : RoomsEntered + 1;
+
+        /// <summary>
+        /// 开关无尽(轮 24)。开启时循环数归零、章节回到当前章(不是强改第 1 章 ——
+        /// 玩家可能选二章开无尽,那就从二章起循环);关闭时乘区回到中性。
+        /// </summary>
+        public void SetEndless(bool on)
+        {
+            Endless = on;
+            Loop = 0;
+        }
+
+        /// <summary>
+        /// 进入下一循环(镜像 web RunManager.nextLoop):循环 +1、章节按 1→2→3→1 循环、深度清零、
+        /// 立刻开第一间战斗房。**不清玩家积累**(装备/词条/星尘都是玩家的,横跨循环保留)。
+        /// </summary>
+        public void NextLoop(LogicWorld w)
+        {
+            Loop++;
+            Chapter = EndlessRules.ChapterOfLoop(Loop);
+            Depth = -1;
+            Cleared = false;
+            NextRoom(w);
+        }
+
         /// <summary>
         /// 本章杂兵缩放(章节乘区 × 深度 × 夜间 × **深渊档**;Boss 不吃章节乘区,它自己表里已调好)。
         /// 顺序与 web 一致:深度/夜间 → 章节 → 深渊(Web 侧深渊乘区在 RunMods.enemy 里最后乘上)。
@@ -125,16 +162,18 @@ namespace StarfallKnights.Dungeon
             float mul = boss ? 1f : ChapterCfg.StatMult;
             // 镜像 web:Boss 用 depth 0 缩放(它自己表里已按章调好),杂兵才吃房间深度
             int depth = boss ? 0 : (Depth < 0 ? 0 : Depth);
-            return AbyssRules.Apply(Abyss,
+            var (hp, atk) = AbyssRules.Apply(Abyss,
                 Balance.ScaleHp(s.Hp, depth, night) * mul,
                 Balance.ScaleAtk(s.Atk, depth, night) * mul);
+            // 无尽乘区最后叠,并过数值闸门(镜像 web RunMods.enemy:所有出怪路径共用这一处闸门)
+            return EndlessRules.Apply(Loop, hp, atk);
         }
 
         /// <summary>当前档的掉落乘区(镜像 web runMods.dropMult 里的深渊部分)</summary>
-        public float LootMult => AbyssRules.LootMult(Abyss);
+        public float LootMult => EndlessRules.SafeMult(AbyssRules.LootMult(Abyss) * EndlessRules.LoopMultsOf(Loop).Loot);
 
         /// <summary>当前档的星尘乘区(镜像 web runMods.dustMult)</summary>
-        public float DustMult => AbyssRules.DustMult(Abyss);
+        public float DustMult => EndlessRules.SafeMult(AbyssRules.DustMult(Abyss) * EndlessRules.LoopMultsOf(Loop).Dust);
 
         /// <summary>精英房额外波次(镜像 web RunManager 的 pendingWaves 加成)</summary>
         public int EliteExtraWaves => AbyssRules.EliteWaves(Abyss);
@@ -143,6 +182,7 @@ namespace StarfallKnights.Dungeon
         public bool NextRoom(LogicWorld w)
         {
             Depth++;
+            RoomsEntered++;
             if (Depth >= RoomCount) return false;
             Room = Depth == RoomCount - 1 ? RoomKind.Boss
                 : Depth == MidBossIndex && Chapter == 1 ? RoomKind.MidBoss   // 二三章中 Boss 未做(镜像 web 的章节门控)
@@ -162,7 +202,8 @@ namespace StarfallKnights.Dungeon
             if (w.Enemies.Count == 0)
             {
                 Cleared = true;
-                if (Room == RoomKind.Boss) OnVictory?.Invoke();
+                // 无尽模式:Boss 房清空不是通关,是"进入下一循环"(镜像 web update 返回 'loop')
+                if (Room == RoomKind.Boss) { if (Endless) OnLoop?.Invoke(); else OnVictory?.Invoke(); }
                 else OnRoomCleared?.Invoke(Room);
             }
         }

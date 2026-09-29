@@ -61,6 +61,7 @@ import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { buildFromBlueprint, blueprintOf } from '@game/loot/Blueprint';
 import { NORMAL as ABYSS_NORMAL, newlyUnlocked, recordClear, levelName } from '@game/dungeon/Abyss';
+import { floorLabel, isNewRecord, loopLabel, recordRun } from '@game/dungeon/Endless';
 import { CONS_VISUAL, consumableDef, type ConsumableId } from '@game/loot/Consumables';
 import { tutorial, formatHint } from '@game/meta/Tutorial';
 import { markRuneOwned } from '@game/meta/Codex';
@@ -141,7 +142,10 @@ export class GameScene {
   private fps = 60;
   private menuT = 0;
   private wasNight = false;
-  private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0, hitsTaken: 0, maxHit: 0 };
+  private lastStats: RunStats = {
+    victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0, hitsTaken: 0, maxHit: 0,
+    endlessFloor: 0, endlessLoop: 0, endlessRecord: false,
+  };
   private bgHasTile = false;
   /** 已烘焙进背景的布局指纹(换模板/换房 → 重烘焙地面) */
   private bgLayoutKey = '';
@@ -197,6 +201,9 @@ export class GameScene {
     this.run.chapter = chapter;
     // 深渊难度档(轮 23):挑战局(每日/周常)固定普通档 —— 挑战要全服同条件,不是"谁层数高谁分高"
     runMods.setAbyss(mode === 'off' ? this.campUI.selectedAbyss : ABYSS_NORMAL);
+    // 无尽模式(轮 24):只有普通远征能开(挑战局要全服同条件);无尽开局从循环 0 起算
+    this.run.endless = mode === 'off' && this.campUI.endless;
+    runMods.setEndlessLoop(0);
     this.bgHasTile = false;
     this.playerSystem = new PlayerSystem(this.input, this.renderer);
     this.playerSystem.aimAssist.reset(); // 新一局:清掉上一局的锁定目标(实体 id 会复用)
@@ -711,15 +718,34 @@ export class GameScene {
 
   private endRun(victory: boolean): void {
     const p = this.world.mustGet(this.playerE, Player);
+    const isEndless = this.run.endless;
+    // 无尽:层数跨循环连续(用进入过的房间数,不是 chapter 内的 depth)
+    const endlessFloor = isEndless ? this.run.floor : 0;
+    const endlessRecord = isEndless && isNewRecord(endlessFloor, {
+      clears: meta.data.stats.clears, bestFloor: meta.data.endlessBest, bestLoop: meta.data.endlessBestLoop,
+    });
     this.lastStats = {
       victory,
-      rooms: this.run.depth + 1,
+      rooms: isEndless ? this.run.roomsEntered : this.run.depth + 1,
       kills: this.feedback.kills,
       timeS: clock.runTime,
       stardustGained: p.stardust,
       hitsTaken: this.feedback.hitsTaken,
       maxHit: this.feedback.maxHit,
+      endlessFloor,
+      endlessLoop: isEndless ? this.run.loop : 0,
+      endlessRecord,
     };
+    if (isEndless) {
+      // 无尽成绩**无论胜败都记**(这个模式没有"胜利",只有撑到第几层)
+      const prog = { clears: meta.data.stats.clears, bestFloor: meta.data.endlessBest, bestLoop: meta.data.endlessBestLoop };
+      const next = recordRun(endlessFloor, this.run.loop, prog);
+      meta.data.endlessBest = next.bestFloor;
+      meta.data.endlessBestLoop = next.bestLoop;
+      if (endlessRecord) {
+        this.world.emit(new ToastEvent(`♾ 新纪录:${floorLabel(endlessFloor)}(循环 ${this.run.loop + 1})`, RARITY_COLORS.legendary));
+      }
+    }
     meta.data.stardust += p.stardust;
     meta.data.pity = this.loot.factory.pityCount;
     meta.data.stats.totalKills += this.feedback.kills;
@@ -940,6 +966,12 @@ export class GameScene {
     const outcome = this.run.update(this.world, dt, this.playerE);
     if (outcome === 'victory') {
       this.endRun(true);
+      return;
+    }
+    if (outcome === 'loop') {
+      // 无尽:章节循环 + 乘区递增,不清结算(玩家会一路打到自己死)
+      this.run.nextLoop(this.world, this.playerE);
+      this.bgHasTile = false;
       return;
     }
     const p = this.world.mustGet(this.playerE, Player);
@@ -2194,13 +2226,23 @@ export class GameScene {
       ? `🌙 夜间掉落×2 · [L] 星灯 ✦${this.run.chapterCfg.lanternCost} 立即天亮 · [Tab]背包镶符文`
       : '踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包(右键重铸) · 2/3/4 消耗品 · 商店按[F]买';
     ctx.fillText(hint, width / 2, height - 12);
+    // 无尽模式(轮 24):显示"第几层 / 循环几 / 当前乘区" —— 这个模式的唯一进度感就靠这行
+    if (this.run.endless) {
+      const m = this.run.loopMults;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ff9a6b';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(
+        `♾ ${floorLabel(this.run.floor)} · ${loopLabel(this.run.loop)} · 怪血 ×${m.hp.toFixed(1)} 掉落 ×${m.loot.toFixed(2)}`,
+        width / 2, height - 46);
+    }
     // 深渊档位提示(轮 23):玩家必须随时知道自己在哪一档 —— 打不动时第一反应是查装备,不是查难度
     if (runMods.abyss > 0) {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff9a6b';
       ctx.font = 'bold 12px monospace';
       ctx.fillText(`🔥 ${levelName(runMods.abyss)}(怪血 ×${runMods.abyssHpMult} 攻击 ×${runMods.abyssAtkMult})`,
-        width / 2, height - 30);
+        width / 2, this.run.endless ? height - 64 : height - 30);
     }
   }
 

@@ -604,6 +604,7 @@ namespace StarfallKnights.Tests
             TestCodex();
             TestChapters();
             TestAbyss();
+            TestEndless();
             TestTelegraphs();
             TestWeakspots();
             TestCreatureAI();
@@ -1541,7 +1542,9 @@ namespace StarfallKnights.Tests
             var (hpB, atkB) = run3.Scale(probe, false, false);
             Near(hpB / hpA, AbyssRules.HpMult(3), 1e-3f,
                 $"深渊 III 下同一只菇灵血量是普通档的 {AbyssRules.HpMult(3)} 倍(实测 {hpB / hpA:0.###})");
-            Near(atkB / atkA, AbyssRules.AtkMult(3), 1e-3f, $"攻击同理 ×{AbyssRules.AtkMult(3)}");
+            // 攻击数值过闸门时会取整(轮 24 的 SafeAtk):小怪 atk 基数小,1 点取整就能放大成 5% 误差,
+            // 所以这里按"绝对值 ±1 点"比,而不是比乘区 —— 比乘区会变成假红。
+            Near(atkB / atkA, AbyssRules.AtkMult(3), 1f / atkA + 1e-3f, $"攻击同理 ×{AbyssRules.AtkMult(3)}(取整误差 ±1 点)");
             Check(run0.LootMult == 1f && run3.LootMult > 1f, "掉落乘区随档位走(普通档中性)");
             Check(run0.DustMult == 1f && run3.DustMult > 1f, "星尘乘区随档位走");
             Check(run0.EliteExtraWaves == 0 && run3.EliteExtraWaves > 0, "精英房波次随档位走");
@@ -1567,6 +1570,94 @@ namespace StarfallKnights.Tests
             // 挑战局口径:普通档不叠任何乘区
             Check(AbyssRules.HpMult(AbyssRules.Normal) == 1f && AbyssRules.AtkMult(AbyssRules.Normal) == 1f,
                 "普通档全中性(挑战局固定用它)");
+        }
+
+        private static void TestEndless()
+        {
+            Suite("无尽模式(循环 / 乘区 / 两道闸门 / 接线)");
+            Check(EndlessRules.ChapterOfLoop(0) == 1 && EndlessRules.ChapterOfLoop(3) == 1
+                  && EndlessRules.ChapterOfLoop(4) == 2,
+                "章节按 1→2→3→1 循环(无尽复用三章内容,不做第四章)");
+            Check(EndlessRules.ChapterOfLoop(-1) == 3, "负数循环也给合法章节(坏档不该进不去游戏)");
+
+            var m0 = EndlessRules.LoopMultsOf(0);
+            var m1 = EndlessRules.LoopMultsOf(1);
+            var m2 = EndlessRules.LoopMultsOf(2);
+            Check(m0.Hp == 1f && m0.Loot == 1f, "循环 0 全中性(第一遍三章 = 普通远征)");
+            Check(m1.Hp > 1f && m2.Hp > m1.Hp, "怪血乘区随循环递增");
+            Check(m1.Loot > 1f && m1.Loot < m1.Hp, "掉落也涨,但涨得比血量慢");
+
+            // 两道闸门:极端循环数下仍是**有限值**,并且顶到上限(本轮验收门:20 层后仍不崩)
+            var mBig = EndlessRules.LoopMultsOf(200000);
+            Check(!float.IsNaN(mBig.Hp) && !float.IsInfinity(mBig.Hp) && mBig.Hp <= Bestiary.EndlessMaxMult,
+                "极端循环数下乘区封顶而不是溢出成 Infinity");
+            var (hpBig, atkBig) = EndlessRules.Apply(200000, 100f, 20f);
+            Check(hpBig >= 1f && hpBig <= Bestiary.EndlessMaxHp && !float.IsInfinity(hpBig),
+                $"血量顶到上限而不是溢出(实测 {hpBig:0})");
+            Check(atkBig == Bestiary.EndlessMaxAtk, $"攻击顶到上限 {Bestiary.EndlessMaxAtk:0}");
+            Check(EndlessRules.SafeHp(float.NaN) >= 1f && EndlessRules.SafeAtk(float.PositiveInfinity) >= 1f,
+                "NaN/Infinity 进闸门也出得来有限值(不会污染伤害公式)");
+
+            // 纪录:只增不减、负数不污染
+            var rec = EndlessRules.RecordRun(23, 2, 10, 1);
+            Check(rec.bestFloor == 23 && rec.bestLoop == 2, "刷新纪录取更大的值");
+            Check(EndlessRules.RecordRun(5, 0, 23, 2).bestFloor == 23, "打得更差不会把纪录改小");
+            Check(!EndlessRules.IsNewRecord(23, 23) && EndlessRules.IsNewRecord(24, 23), "平纪录不算刷新");
+
+            // 接线一:真实 RunManagerLite 里 Boss 房清空 = 进下一循环(不是通关)
+            var w = new LogicWorld();
+            MakePlayer(w);
+            var run = new RunManagerLite();
+            int loops = 0;
+            run.OnLoop = () => { loops++; run.NextLoop(w); };
+            run.SetChapter(1);
+            run.SetEndless(true);
+            Check(run.Floor == 1, "开局是第 1 层");
+            for (int i = 0; i < 8; i++) run.NextRoom(w);
+            Check(run.Room == RoomKind.Boss, "第 8 间是 Boss 房");
+            Check(run.Floor == 9, $"第 8 间打完在第 9 层(实测 {run.Floor})");
+            run.Tick(w);
+            Check(loops == 1 && run.Loop == 1, "Boss 房清空进入下一循环(无尽没有通关)");
+            Check(run.CurrentChapter == 2, "循环 1 接第 2 章(内容循环,复用三章)");
+            Check(run.Room == RoomKind.Battle && run.Cleared == false, "新循环从第一间战斗房开始");
+            Check(run.Floor > 9, "层数跨循环继续累加(不重置玩家的进度感受)");
+
+            // 挑战局口径:不开无尽时 Boss 清空走 OnVictory(老行为不变)
+            var w2 = new LogicWorld();
+            MakePlayer(w2);
+            var runV = new RunManagerLite();
+            int victories = 0;
+            runV.OnVictory = () => victories++;
+            runV.SetChapter(1);
+            for (int i = 0; i < 8; i++) runV.NextRoom(w2);
+            runV.Tick(w2);
+            Check(victories == 1 && runV.Loop == 0, "普通局 Boss 清空仍是通关(挑战/普通不受无尽影响)");
+
+            // 接线二:同一只怪的血量随循环放大(出怪种类随机,必须比同一只)
+            var probe = Bestiary.Of(EnemyKind.Shroomling);
+            var plain = new RunManagerLite();
+            plain.SetChapter(1);
+            var endless3 = new RunManagerLite();
+            endless3.SetChapter(1);
+            endless3.SetEndless(true);
+            for (int i = 0; i < 3; i++) endless3.NextLoop(w2);
+            Check(endless3.CurrentChapter == 1, "循环 3 回到第 1 章(章节循环闭合)");
+            var (hpA, _) = plain.Scale(probe, false, false);
+            var (hpB, _) = endless3.Scale(probe, false, false);
+            Near(hpB / hpA, (float)Math.Pow(Bestiary.EndlessLoopHp, 3), 1f / hpA + 1e-3f,
+                $"循环 3 下同一只怪血量是普通远征的 {Bestiary.EndlessLoopHp:0.##}^3 倍,±1 点取整(实测 {hpB / hpA:0.###})");
+            Check(plain.LootMult == 1f && endless3.LootMult > 1f, "掉落乘区随循环走(普通局中性)");
+
+            // 接线三:无尽 × 深渊可以叠(两道乘区相乘,仍走同一处闸门)
+            var deep = new RunManagerLite();
+            deep.SetChapter(1);
+            deep.SetEndless(true);
+            deep.SetAbyss(3);
+            for (int i = 0; i < 3; i++) deep.NextLoop(w2);
+            var (hpC, _) = deep.Scale(probe, false, false);
+            Near(hpC / hpA, (float)Math.Pow(Bestiary.EndlessLoopHp, 3) * Bestiary.AbyssLevels2HpMult, 1f / hpA + 1e-3f,
+                "深渊 × 无尽的乘区相乘(叠加后仍有限、仍过闸门;±1 点取整)");
+            Check(hpC <= Bestiary.EndlessMaxHp, "叠了两档乘区也不会越过闸门");
         }
 
         // ---------------- 预警区域 ----------------

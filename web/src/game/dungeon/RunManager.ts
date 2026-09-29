@@ -15,6 +15,7 @@ import { scaleAtk, scaleHp } from './Scaling';
 import { runMods } from './RunMods';
 import { rollStock } from '@game/loot/ShopStock';
 import { pickTotems, totemName, type TotemKind } from '@game/loot/EventRules';
+import { chapterOfLoop, loopLabel, loopMults } from './Endless';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 import {
@@ -49,12 +50,54 @@ export class RunManager {
   private spriteSpawned = false;
   /** 当前章节(GameScene.startRun 设置) */
   chapter: 1 | 2 | 3 = 1;
+  /**
+   * 无尽模式(轮 24):三章跑完不结算,接"下一循环"(章节按 1→2→3→1 循环,乘区随循环数增长)。
+   * 只有 `endless = true` 时 Boss 房清空才返回 'loop' 而不是 'victory'。
+   */
+  endless = false;
+  /** 已完成的循环数(0 = 第一遍三章中的第一段) */
+  loop = 0;
+  /** 本局进入过的房间总数(跨循环连续)—— 无尽模式记的就是它 */
+  roomsEntered = 0;
   /** 本房布局模板结果(RoomLayouts);营地/未开局为 null */
   layout: LayoutResult | null = null;
   /** 布局指纹:id + 房间序号,GameScene 据此判断要不要重烘焙地面 */
   layoutKey = 'camp';
   private layoutSeq = 0;
   private rng = new Rng(Date.now() >>> 0);
+
+  /** 当前层(1 起,跨循环连续;无尽模式的纪录就是它) */
+  get floor(): number {
+    return Math.max(1, this.roomsEntered + 1);
+  }
+
+  /** 当前循环的乘区摘要(UI 展示用) */
+  get loopMults(): { hp: number; atk: number; loot: number; dust: number } {
+    return loopMults(this.loop);
+  }
+
+  /**
+   * 进入下一循环(无尽模式):章节往下循环、房间序号归零、乘区按新循环重算。
+   * 刻意**不重置** 玩家身上的东西(装备/词缀/符文/星尘)—— 无尽是"带着整局的积累继续往上爬",
+   * 而不是重开一局;否则这个模式就只是"反复打三章",没有长线感。
+   */
+  nextLoop(world: World, playerE: number): void {
+    this.loop++;
+    this.chapter = chapterOfLoop(this.loop);
+    this.depth = 0;
+    this.cleared = false;
+    this.portalsSpawned = false;
+    this.bossSpawned = false;
+    this.spriteSpawned = false;
+    runMods.setEndlessLoop(this.loop);
+    for (const e of world.query(Portal)) world.destroy(e);
+    this.startRoom(world, 'battle', playerE);
+    const m = this.loopMults;
+    world.emit(new ToastEvent(
+      `♾ ${loopLabel(this.loop)} —— 怪血 ×${m.hp.toFixed(1)} 攻击 ×${m.atk.toFixed(2)} 掉落 ×${m.loot.toFixed(2)}`,
+      '#ff9a6b'));
+    world.emit(new SfxEvent('ult'));
+  }
 
   /** 章节配置 */
   get chapterCfg(): (typeof balance.chapters)['1'] {
@@ -64,6 +107,7 @@ export class RunManager {
   constructor(private readonly factory: ItemFactory) {}
 
   startRoom(world: World, kind: RoomKind, playerE: number): void {
+    this.roomsEntered++;
     this.roomKind = kind;
     this.cleared = false;
     this.portalsSpawned = false;
@@ -247,7 +291,7 @@ export class RunManager {
     this.spawnProps(world);
   }
 
-  update(world: World, dt: number, playerE: number): 'playing' | 'victory' {
+  update(world: World, dt: number, playerE: number): 'playing' | 'victory' | 'loop' {
     // ---- 波次出怪 ----
     if (this.pendingWaves > 0) {
       this.waveTimer -= dt;
@@ -270,7 +314,10 @@ export class RunManager {
         world.count(DustStinger) + world.count(BossKazra) +
         world.count(MidBossStag);
       if (this.roomKind === 'boss') {
-        if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) + world.count(BossKazra) === 0) return 'victory';
+        if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) + world.count(BossKazra) === 0) {
+          // 无尽模式:Boss 倒了不结算,接下一循环(章节循环 + 乘区递增)
+          return this.endless ? 'loop' : 'victory';
+        }
       } else if (enemiesLeft === 0 && this.pendingWaves === 0) {
         this.cleared = true;
         world.emit(new ToastEvent('房间清空!前往出口 →', '#5FD068'));

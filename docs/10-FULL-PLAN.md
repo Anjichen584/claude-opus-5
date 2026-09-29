@@ -143,7 +143,7 @@
 | 21 ✅ | 消耗品 4 种 + 药剂经济 | W | 护盾/净化/时缓各有边界与反制 |
 | 22 ✅ | 商店/秘境深化:符文货架、随机货、议价事件 | W+U | 商店内容不再重复单调(**已实现**:定价 jitter / 特惠 / 符文货架 / 消耗品随机两摊 / 商人议价 / 秘境碑池 6 座抽 3;Unity `ShopRules` + `CheckShop`) |
 | 23 ✅ | 难度层 ×3(深渊 I–III) | W+U | 每层有独立乘区与解锁条件,镜像 C#(**已实现**:四列乘区逐层递增 + 逐层解锁(不能跳级)+ 营地面板选层 + 结算记录与解锁提示;Unity `Dungeon/AbyssRules.cs` + RunManagerLite 接入 + `CheckAbyss`/`TestAbyss`) |
-| 24 | 无尽模式(原三章之后接无限章) | W+U | 20 层后仍不崩(数值溢出测试) |
+| 24 ✅ | 无尽模式(原三章之后接无限章) | W+U | ✅ **完成**(2026-09-30):三章跑完不结算,接**无限循环章**(章节按 1→2→3→1 复用内容,不做第四章)**没有通关、只有撑到第几层**;乘区按循环数几何增长(血 1.35 / 攻 1.18 / 掉 1.12 / 尘 1.15)+ **两道闸门**(乘区 clamp `maxMult` 1e6 + 数值 clamp `maxHp` 1e9 / `maxAtk` 1e6 且保证有限整数)—— 20 层 / 20 万循环都不出 Infinity;web `dungeon/Endless.ts` + RunMods/RunManager/HUD/结算/营地开关,Unity `Dungeon/EndlessRules.cs` + RunManagerLite(`OnLoop`/`NextLoop`) + `CheckEndless`/`TestEndless`;挑战局固定关(源码守卫);web 468 / C# 784 / Bestiary 468 常量 |
 | 25 | 事件房补齐到 8 个 + 汇总面板 | W | 8 个抉择全部有记录可回看 |
 | 26 | 音频第二遍:每章 BGM + 3 Boss 主题 + 环境声 | W | 8 首曲目切换无断层 |
 | 27 | 动画批次 1:剑士 6 动作序列 | W+U | ✅ **完成**(2026-09-29):**6 个动作 19 帧全入**(走 4/普攻 3/翻滚 3/受击 2/死亡 4/施法 3),管线 `tools/process_frames.py`(锚点帧定比例 + 同画布 + 脚底贴底 + **度量清单**用于守卫)、`balance.anim` + `gfx/anim.ts`(回退链 + `clockFor` 动作时钟 + 死亡接 `respawn.delay`)、Unity `AnimRules`/parity;顺带修掉 **Unity 玩家基准数值的手抄漂移**(hp 100→120 / atk 12→14 / 速度 4.6→4.2):`player` 段进 codegen + parity,手抄常量退役;web 327 / C# 547 |

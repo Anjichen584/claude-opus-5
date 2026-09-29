@@ -1228,5 +1228,16 @@
       }
     ],
     "nightBonusMult": 1.1
+  },
+  "endless": {
+    "$doc": "无尽模式(10-FULL-PLAN 轮 24):通关三章之后接\"无限循环章\"—— 每循环把三章跑一遍,章内依旧是 8 房 + Boss,但每循环怪更硬、掉落更好。**没有通关**:只有撑到第几层。乘区按循环数几何增长(clamp 到 maxMult),最终数值另有 maxHp/maxAtk 兜底 —— 这是\"20 层后仍不崩\"的门槛:任何一层都必须算出**有限整数**,不能出现 Infinity/NaN。规则见 dungeon/Endless.ts,Unity 镜像 Dungeon/EndlessRules.cs。",
+    "loopHp": 1.35,
+    "loopAtk": 1.18,
+    "loopLoot": 1.12,
+    "loopDust": 1.15,
+    "maxMult": 1000000,
+    "maxHp": 1000000000,
+    "maxAtk": 1000000,
+    "unlockClears": 4
   }
 }

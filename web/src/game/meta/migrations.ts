@@ -52,6 +52,10 @@ export interface SaveData {
    * II 要求 I 通关 unlockAbyss 次,III 要求 II —— 所以这必须是每层独立的计数,不能只存一个总数。
    */
   abyssClears: number[];
+  /** 无尽模式历史最高层(跨循环连续的"层";0 = 没玩过) */
+  endlessBest: number;
+  /** 无尽模式历史最高循环数 */
+  endlessBestLoop: number;
   /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 周常挑战最佳(键 = ISO 周,如 2026-W40;跨周自动作废) */
@@ -107,6 +111,8 @@ export function defaultSave(): SaveData {
     blueprints: [],
     craftQueuedId: null,
     abyssClears: [],
+    endlessBest: 0,
+    endlessBestLoop: 0,
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     weekly: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
   leaderboard: { speed: [], kills: [], hit: [], nohit: [] },
@@ -195,6 +201,8 @@ export function migrateSave(raw: unknown): MigrateResult {
     ? data.craftQueuedId : null;
   // 深渊各层通关数:补齐到层数长度、越界/非数字一律夹回(层表变长时老档自动补 0)
   const levelCount = (balance.abyss.levels as unknown[]).length;
+  data.endlessBest = Math.max(0, Math.floor(num(data.endlessBest)));
+  data.endlessBestLoop = Math.max(0, Math.floor(num(data.endlessBestLoop)));
   data.abyssClears = Array.from({ length: levelCount }, (_, i) => {
     const raw = Array.isArray(data.abyssClears) ? (data.abyssClears as unknown[])[i] : 0;
     return Math.max(0, Math.floor(num(raw)));

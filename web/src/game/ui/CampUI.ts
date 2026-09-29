@@ -11,6 +11,7 @@ import { meta } from '@game/meta/Save';
 import { BLUEPRINTS, blueprintOf, craftBlocker, blockerText } from '@game/loot/Blueprint';
 import { specialDef } from '@game/loot/Specials';
 import { ABYSS_LEVELS, NORMAL, abyssUnlocked, lockReason, summaryOf } from '@game/dungeon/Abyss';
+import { endlessLockReason, endlessUnlocked } from '@game/dungeon/Endless';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
 import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
 import {
@@ -72,6 +73,11 @@ export class CampUI {
   hallTab: 'achv' | 'board' = 'achv';
   /** 选中的深渊难度档(0 = 普通远征;轮 23)。解锁状态每帧现读存档,不缓存(通关后应立刻可选) */
   selectedAbyss = NORMAL;
+  /**
+   * 无尽模式开关(轮 24)。与章节/难度**不冲突**:无尽是"打完三章继续循环",所以它可以叠在任何深渊档上
+   * (深渊 III + 无尽 = 最硬的一套组合)。挑战局(每日/周常)固定关掉无尽 —— 挑战要全服同条件。
+   */
+  endless = false;
   /** 铸台选中的蓝图 id(默认第一张) */
   forgePick: string = BLUEPRINTS[0]?.id ?? '';
   /** 铸台当前提示:挡住了为什么 / 成功后一句话(菜单里没有 Toast,就地显示) */
@@ -150,6 +156,9 @@ export class CampUI {
         }
       }
       if (r.act.startsWith('up_')) this.tryUpgrade(r.act.slice(3) as 'hp' | 'atk' | 'luck');
+      if (r.act === 'endlessToggle') {
+        if (endlessUnlocked(meta.data.stats.clears)) this.endless = !this.endless;
+      }
       if (r.act.startsWith('ab') && r.act.length > 2) {
         // 深渊档(轮 23):锁着就**不切**(点一下锁定层却切过去,比不响应更糟)
         const idx = Number(r.act.slice(2));
@@ -701,7 +710,7 @@ export class CampUI {
   // ---- 出征 ----
   private renderExpedition(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const pw = 620;
-    const ph = 292;
+    const ph = 340;
     const px = w / 2 - pw / 2;
     const py = h / 2 - ph / 2;
     panelBox(ctx, px, py, pw, ph);
@@ -765,6 +774,30 @@ export class CampUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '10px monospace';
     ctx.fillText(summaryOf(this.selectedAbyss), w / 2, py + 228);
+
+    // ---- 无尽模式开关(轮 24):显示历史最高层,锁着显示解锁条件 ----
+    const endlessOk = endlessUnlocked(meta.data.stats.clears);
+    const er: Rect = { x: px + 24, y: py + 238, w: pw - 48, h: 34 };
+    ctx.textAlign = 'center';
+    ctx.fillStyle = this.endless && endlessOk ? '#3a2531' : '#1a1f30';
+    ctx.fillRect(er.x, er.y, er.w, er.h);
+    ctx.strokeStyle = this.endless && endlessOk ? UI.hpLow : endlessOk ? '#3a4154' : '#2a2f3d';
+    ctx.lineWidth = this.endless && endlessOk ? 2.5 : 1.5;
+    ctx.strokeRect(er.x, er.y, er.w, er.h);
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = endlessOk ? (this.endless ? UI.hpLow : UI.text) : UI.dim;
+    const best = meta.data.endlessBest;
+    const tail = endlessOk
+      ? (best > 0 ? ` · 最高 ${best} 层 / 循环 ${meta.data.endlessBestLoop + 1}` : ' · 未挑战')
+      : ` · 🔒 ${endlessLockReason(meta.data.stats.clears)}`;
+    ctx.fillText(`${endlessOk ? (this.endless ? '☑' : '☐') : '🔒'} ♾ 无尽模式(三章循环,撑到第几层)${tail}`,
+      er.x + er.w / 2, er.y + 22);
+    this.rects.push({ rect: er, act: 'endlessToggle' });
+    if (this.endless && endlessOk) {
+      ctx.fillStyle = UI.dim;
+      ctx.font = '10px monospace';
+      ctx.fillText('无尽可叠深渊难度;挑战局(每日/周常)固定关掉无尽', w / 2, py + ph - 28);
+    }
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 78, w: 220, h: 46 };
     ctx.fillStyle = '#2a3147';
