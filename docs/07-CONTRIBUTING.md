@@ -68,6 +68,16 @@ bash unity/Tests/run.sh           # parity 会逐键双向比对,漏生成/改�
 - **加字符串表(引导文案/步骤表)**:`tools/gen_bestiary.py` 只搬数值叶子,`string[]` 会被静默跳过 ——
   所以字符串表的**顺序与长度**必须在 `ParityTests` 里单独比对,否则两端会悄悄跑偏
   (已经踩过:引导步骤表若不比对,"web 教 5 步、Unity 教 4 步"没人会发现)。
+- **加一整个 balance 段(如 `touch`)**:三步一起做,少一步就会出现"看着是绿的其实没人管"——
+  ① `tools/gen_bestiary.py` 里补 `walk('Xxx', b['xxx'], ...)`,并把 `n_json` 覆盖性自检加上这段
+  (漏了会直接报"数值叶子数不符",这是最省事的一道闸);
+  ② `ParityTests.CheckBestiary` 里补同样的 `Walk(xxx, "xxx")`
+  (漏了会报"图鉴无多余键"——生成器加了、parity 没加,一样红);
+  ③ **布尔与字符串叶子生成器按规则跳过**,必须由专门的 `CheckXxx` 单独比对
+  (先例:`CheckTutorial` 比步骤 id、`CheckTouch` 比 `autoAttack` 布尔)。
+- **parity 只能证明"两边的数一样",证明不了"代码真的用了这个数"**:常量搬过去了、代码里却写死,
+  parity 照样全绿。所以新段的检查里要顺手断言**代码读的就是常量**(`AimRules.DefaultRangeM == balance.touch.aimRangeM`),
+  这样"改 balance 不影响手感"会被抓住。
 
 ### 4.1 随机数必须播种(踩过的坑)
 

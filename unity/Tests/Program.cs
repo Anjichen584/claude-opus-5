@@ -606,6 +606,7 @@ namespace StarfallKnights.Tests
             TestCreatureAI();
             TestMidBoss();
             TestTutorialAndSlots();
+            TestAimAssist();
             TestBossAI();
             TestClassSkillSet();
             TestRoomLayouts();
@@ -1668,6 +1669,70 @@ namespace StarfallKnights.Tests
         }
 
         // ---------------- Boss AI ----------------
+
+        /// <summary>
+        /// 触屏辅助瞄准(10-FULL-PLAN 轮 7 的 Unity 镜像)。
+        /// 用**真实 Actor** 跑规则,不是只对纯函数做数学验证 —— 手感规则必须在逻辑世界成立。
+        /// </summary>
+        private static void TestAimAssist()
+        {
+            Suite("触屏辅助瞄准(范围 / 粘性 / 续瞄)");
+
+            var w = new LogicWorld();
+            MakePlayer(w, new Vector2(0f, 0f));
+            var near = MakeEnemy(w, new Vector2(3f, 0f));
+            var mid = MakeEnemy(w, new Vector2(6f, 0f));
+            var far = MakeEnemy(w, new Vector2(30f, 0f)); // 远超锁定范围
+
+            // 1) 范围内选最近的;范围外(30m)不参与
+            Check(ReferenceEquals(AimRules.Pick(w.Enemies, Vector2.Zero, null), near), "范围内选最近的敌人");
+            Check(!ReferenceEquals(AimRules.Pick(w.Enemies, Vector2.Zero, null), far), "范围外的敌人不抢准星");
+
+            // 2) 粘性:已锁 6m 的 mid,最近的是 3m 的 near —— 差距 3m ≤ sticky 3m → 继续锁 mid
+            Check(ReferenceEquals(AimRules.Pick(w.Enemies, Vector2.Zero, mid), mid), "粘性:差距在余量内不换目标");
+            // 把 near 挪近到 1m(差距 5m > 3m)→ 该换目标了
+            near.Pos = new Vector2(1f, 0f);
+            Check(ReferenceEquals(AimRules.Pick(w.Enemies, Vector2.Zero, mid), near), "粘性有上限:差距过大照样换");
+            Check(ReferenceEquals(AimRules.Pick(w.Enemies, Vector2.Zero, far), near), "已锁目标出范围 → 不返回它");
+
+            // 3) 方向 + 单位长度(零距离不产生 NaN)
+            var dir = AimRules.Dir(Vector2.Zero, new Vector2(0f, 5f));
+            Check(MathF.Abs(dir.X) < 1e-5f && MathF.Abs(dir.Y - 1f) < 1e-5f, "方向朝目标(0,1)");
+            var zero = AimRules.Dir(Vector2.Zero, Vector2.Zero);
+            Check(!float.IsNaN(zero.X) && !float.IsNaN(zero.Y), "零距离不产生 NaN");
+
+            // 4) 续瞄:目标全清后先续 aimLatchS 秒,再用完交还(朝移动方向的兜底由调用方做)
+            var aim = new AimAssist();
+            var first = aim.Update(w, Vector2.Zero, 1f / 60f);
+            Check(first.HasValue && ReferenceEquals(aim.Locked, near), "锁定 1m 的敌人");
+            Check(MathF.Abs(first.Value.X - 1f) < 1e-5f, "瞄准方向指向目标");
+            w.Enemies.Clear();
+            var latched = aim.Update(w, Vector2.Zero, 0.2f);
+            Check(latched.HasValue && MathF.Abs(latched.Value.X - 1f) < 1e-5f, "目标消失后仍续瞄原方向");
+            Check(aim.Locked == null, "续瞄期间没有锁定对象(HUD 不画锁定圈)");
+            aim.Update(w, Vector2.Zero, 0.2f);
+            Check(!aim.Update(w, Vector2.Zero, 0.2f).HasValue, "续瞄用尽 → 交还兜底");
+            Check(!aim.Aiming, "交还后不再是瞄准状态");
+
+            // 5) reset 必须清干净(换房/复活会复用 Actor 引用,不清就会锁上一局)
+            MakeEnemy(w, new Vector2(2f, 0f));
+            aim.Update(w, Vector2.Zero, 1f / 60f);
+            Check(aim.Locked != null, "重新拿到目标");
+            aim.Reset();
+            Check(aim.Locked == null && aim.LatchT == 0f && !aim.Aiming, "Reset 清干净(锁定 + 续瞄计时)");
+
+            // 6) 有效射程:近战 = 攻距;远程 = 飞行距离 × shotReachFrac
+            Near(AimRules.AutoAttackRangeM(HeroClass.Blade), BasicAttack.ComboOf(HeroClass.Blade).RangeM, 1e-4f,
+                "剑士自动攻击射程 = 普攻攻距");
+            var shot = BasicAttack.ShotOf(HeroClass.Ranger);
+            Near(AimRules.AutoAttackRangeM(HeroClass.Ranger),
+                shot.SpeedM * shot.LifeS * Bestiary.TouchShotReachFrac, 1e-4f, "猎手 = 飞行距离 × 比例");
+            Check(AimRules.AutoAttackRangeM(HeroClass.Ranger) < shot.SpeedM * shot.LifeS, "远程射程短于满飞行距离(不空挥)");
+            Check(AimRules.AutoAttackRangeM(HeroClass.Blade) < AimRules.DefaultRangeM
+                && AimRules.AutoAttackRangeM(HeroClass.Ranger) < AimRules.DefaultRangeM,
+                $"锁定范围({AimRules.DefaultRangeM} m)盖得住四职业普攻");
+            Check(AimRules.InAutoRange(3f, 3f) && !AimRules.InAutoRange(3.5f, 3f), "判死线:射程 + 余量内才开火");
+        }
 
         private static void TestBossAI()
         {

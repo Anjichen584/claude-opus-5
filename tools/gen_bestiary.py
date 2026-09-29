@@ -87,6 +87,9 @@ def main() -> int:
     walk('Arena', b['arena'], json_path='arena', name_prefix='')
     # 新手引导的数值叶子(moveM/hintY/saveSlots);步骤 id/文案是字符串,由 ParityTests 的 CheckTutorial 比对
     walk('Tutorial', b['tutorial'], json_path='tutorial', name_prefix='')
+    # 触屏手感数值(自动瞄准范围/粘性/续瞄、摇杆半径、按钮安全边距);autoAttack 是布尔 →
+    # 生成器按规则跳过,由 ParityTests 的 CheckTouch 单独比对(与教程步骤同一套纪律)
+    walk('Touch', b['touch'], json_path='touch', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -103,7 +106,8 @@ def main() -> int:
             yield path
 
     n_json = (sum(1 for _ in leaves(enemies)) + sum(1 for _ in leaves(chapters))
-              + sum(1 for _ in leaves(b['arena'])) + sum(1 for _ in leaves(b['tutorial'])))
+              + sum(1 for _ in leaves(b['arena'])) + sum(1 for _ in leaves(b['tutorial']))
+              + sum(1 for _ in leaves(b['touch'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 

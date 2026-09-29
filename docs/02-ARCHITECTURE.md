@@ -108,6 +108,7 @@ DamageIntent { source, target, base, element?, tags[] }
 | game/combat, loot, skills | `Assets/Scripts/Combat…` 纯 C# 类 | **逻辑逐行移植**,不依赖引擎 API |
 | data/*.json | `Assets/Resources/Data/` 同一份 JSON | 两边共享同一套数据文件 ✔ |
 | render/input | Unity 自带 | 不移植 |
+| game/input/AimAssist(触屏辅助瞄准规则) | `Core/AimAssist.cs` | **同样移植**——手感是发行规格的一部分,数值读 `balance.touch`(生成常量 + parity);引擎的 `Input` 不认识游戏数据,摇杆参数由 game 层灌入(`applyTouchTuning`) |
 
 原则:**数值和数据两边永远同源**(JSON 直接复用),只移植逻辑,不移植引擎。
 
@@ -120,7 +121,7 @@ DamageIntent { source, target, base, element?, tags[] }
 ## 9. 存档格式
 
 `localStorage["sk_save_v{N}"]`,JSON + 版本号,版本迁移函数写在 `meta/migrations.ts`(纯函数,可单测)。
-存内容: 祭坛等级、图纸、货币、解锁职业、统计、设置(音量/界面缩放/屏震/顿帧/键位)、
+存内容: 祭坛等级、图纸、货币、解锁职业、统计、设置(音量/界面缩放/屏震/顿帧/键位/**触屏自动攻击**)、
 **新手引导进度**、最后写入时间。**局内进度不存档**(roguelite 规则)。
 
 **3 个存档槽**(2026-09-29):`slotKey(i)` —— 0 号槽沿用历史键 `sk_save_v{N}`(老玩家的档自动落在 0 号槽,

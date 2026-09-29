@@ -1,4 +1,5 @@
 import type { System, World } from '@engine/ecs/World';
+import { AimAssist } from '@game/input/AimAssist';
 import type { Input } from '@engine/input/Input';
 import type { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
@@ -18,6 +19,14 @@ const B = balance.player;
  * 手感参数全部来自 balance.json,对齐 docs/01-GDD.md §3。
  */
 export class PlayerSystem implements System {
+  /**
+   * 触屏瞄准助手(粘性锁定 + 续瞄)。
+   * HUD/自动攻击也读它(`aimAssist.target`)—— 玩家看到的锁定圈与真正打的目标必须是同一个。
+   */
+  readonly aimAssist = new AimAssist();
+  /** 瞄准候选的复用数组(触屏自动瞄准每帧填一次) */
+  private readonly aimScratch: Array<{ id: number; x: number; y: number }> = [];
+
   constructor(
     private readonly input: Input,
     private readonly renderer: Renderer,
@@ -58,19 +67,24 @@ export class PlayerSystem implements System {
         p.aimX = this.input.padLX / mlen;
         p.aimY = this.input.padLY / mlen;
       } else if (this.input.touchActive) {
-        // 触屏:自动瞄准最近敌人(8m 内),否则朝移动方向
-        let best: { x: number; y: number } | null = null;
-        let bd = 8 * M;
+        // 触屏:自动瞄准(范围 + 粘性 + 续瞄,规则见 game/input/AimAssist.ts),否则朝移动方向
+        // 复用数组 + 复用条目(每帧都跑,别给手机送 GC 抖动):只在敌人数变多时才真的分配
+        const targets = this.aimScratch;
+        let n = 0;
         for (const t of world.query(Faction, Transform, Health)) {
           if (world.mustGet(t, Faction).team !== 'enemy') continue;
           const ttr = world.mustGet(t, Transform);
-          const d = Math.hypot(ttr.x - tr.x, ttr.y - tr.y);
-          if (d < bd) { bd = d; best = ttr; }
+          const slot = targets[n] ?? (targets[n] = { id: 0, x: 0, y: 0 });
+          slot.id = t;
+          slot.x = ttr.x;
+          slot.y = ttr.y;
+          n++;
         }
-        if (best) {
-          const d = Math.hypot(best.x - tr.x, best.y - tr.y) || 1;
-          p.aimX = (best.x - tr.x) / d;
-          p.aimY = (best.y - tr.y) / d;
+        targets.length = n;
+        const aim = this.aimAssist.update(tr.x, tr.y, targets, dt, undefined, undefined, undefined, M);
+        if (aim) {
+          p.aimX = aim.x;
+          p.aimY = aim.y;
         } else {
           const ax2 = this.input.axis();
           if (ax2.x !== 0 || ax2.y !== 0) {
@@ -87,6 +101,8 @@ export class PlayerSystem implements System {
         p.aimX = dx / len;
         p.aimY = dy / len;
       }
+      // 非触屏不用辅助瞄准:清掉记忆(否则下次触屏会锁上一个很旧的实体 id)
+      if (!this.input.touchActive) this.aimAssist.reset();
       tr.face = Math.atan2(p.aimY, p.aimX);
 
       // ---- 计时器 ----

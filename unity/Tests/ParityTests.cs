@@ -37,6 +37,45 @@ namespace StarfallKnights.Tests
             CheckLeaderboard(check, near, root);
             CheckClassBasics(check, near, root);
             CheckTutorial(check, near, root);
+            CheckTouch(check, root);
+        }
+
+        /// <summary>
+        /// 触屏段(10-FULL-PLAN 轮 7)。
+        /// 数值叶子已由 CheckBestiary 逐键比对,这里管两件数值比对覆盖不到的事:
+        /// 1. **布尔叶子** `autoAttack` —— 生成器按规则跳过布尔(同教程的步骤 id/文案),必须单独比对;
+        /// 2. 确认 C# 侧真的是**读常量**而不是把数值抄进了代码(常量搬了、代码写死 = parity 假绿)。
+        /// </summary>
+        private static void CheckTouch(Action<bool, string> check, string root)
+        {
+            check(!string.IsNullOrEmpty(root), "触屏 parity 需要仓库根(含 web/src/data)");
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var t = MiniJson.Opt(doc, "touch");
+            if (t == null) { check(false, "balance.touch 存在"); return; }
+
+            bool auto = t.TryGetValue("autoAttack", out var raw) && raw is bool b && b;
+            check(raw is bool, "touch.autoAttack 是布尔(不是字符串/数字)");
+            check(auto == AimRules.AutoAttackDefault,
+                $"自动攻击默认开关一致(JSON={auto} vs C#={AimRules.AutoAttackDefault})");
+
+            check(Math.Abs(AimRules.DefaultRangeM - MiniJson.Num(t, "aimRangeM")) < 1e-4f,
+                "AimRules 锁定范围读的是 balance.touch.aimRangeM(不是写死的数)");
+            check(Math.Abs(AimRules.DefaultStickyM - MiniJson.Num(t, "aimStickyM")) < 1e-4f,
+                "AimRules 粘性读的是 balance.touch.aimStickyM");
+            check(Math.Abs(AimRules.DefaultLatchS - MiniJson.Num(t, "aimLatchS")) < 1e-4f,
+                "AimRules 续瞄读的是 balance.touch.aimLatchS");
+            // 手感区间守卫:锁定范围必须盖得住近战/远程普攻,否则自动攻击永远不开火(web 侧同款断言)
+            float bladeReach = AimRules.AutoAttackRangeM(HeroClass.Blade);
+            float shotReach = AimRules.AutoAttackRangeM(HeroClass.Ranger);
+            check(AimRules.DefaultRangeM > bladeReach && AimRules.DefaultRangeM > shotReach,
+                $"锁定范围({AimRules.DefaultRangeM} m)盖得住近战 {bladeReach:0.##} m 与远程 {shotReach:0.##} m");
+            check(AimRules.DefaultStickyM > 0f && AimRules.DefaultLatchS > 0f, "粘性与续瞄都是正数");
+            // 粘性要"够粘但不至于锁死":大到锁定范围一半,玩家会发现准星挂着不动的旧目标
+            check(AimRules.DefaultStickyM < AimRules.DefaultRangeM * 0.5f,
+                $"粘性({AimRules.DefaultStickyM} m)小于锁定范围的一半");
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -79,6 +118,9 @@ namespace StarfallKnights.Tests
             // 新手引导的数值叶子(moveM/hintY/saveSlots)
             var tutorial = MiniJson.Opt(doc, "tutorial");
             if (tutorial != null) Walk(tutorial, "tutorial");
+            // 触屏手感数值(自动瞄准范围/粘性/续瞄、摇杆半径、按钮安全边距)
+            var touch = MiniJson.Opt(doc, "touch");
+            if (touch != null) Walk(touch, "touch");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)

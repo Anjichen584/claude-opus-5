@@ -1050,5 +1050,19 @@
     "skipKey": "KeyH",
     "hintY": 0.86,
     "saveSlots": 3
+  },
+  "touch": {
+    "$doc": "触屏辅助:自动瞄准 / 自动攻击 / 按钮布局。数值就是手感,全部集中在数据里(见 game/input/AimAssist.ts)。 shotReachFrac 是远程普攻的有效射程比例(弹丸最后那段已经飞过头,不算\"该开火的距离\")。",
+    "aimRangeM": 11.0,
+    "aimStickyM": 3.0,
+    "aimLatchS": 0.5,
+    "shotReachFrac": 0.7,
+    "autoAttack": true,
+    "autoAttackPadM": 0.4,
+    "joyRadiusPx": 56.0,
+    "joyDeadPx": 8.0,
+    "btnTouchPadPx": 14.0,
+    "safeMarginPx": 26.0,
+    "btnScale": 1.0
   }
 }

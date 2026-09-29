@@ -48,6 +48,8 @@ import { TouchControls } from '@game/ui/TouchControls';
 import { CampUI } from '@game/ui/CampUI';
 import { SettingsUI } from '@game/ui/SettingsUI';
 import { bindOf, keyLabel } from '@game/meta/Bindings';
+import { basicRangePx, basicSpec } from '@game/combat/BasicAttack';
+import { inAutoAttackRange } from '@game/input/AimAssist';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
@@ -64,6 +66,9 @@ import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
+
+/** R 技能所需怒气(与 SkillSystem 的 minRage 默认值一致) */
+const RAGE_FOR_R = 40;
 
 /** 引导总步数(展示用;步骤表在 balance.tutorial.steps) */
 const TUTORIAL_TOTAL = balance.tutorial.steps.length;
@@ -106,6 +111,8 @@ export class GameScene {
   private feedback!: FeedbackSystem;
   private skills!: SkillSystem;
   private loot!: LootSystem;
+  /** 玩家系统:持有触屏瞄准助手(HUD 与自动攻击都读同一个目标) */
+  private playerSystem!: PlayerSystem;
   private shop!: ShopSystem;
   private events!: EventSystem;
   private run!: RunManager;
@@ -146,6 +153,12 @@ export class GameScene {
     this.inventoryUI = new InventoryUI(input);
     this.menuUI = new MenuUI(input);
     this.touch = new TouchControls(input);
+    // 触屏自动攻击开关:存档里是权威(设置面板里也能关);在触屏面板上一键切换后立刻落盘
+    this.touch.autoAttack = meta.data.settings.autoAttack;
+    this.touch.onAutoAttackToggle = (on) => {
+      meta.data.settings.autoAttack = on;
+      meta.save();
+    };
     this.campUI = new CampUI(input);
     this.settingsUI = new SettingsUI(input);
     // 应用已存音量(unlock 前设置也会在 unlock 时生效)
@@ -177,8 +190,10 @@ export class GameScene {
     this.run = new RunManager(this.loot.factory);
     this.run.chapter = chapter;
     this.bgHasTile = false;
+    this.playerSystem = new PlayerSystem(this.input, this.renderer);
+    this.playerSystem.aimAssist.reset(); // 新一局:清掉上一局的锁定目标(实体 id 会复用)
     this.systems = [
-      new PlayerSystem(this.input, this.renderer),
+      this.playerSystem,
       this.skills,
       new EnemySystem(),
       new EliteSystem(),
@@ -269,8 +284,10 @@ export class GameScene {
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
     this.skills = new SkillSystem(this.input, klass, this.renderer);
+    this.playerSystem = new PlayerSystem(this.input, this.renderer);
+    this.playerSystem.aimAssist.reset(); // 新一局:清掉上一局的锁定目标(实体 id 会复用)
     this.systems = [
-      new PlayerSystem(this.input, this.renderer),
+      this.playerSystem,
       this.skills,
       new PhysicsSystem(),
       new ProjectileSystem(),
@@ -425,6 +442,33 @@ export class GameScene {
       if (d < bd) { bd = d; best = e; }
     }
     return best;
+  }
+
+  /** 把玩家当前状态喂给触屏按钮(冷却/药剂/怒气) */
+  private syncTouchHud(): void {
+    const p = this.world.get(this.playerE, Player);
+    if (!p) return;
+    // 冷却上限从技能表读(与 HUD 的技能条同一来源,不写第二份)
+    // 原地改:这个函数每帧跑,不能顺手 new 一堆小对象(移动端 GC 抖动就是这么来的)
+    const sk = this.touch.hud.skills;
+    sk.q.cd = Math.max(0, p.cdQ);
+    sk.q.max = this.skills.cooldownOf('Q');
+    sk.e.cd = Math.max(0, p.cdE);
+    sk.e.max = this.skills.cooldownOf('E');
+    sk.rr.cd = Math.max(0, p.cdR);
+    sk.rr.max = this.skills.cooldownOf('R');
+    this.touch.hud.potion = p.potionCharges;
+    this.touch.hud.rReady = p.rage >= RAGE_FOR_R && p.cdR <= 0;
+  }
+
+  /** 自动攻击用:锁定的敌人在普攻射程内吗(射程来自 basicSpec,不写死) */
+  private aimTargetInRange(): boolean {
+    const target = this.playerSystem.aimAssist.target;
+    if (!target) return false;
+    const p = this.world.get(this.playerE, Player);
+    if (!p) return false;
+    const spec = basicSpec(p.klass, balance);
+    return inAutoAttackRange(target.d, basicRangePx(spec, M), balance.touch.autoAttackPadM * M);
   }
 
   private updateCamp(dt: number): void {
@@ -769,10 +813,14 @@ export class GameScene {
     }
 
     // ---- run ----
-    // 触屏按钮先注入(复用键盘语义,后续逻辑零改动)
+    // 触屏按钮先注入(复用键盘语义,后续逻辑零改动)。
+    // 按钮上的冷却/药剂数量、以及"锁定目标是否在普攻射程内"(自动攻击用)都在这里喂进去 ——
+    // 瞄准助手是玩家系统的**唯一真相**:HUD 显示的目标就是真正打的目标。
+    this.syncTouchHud();
     this.touch.update(this.renderer.width, this.renderer.height, {
       interact: this.shop.nearbyStand !== null || this.events.nearbyTotem !== null,
       night: clock.isNight(),
+      targetInRange: this.aimTargetInRange(),
     });
     const uiConsumed = this.inventoryUI.handleInput(this.world, this.playerE);
     if (uiConsumed) {
@@ -1753,6 +1801,29 @@ export class GameScene {
 
       list.sort((a, b) => a.y - b.y);
       for (const d of list) d.draw();
+
+      // 触屏锁定圈:玩家必须能一眼看出"自动瞄准锁的是谁"(瞄错人比不瞄更气人)。
+      // 画的正是 PlayerSystem.aimAssist 的本帧目标 —— 显示与实际是同一个来源。
+      if (this.input.touchActive && this.state === 'run') {
+        const pick = this.playerSystem.aimAssist.target;
+        if (pick) {
+          const t = performance.now() / 1000;
+          const pulse = 1 + Math.sin(t * 6) * 0.06;
+          ctx.save();
+          ctx.globalAlpha = 0.9;
+          ctx.strokeStyle = '#5FD068';
+          ctx.lineWidth = 2;
+          const rad = 16 * pulse;
+          // 四个角括号(比整圈更不挡怪)
+          for (let q = 0; q < 4; q++) {
+            const a0 = q * (Math.PI / 2) + Math.PI / 4;
+            ctx.beginPath();
+            ctx.arc(pick.x, pick.y - 6, rad, a0 - 0.34, a0 + 0.34);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
 
       // 元素印记标示
       for (const e of w.query(ElementMarks, Transform)) {

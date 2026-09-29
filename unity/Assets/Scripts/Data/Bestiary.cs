@@ -764,6 +764,26 @@ namespace StarfallKnights.Data
         public const float TutorialHintY = 0.86f;
         /// <summary>tutorial.saveSlots</summary>
         public const float TutorialSaveSlots = 3f;
+        /// <summary>touch.aimRangeM</summary>
+        public const float TouchAimRangeM = 11f;
+        /// <summary>touch.aimStickyM</summary>
+        public const float TouchAimStickyM = 3f;
+        /// <summary>touch.aimLatchS</summary>
+        public const float TouchAimLatchS = 0.5f;
+        /// <summary>touch.shotReachFrac</summary>
+        public const float TouchShotReachFrac = 0.7f;
+        /// <summary>touch.autoAttackPadM</summary>
+        public const float TouchAutoAttackPadM = 0.4f;
+        /// <summary>touch.joyRadiusPx</summary>
+        public const float TouchJoyRadiusPx = 56f;
+        /// <summary>touch.joyDeadPx</summary>
+        public const float TouchJoyDeadPx = 8f;
+        /// <summary>touch.btnTouchPadPx</summary>
+        public const float TouchBtnTouchPadPx = 14f;
+        /// <summary>touch.safeMarginPx</summary>
+        public const float TouchSafeMarginPx = 26f;
+        /// <summary>touch.btnScale</summary>
+        public const float TouchBtnScale = 1f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1112,6 +1132,16 @@ namespace StarfallKnights.Data
             { "tutorial.moveM", TutorialMoveM },
             { "tutorial.hintY", TutorialHintY },
             { "tutorial.saveSlots", TutorialSaveSlots },
+            { "touch.aimRangeM", TouchAimRangeM },
+            { "touch.aimStickyM", TouchAimStickyM },
+            { "touch.aimLatchS", TouchAimLatchS },
+            { "touch.shotReachFrac", TouchShotReachFrac },
+            { "touch.autoAttackPadM", TouchAutoAttackPadM },
+            { "touch.joyRadiusPx", TouchJoyRadiusPx },
+            { "touch.joyDeadPx", TouchJoyDeadPx },
+            { "touch.btnTouchPadPx", TouchBtnTouchPadPx },
+            { "touch.safeMarginPx", TouchSafeMarginPx },
+            { "touch.btnScale", TouchBtnScale },
         };
     }
 

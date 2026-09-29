@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_SAVE_VERSION, DEFAULT_BINDS, migrateSave } from '@game/meta/Save';
+import balance from '@data/balance.json';
 
 /**
  * 存档迁移守卫(docs/02-ARCHITECTURE.md §9):
@@ -19,6 +20,23 @@ const v1 = {
 describe('存档迁移', () => {
   it('默认档就是当前版本', () => {
     expect(migrateSave(null).data.v).toBe(CURRENT_SAVE_VERSION);
+  });
+
+  it('触屏自动攻击开关:老档没这一项 → 取 balance 默认;有 → 听存档的', () => {
+    // 老档(v1/v2 都可能缺):补默认而不是当 false
+    expect(migrateSave(v1).data.settings.autoAttack).toBe(balance.touch.autoAttack);
+    // 玩家真的关过 → 尊重存档(不能被"默认值"覆盖回去)
+    const off = migrateSave({
+      ...v1, v: CURRENT_SAVE_VERSION,
+      settings: { ...v1.settings, autoAttack: false },
+    });
+    expect(off.data.settings.autoAttack).toBe(false);
+    // 脏数据(字符串/数字)一律回默认,别把 undefined 传给渲染层
+    const dirty = migrateSave({
+      ...v1, v: CURRENT_SAVE_VERSION,
+      settings: { ...v1.settings, autoAttack: 'yes' as unknown as boolean },
+    });
+    expect(dirty.data.settings.autoAttack).toBe(balance.touch.autoAttack);
   });
 
   it('v1 老档:数值全保留,新字段取默认,标记为已升级', () => {

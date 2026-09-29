@@ -1,5 +1,6 @@
 import { M } from '@game/constants';
 import type { Klass } from '@game/meta/Leaderboard';
+import { TOUCH } from '@game/input/AimAssist';
 
 /**
  * 四职业**普攻档案**(docs/03-NUMBERS.md §12)。
@@ -214,6 +215,17 @@ export function lungeImpulse(step: ComboStep, burstS = 0.12): number {
 }
 
 /** 出招期间的移动倍率(近战与远程口径统一,供移动积分调用) */
+/**
+ * 普攻的有效射程(px)。
+ * - 近战组合技:直接用 `rangeM`;
+ * - 远程射击:用 `speedM × lifeS` 的 **70%** —— 弹丸最后那段已经飞过目标,
+ *   拿满距离当"该开火的距离"会让自动攻击在够不着的时候空挥。
+ */
+export function basicRangePx(spec: BasicSpec, pxPerM: number): number {
+  if (spec.kind === 'combo') return spec.rangeM * pxPerM;
+  return spec.speedM * spec.lifeS * pxPerM * TOUCH.shotReachFrac;
+}
+
 export function moveSlowOf(spec: BasicSpec): number {
   return spec.kind === 'combo' ? spec.moveSlow : spec.moveSlowPct;
 }

@@ -1,5 +1,15 @@
 /** 键鼠+手柄输入状态机。语义动作(移动/攻击/翻滚)在 game 层映射,这里只管原始状态。 */
+/** 摇杆落点区:左半屏 60%(右 40% 留给按钮簇,TouchControls.layoutOf 保证按钮都在右半屏) */
+const JOY_SCREEN_FRAC = 0.6;
+
 export class Input {
+  /**
+   * 触屏摇杆的位移半径 / 死区(引擎默认值;game 层按 balance.touch 覆盖,
+   * 见 TouchControls.applyTouchTuning —— 引擎不认识游戏数据,依赖只能单向)。
+   */
+  joyRadiusPx = 56;
+  joyDeadPx = 8;
+
   private down = new Set<string>();
   private pressed = new Set<string>();
   mouseX = 0;
@@ -179,12 +189,12 @@ export class Input {
   private touchJoy(): { x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * this.pointerScale * 0.6) continue;
+      if (t.sx > window.innerWidth * this.pointerScale * JOY_SCREEN_FRAC) continue;
       const dx = t.x - t.sx;
       const dy = t.y - t.sy;
       const d = Math.hypot(dx, dy);
-      if (d < 8) return { x: 0, y: 0 }; // 死区:按住不动=站定
-      const cl = Math.min(d, 56) / 56;
+      if (d < this.joyDeadPx) return { x: 0, y: 0 }; // 死区:按住不动=站定
+      const cl = Math.min(d, this.joyRadiusPx) / this.joyRadiusPx;
       return { x: (dx / d) * cl, y: (dy / d) * cl };
     }
     return null;
@@ -194,7 +204,7 @@ export class Input {
   joyVisual(): { ax: number; ay: number; x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * this.pointerScale * 0.6) continue;
+      if (t.sx > window.innerWidth * this.pointerScale * JOY_SCREEN_FRAC) continue;
       return { ax: t.sx, ay: t.sy, x: t.x, y: t.y };
     }
     return null;
