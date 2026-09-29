@@ -6,6 +6,10 @@
 # 为什么要有这个脚本(2026-09-29 事故复盘):
 #   构建沙箱的工作区快照上限约 128 MB,超过就会「静默丢掉大文件」——
 #   本会话因此丢过 .git、node_modules 和 80 MB 美术源图共三次。
+#   2026-09-29 第二次事故:快照会把 **.git 历史**回滚到更早的提交(工作树是新的、历史却落后),
+#   于是 push 被 non-fast-forward 拒绝。本脚本现在带「历史对齐」自愈:先 fetch,
+#   若自己在远程之后且工作树相对远程只有新增/修改(没有需要保留的本地提交),就自动
+#   `git reset --soft origin/main` 后重新提交再推 —— 见第 2 步。
 #   纪律:每写完一小块就推送;工作区不留大文件;临时拼图(预览 PNG)用完即删。
 set -euo pipefail
 
@@ -47,6 +51,26 @@ else
 fi
 
 # ---- 2. 推送(密钥走 ~/.ssh/config)----
+# 先取一次远程状态:快照可能把 .git 历史回滚(工作树却是新的),那样 push 必被拒。
+git fetch origin main -q 2>/dev/null || true
+if git rev-parse --verify -q origin/main >/dev/null; then
+  if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
+    # 远程领先(本地历史被回滚)。若本地 HEAD 没有"远程没有的提交",就能安全对齐。
+    LOCAL_ONLY=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$LOCAL_ONLY" = "0" ]; then
+      git reset --soft origin/main
+      if ! git diff --cached --quiet; then
+        git -c user.name="Arena Agent" -c user.email="agent@arena.ai" commit -q -m "$MSG"
+        echo "🔄 已对齐远程历史(本地 .git 被快照回滚)并重新提交:$(git log --oneline -1)"
+      else
+        echo "🔄 已对齐远程历史(本地 .git 被快照回滚,工作树与远程一致)"
+      fi
+    else
+      echo "⚠️  本地有 $LOCAL_ONLY 个远程没有的提交且远程领先 —— 需要人工 rebase,不要自动处理"
+    fi
+  fi
+fi
+
 if git push origin main >/dev/null 2>/tmp/push_err; then
   echo "🚀 已推送 origin/main"
 else
