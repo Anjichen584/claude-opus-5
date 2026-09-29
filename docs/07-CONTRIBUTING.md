@@ -93,19 +93,23 @@ tools/sync.sh "提交信息"     # 提交 → 推送 → 清沙箱,一条命令�
 不需要装 Unity 编辑器就能跑:
 
 ```bash
-bash unity/Tests/run.sh          # 159 项断言,约 3 秒
+bash unity/Tests/run.sh          # 356 项断言,约 3 秒(首次会先自动装 SDK,约 15 秒)
 ```
 
-沙箱/CI 基础镜像里**没有 .NET SDK**,装一次(约 1 分钟,装在系统路径):
+沙箱/CI 基础镜像里**没有 .NET SDK**,`run.sh` 会**自动装**(不需要 sudo),位置是
+`$HOME/.local/dotnet` —— **这个位置是故意选的**:工作区快照按目录名排除 `.local`/`.cache` 等,
+SDK(约 500 MB、4700 个文件)放在这里既不进快照、也不占工作区预算。
 
 ```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
-sudo bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet
-sudo ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+# 想手动装/换版本:
+DOTNET_DIR=~/.local/dotnet SDK_CHANNEL=8.0 bash unity/Tests/run.sh
 ```
 
-> 别用 apt 里的 `mono-*`:最高只支持 C# 7.2,而本工程用了 C# 9 的目标类型 `new()`;
-> apt 也没有 `dotnet-sdk-8.0` 包。
+> **别装在 `~/.dotnet` 或仓库里**:2026-09-29 那次工作区 565 MB 超限(限 128 MB / 10000 文件),
+> 4286 个文件没被快照保住,其中 500 MB 就是这个坑 —— SDK 装在了 `~/.dotnet`(不在快照排除名单里)。
+> 系统目录(`/usr/share/dotnet`)在无 sudo 环境里装不了,也别试。
+>
+> 别用 apt 里的 `mono-*`:最高只支持 C# 7.2,而本工程用了 C# 9 的目标类型 `new()`;apt 也没有 `dotnet-sdk-8.0` 包。
 
 **改数值的规矩**:web 的 `data/*.json` 是唯一权威。
 

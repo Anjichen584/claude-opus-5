@@ -134,7 +134,12 @@
 ## ⚠️ 已知风险/注意事项
 
 - 沙箱工作区快照不含 node_modules,新环境要重新 `npm install`
-- **沙箱快照上限 ~128 MB**:大文件(源图/临时大图)不许留在仓库;提交前先看 `du -sh`
+- **沙箱快照上限 128 MB / 10000 文件**,而且**大头往往不是项目文件**。2026-09-29 实测超限 565 MB
+  (4286 个文件没保住),构成是:.NET SDK 装在 `~/.dotnet`(500 MB / 4700 文件)+ 全量 fetch 把
+  `.git` 撑到 65 MB(远程历史里还躺着 ~69 MB 已废弃的 art_src 源图),项目本体只有 2 MB。对策已成文并落到脚本:
+  · SDK 一律装 `~/.local/dotnet`(目录名进快照排除名单,零预算占用;`unity/Tests/run.sh` 自动装);
+  · 仓库 `fetch` 一律 `--depth 1`(`tools/sync.sh` 已固化,别手敲全量 fetch);
+  · `tools/sync.sh` 收尾时会打印**快照预算**(MB / 文件数)并在接近上限时告警。
 - 环境可能被重建(已发生三次):`.git`/`node_modules` 会丢,恢复即 `git clone --depth 1` + `npm install`
 - **沙箱快照会回滚 `.git`**(连续两轮实测:`.git/config` 被当敏感路径剥离 → origin 丢失;`.git` 历史落后于远程,
   工作树却是最新的)。`tools/sync.sh` 现在自带自愈:先 `fetch` → 若远程领先且本地没有独有提交,
@@ -143,4 +148,4 @@
 - 美术生成后必须过 64 色板量化,否则风格会花(见 04 §4)
 - 伤害数字禁止硬编码,全走 balance.json(架构文档 §5 铁律)
 - **改技能/符文数值必须两边同改**:web JSON 是权威,C# `Skills/*` 里的 const + `Parity` 字典要跟着改,否则 `bash unity/Tests/run.sh` 会红(CI 也跑)
-- C# 逻辑层测试要 .NET SDK 8(沙箱基础镜像没有,装着很快):见 docs/07-CONTRIBUTING.md「跑 C# 逻辑层测试」
+- C# 逻辑层测试要 .NET SDK 8(基础镜像没有,`run.sh` 会自动装到 `~/.local/dotnet`):见 docs/07-CONTRIBUTING.md「跑 C# 逻辑层测试」
