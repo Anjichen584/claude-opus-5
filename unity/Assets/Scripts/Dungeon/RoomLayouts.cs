@@ -12,12 +12,19 @@ namespace StarfallKnights.Dungeon
     /// </summary>
     public static class RoomLayouts
     {
-        /// <summary>战斗房可选模板(权重见 Parity:layouts.combatWeights.*)</summary>
+        /// <summary>战斗房可选模板(必须与 JSON layouts.byKind.battle 逐项一致;权重按章见 chapterWeights)</summary>
         public static readonly string[] Combat =
-            { "scatter", "pillars", "grove", "lane", "narrow", "ring", "shore" };
+        {
+            "scatter", "pillars", "grove", "lane", "narrow", "ring", "shore",
+            "icefield", "drift", "crystal", "dunes", "ruins",
+        };
 
-        /// <summary>精英房偏好有地形的模板(不出散布)</summary>
-        public static readonly string[] Elite = { "pillars", "narrow", "ring", "shore" };
+        /// <summary>精英房偏好有地形的模板(不出散布/沙丘带这类"平场")</summary>
+        public static readonly string[] Elite =
+            { "pillars", "narrow", "ring", "shore", "icefield", "crystal", "ruins" };
+
+        /// <summary>章节 → 战斗房模板权重键前缀(layouts.chapterWeights.&lt;章节&gt;.&lt;模板&gt;)</summary>
+        public static int ChapterOf(int chapter) => chapter == 2 ? 2 : chapter == 3 ? 3 : 1;
 
         /// <summary>Boss 场:边角两点装饰,给 Boss 走位留白</summary>
         public static readonly string[] BossRoom = { "boss" };
@@ -43,23 +50,29 @@ namespace StarfallKnights.Dungeon
             return id == "boss" || id == "calm";
         }
 
-        public static int Weight(string id)
+        /// <summary>某章里该模板的权重(0 = 该章不出现)</summary>
+        public static int WeightOf(string id, int chapter)
         {
             float w;
-            return Parity.TryGetValue("layouts.combatWeights." + id, out w) ? (int)w : 0;
+            string key = $"layouts.chapterWeights.{ChapterOf(chapter)}.{id}";
+            return Parity.TryGetValue(key, out w) ? (int)w : 0;
         }
 
-        /// <summary>与 web 的 pickLayout 同一套规则:战斗房按权重抽,其余从清单均抽。</summary>
-        public static string Pick(Random rng, string kind)
+        /// <summary>第一章权重(等价于旧的 layouts.combatWeights.*,保留给旧调用点)</summary>
+        public static int Weight(string id) => WeightOf(id, 1);
+
+        /// <summary>与 web 的 pickLayout 同一套规则:战斗房按**章节**权重抽,其余从清单均抽。</summary>
+        public static string Pick(Random rng, string kind, int chapter = 1)
         {
             if (kind == "battle")
             {
                 int total = 0;
-                foreach (var id in Combat) total += Weight(id);
+                foreach (var id in Combat) total += WeightOf(id, chapter);
+                if (total <= 0) return "scatter";
                 double roll = rng.NextDouble() * total;
                 foreach (var id in Combat)
                 {
-                    roll -= Weight(id);
+                    roll -= WeightOf(id, chapter);
                     if (roll < 0) return id;
                 }
                 return Combat[Combat.Length - 1];
@@ -78,6 +91,9 @@ namespace StarfallKnights.Dungeon
         public const int MaxLooseSolids = 18;
         public const int MaxWallProps = 60;
         public const int MaxProps = 64;
+        public const float DoorM = 2.6f;              // 门洞净宽(窄道/废墟)
+        public const float CenterFreeM = 3.0f;        // 模板个性:中央净空半径(冰湖/晶簇洞)
+        public const float RuinsWallSpacingM = 3.2f;  // 废墟断墙柱距
 
         /// <summary>layouts 段的逐键数值镜像(键名 = balance.json 里的 JSON 路径)</summary>
         public static readonly Dictionary<string, float> Parity = new Dictionary<string, float>
@@ -91,6 +107,9 @@ namespace StarfallKnights.Dungeon
             { "layouts.maxLooseSolids", MaxLooseSolids },
             { "layouts.maxWallProps", MaxWallProps },
             { "layouts.maxProps", MaxProps },
+            { "layouts.doorM", DoorM },
+            { "layouts.centerFreeM", CenterFreeM },
+            { "layouts.ruinsWallSpacingM", RuinsWallSpacingM },
             { "layouts.combatWeights.scatter", 20f },
             { "layouts.combatWeights.pillars", 16f },
             { "layouts.combatWeights.grove", 14f },
@@ -98,6 +117,28 @@ namespace StarfallKnights.Dungeon
             { "layouts.combatWeights.narrow", 14f },
             { "layouts.combatWeights.ring", 12f },
             { "layouts.combatWeights.shore", 10f },
+            // 章节权重(web pickLayout(kind, rng, chapter) 的权威表)
+            { "layouts.chapterWeights.1.scatter", 20f },
+            { "layouts.chapterWeights.1.pillars", 16f },
+            { "layouts.chapterWeights.1.grove", 14f },
+            { "layouts.chapterWeights.1.lane", 16f },
+            { "layouts.chapterWeights.1.narrow", 14f },
+            { "layouts.chapterWeights.1.ring", 12f },
+            { "layouts.chapterWeights.1.shore", 10f },
+            { "layouts.chapterWeights.2.icefield", 18f },
+            { "layouts.chapterWeights.2.drift", 16f },
+            { "layouts.chapterWeights.2.crystal", 14f },
+            { "layouts.chapterWeights.2.scatter", 12f },
+            { "layouts.chapterWeights.2.pillars", 12f },
+            { "layouts.chapterWeights.2.narrow", 12f },
+            { "layouts.chapterWeights.2.lane", 10f },
+            { "layouts.chapterWeights.3.dunes", 18f },
+            { "layouts.chapterWeights.3.ruins", 16f },
+            { "layouts.chapterWeights.3.scatter", 10f },
+            { "layouts.chapterWeights.3.pillars", 10f },
+            { "layouts.chapterWeights.3.narrow", 12f },
+            { "layouts.chapterWeights.3.ring", 12f },
+            { "layouts.chapterWeights.3.shore", 10f },
         };
     }
 }

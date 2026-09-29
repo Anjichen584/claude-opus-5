@@ -25,7 +25,9 @@ export function paintFloorFeature(
   const hh = (feat.hM / 2) * M;
 
   ctx.save();
-  if (feat.shape === 'band') {
+  if (feat.kind === 'ice') {
+    paintIce(ctx, cx, cy, hw, hh, pal, feat.shape, rng);
+  } else if (feat.shape === 'band') {
     if (feat.kind === 'water') paintWater(ctx, cx, cy, hw, hh, pal, rng);
     else paintPath(ctx, cx, cy, hw, hh, pal, rng);
   } else {
@@ -35,6 +37,62 @@ export function paintFloorFeature(
 }
 
 type Palette = { base: string; edge: string; spark: string };
+
+/**
+ * 冰面(第二章的冰湖/晶簇洞):底色 + 边缘亮圈 + **放射状裂纹** + 星点反光。
+ * 裂纹是这个模板的"签名":玩家一眼就能认出"这间房是冰湖",而不是又一块白地。
+ */
+function paintIce(
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number,
+  pal: Palette, shape: 'band' | 'blob', rng: Rng,
+): void {
+  ctx.save();
+  if (shape === 'band') {
+    ctx.fillStyle = pal.edge;
+    ctx.fillRect(cx - hw - 3, cy - hh - 3, hw * 2 + 6, hh * 2 + 6);
+    ctx.fillStyle = pal.base;
+    ctx.fillRect(cx - hw, cy - hh, hw * 2, hh * 2);
+  } else {
+    ctx.fillStyle = pal.edge;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, hw + 3, hh + 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = pal.base;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, hw, hh, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // 裂纹:从中心向外的折线(每 3~5 段拐一次)
+  ctx.strokeStyle = pal.edge;
+  ctx.lineWidth = 2;
+  const cracks = Math.max(4, Math.round((hw + hh) / 34));
+  for (let i = 0; i < cracks; i++) {
+    let a = rng.range(0, Math.PI * 2);
+    let x = cx;
+    let y = cy;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    const segs = rng.int(3, 5);
+    for (let s2 = 0; s2 < segs; s2++) {
+      const len = rng.range(14, 30);
+      a += rng.range(-0.4, 0.4);
+      x += Math.cos(a) * len;
+      y += Math.sin(a) * len;
+      if (Math.hypot((x - cx) / hw, (y - cy) / hh) > 0.95) break; // 不画出冰面
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // 反光点
+  ctx.fillStyle = pal.spark;
+  const n = Math.max(6, Math.round((hw * hh) / 3200));
+  for (let i = 0; i < n; i++) {
+    const a = rng.range(0, Math.PI * 2);
+    const r = Math.sqrt(rng.next()) * 0.9;
+    ctx.fillRect(Math.round(cx + Math.cos(a) * hw * r), Math.round(cy + Math.sin(a) * hh * r), 3, 3);
+  }
+  ctx.restore();
+}
 
 /** 浅滩:上下各一条沙岸,中间水带 + 波纹 + 反光 */
 function paintWater(

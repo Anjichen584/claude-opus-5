@@ -90,29 +90,43 @@ namespace StarfallKnights.Tests
             all.AddRange(RoomLayouts.Combat);
             all.AddRange(RoomLayouts.BossRoom);
             all.AddRange(RoomLayouts.Calm);
-            Check(all.Count == 9, $"九个模板(战斗 7 + Boss + 静谧,实际 {all.Count})");
+            Check(all.Count == 14, $"14 个模板(战斗 12 + Boss + 静谧,实际 {all.Count})");
             Check(new HashSet<string>(all).Count == all.Count, "模板名无重复");
             Check(RoomLayouts.IsKnown("narrow") && RoomLayouts.IsKnown("boss") && RoomLayouts.IsKnown("calm"), "IsKnown 认得出已知模板");
             Check(!RoomLayouts.IsKnown("volcano") && !RoomLayouts.IsKnown(""), "IsKnown 拒绝未知模板(运行时不留 undefined)");
 
-            int cover = 0;
-            foreach (var id in RoomLayouts.Combat) if (RoomLayouts.Weight(id) > 0) cover++;
-            Check(cover == RoomLayouts.Combat.Length, "每个战斗模板都有正权重");
-
-            // 战斗房按权重抽:2000 次里每个模板都该露面
+            // 按章抽:每章 2000 次,该章有权重的模板都露面,没权重的绝不出
             var rng = new Random(2026);
-            var seen = new Dictionary<string, int>();
             bool onlyCombat = true;
-            for (int i = 0; i < 2000; i++)
+            var missReport = new List<string>();
+            foreach (int chapter in new[] { 1, 2, 3 })
             {
-                var id = RoomLayouts.Pick(rng, "battle");
-                seen[id] = seen.TryGetValue(id, out var n) ? n + 1 : 1;
-                if (Array.IndexOf(RoomLayouts.Combat, id) < 0) onlyCombat = false;
+                var seen = new Dictionary<string, int>();
+                for (int i = 0; i < 2000; i++)
+                {
+                    var id = RoomLayouts.Pick(rng, "battle", chapter);
+                    seen[id] = seen.TryGetValue(id, out var n) ? n + 1 : 1;
+                    if (Array.IndexOf(RoomLayouts.Combat, id) < 0) onlyCombat = false;
+                }
+                foreach (var id in RoomLayouts.Combat)
+                {
+                    if (RoomLayouts.WeightOf(id, chapter) > 0 && !seen.ContainsKey(id)) missReport.Add($"ch{chapter}:{id}");
+                    if (RoomLayouts.WeightOf(id, chapter) == 0 && seen.ContainsKey(id)) missReport.Add($"ch{chapter}不该出{id}");
+                }
             }
             Check(onlyCombat, "战斗房只会抽到战斗模板");
-            int missing = 0;
-            foreach (var id in RoomLayouts.Combat) if (!seen.ContainsKey(id)) missing++;
-            Check(missing == 0, $"七个战斗模板抽样都会出现(缺少 {missing} 个)");
+            Check(missReport.Count == 0, $"章节权重抽样正确(问题 {missReport.Count} 处{(missReport.Count > 0 ? ": " + string.Join(",", missReport) : "")})");
+            // 地貌分章:一章无冰原/荒漠,二章无荒漠,三章无冰原
+            bool ch1Clean = true, ch2Clean = true, ch3Clean = true;
+            foreach (var id in new[] { "icefield", "drift", "crystal", "dunes", "ruins" })
+                if (RoomLayouts.WeightOf(id, 1) > 0) ch1Clean = false;
+            foreach (var id in new[] { "dunes", "ruins" })
+                if (RoomLayouts.WeightOf(id, 2) > 0) ch2Clean = false;
+            foreach (var id in new[] { "icefield", "drift", "crystal" })
+                if (RoomLayouts.WeightOf(id, 3) > 0) ch3Clean = false;
+            Check(ch1Clean && ch2Clean && ch3Clean, "地貌分章:一章纯林地、二章无荒漠、三章无冰原");
+            Check(RoomLayouts.WeightOf("icefield", 2) >= RoomLayouts.WeightOf("scatter", 2), "第二章冰原词权重不低于通用词");
+            Check(RoomLayouts.WeightOf("ruins", 3) >= RoomLayouts.WeightOf("scatter", 3), "第三章荒漠词权重不低于通用词");
 
             var rng2 = new Random(88);
             bool eliteOk = true, bossOk = true, calmOk = true;
@@ -147,7 +161,11 @@ namespace StarfallKnights.Tests
             Check(RoomLayouts.EntryClearXM > 2.5f && RoomLayouts.ExitClearXM > 2.5f, "出入口净空盖住玩家落点/传送门");
             Check(RoomLayouts.MaxLooseSolids < RoomLayouts.MaxProps && RoomLayouts.MaxProps >= RoomLayouts.MaxWallProps,
                 "物件上限自洽(散件 < 总数,Boss 场留白不超上限)");
-            Check(RoomLayouts.Parity.Count == 16, $"layouts 段镜像 16 个数值键(实际 {RoomLayouts.Parity.Count})");
+            Check(RoomLayouts.Parity.Count == 40, $"layouts 段镜像 40 个数值键(实际 {RoomLayouts.Parity.Count})");
+            Check(RoomLayouts.DoorM > 2f * (Balance.RockBodyRadius + Balance.PlayerBodyRadius)
+                  || RoomLayouts.DoorM > 1.44f, "门洞净宽能过玩家");
+            Check(RoomLayouts.CenterFreeM > Balance.PlayerBodyRadius * 2f, "中央净空容得下走位");
+            Check(RoomLayouts.RuinsWallSpacingM > RoomLayouts.DoorM, "废墟柱距 > 门洞(不然后墙无缺口)");
         }
 
         // ---------------- 挑战(每日词条池 + 周常铁律) ----------------

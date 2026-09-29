@@ -26,9 +26,9 @@ const minPairDist = (props: readonly PlacedProp[]): number => {
 };
 
 describe('房间布局模板', () => {
-  it('九个模板都有中文名,且都能摆出东西', () => {
-    expect(LAYOUT_IDS).toHaveLength(9);
-    expect(new Set(LAYOUT_IDS).size).toBe(9);
+  it('14 个模板都有中文名,且都能摆出东西', () => {
+    expect(LAYOUT_IDS).toHaveLength(14);
+    expect(new Set(LAYOUT_IDS).size).toBe(14);
     for (const id of LAYOUT_IDS) {
       expect(LAYOUT_LABELS[id]).toBeTruthy();
       const res = buildLayout(id, ctxOf(7));
@@ -188,18 +188,40 @@ describe('房间布局模板', () => {
 });
 
 describe('房间类型 → 模板', () => {
-  it('战斗房按权重抽,七个战斗模板都点得到', () => {
-    const seen = new Map<string, number>();
+  it('战斗房按**章节**权重抽:每章权重里的模板都点得到,不该出的抽不到', () => {
     const rng = new Rng(2026);
-    for (let i = 0; i < 4000; i++) {
-      const id = pickLayout('battle', rng);
-      seen.set(id, (seen.get(id) ?? 0) + 1);
+    for (const chapter of [1, 2, 3] as const) {
+      const seen = new Map<string, number>();
+      for (let i = 0; i < 3000; i++) {
+        const id = pickLayout('battle', rng, chapter);
+        seen.set(id, (seen.get(id) ?? 0) + 1);
+      }
+      const weights = balance.layouts.chapterWeights[String(chapter) as '1' | '2' | '3'];
+      for (const id of Object.keys(weights)) {
+        expect(seen.get(id) ?? 0, `第 ${chapter} 章抽不到 ${id}`).toBeGreaterThan(0);
+      }
+      expect(seen.get('boss') ?? 0, `第 ${chapter} 章不该出 boss 场`).toBe(0);
+      expect(seen.get('calm') ?? 0, `第 ${chapter} 章不该出静谧房`).toBe(0);
     }
-    for (const id of LAYOUT_IDS) {
-      if (id === 'boss' || id === 'calm') continue;
-      expect(seen.get(id) ?? 0, `${id} 抽不到`).toBeGreaterThan(0);
-    }
-    expect(seen.get('boss') ?? 0).toBe(0);
+  });
+
+  it('地貌分章:第一章抽不到冰原/荒漠模板,二章出冰原词、三章出荒漠词', () => {
+    const cold = ['icefield', 'drift', 'crystal'];
+    const hot = ['dunes', 'ruins'];
+    const rng = new Rng(4242);
+    const pick = (chapter: 1 | 2 | 3, n: number): Set<string> => {
+      const s = new Set<string>();
+      for (let i = 0; i < n; i++) s.add(pickLayout('battle', rng, chapter));
+      return s;
+    };
+    const ch1 = pick(1, 2000);
+    for (const id of [...cold, ...hot]) expect(ch1.has(id), `第一章不该出 ${id}`).toBe(false);
+    const ch2 = pick(2, 2000);
+    expect(cold.some((id) => ch2.has(id)), '第二章应当出冰原地貌').toBe(true);
+    for (const id of hot) expect(ch2.has(id), `第二章不该出 ${id}`).toBe(false);
+    const ch3 = pick(3, 2000);
+    expect(hot.some((id) => ch3.has(id)), '第三章应当出荒漠地貌').toBe(true);
+    for (const id of cold) expect(ch3.has(id), `第三章不该出 ${id}`).toBe(false);
   });
 
   it('精英房不出散布(要地形),Boss 房给 Boss 场,商店/秘境给静谧房', () => {
@@ -211,22 +233,33 @@ describe('房间类型 → 模板', () => {
     }
   });
 
-  it('balance 的 byKind / combatWeights 没有死条目,且模板清单都点得到名字', () => {
+  it('balance 的 byKind / 章节权重没有死条目,且模板清单都点得到名字', () => {
     const ids = new Set<string>(LAYOUT_IDS);
     for (const [kind, list] of Object.entries(balance.layouts.byKind)) {
       expect(list.length, kind).toBeGreaterThan(0);
       for (const id of list) expect(ids.has(id), `${kind} 里的 ${id}`).toBe(true);
     }
-    for (const [id, w] of Object.entries(balance.layouts.combatWeights)) {
-      expect(ids.has(id), id).toBe(true);
-      expect(w, id).toBeGreaterThan(0);
+    for (const chapter of ['1', '2', '3']) {
+      const weights = (balance.layouts.chapterWeights as Record<string, Record<string, number>>)[chapter];
+      expect(Object.keys(weights).length, `第 ${chapter} 章权重表`).toBeGreaterThan(0);
+      for (const [id, w] of Object.entries(weights)) {
+        expect(ids.has(id), `第 ${chapter} 章的 ${id}`).toBe(true);
+        expect(w, `${chapter}.${id}`).toBeGreaterThan(0);
+      }
     }
-    expect(balance.layouts.byKind.battle.sort()).toEqual(Object.keys(balance.layouts.combatWeights).sort());
+    // 兼容线:第一章权重必须等于老的 combatWeights(旧存档/旧代码都读它)
+    expect(balance.layouts.chapterWeights['1']).toEqual(balance.layouts.combatWeights);
+    // 模板清单的并集 = 全部模板(不许有"谁都不引用"的死模板,允许 boss/calm 走 byKind)
+    const referenced = new Set<string>([
+      ...Object.values(balance.layouts.byKind).flat(),
+      ...Object.values(balance.layouts.chapterWeights).flatMap((w) => Object.keys(w)),
+    ]);
+    expect([...ids].filter((i) => !referenced.has(i)), '有模板没有任何入口引用').toEqual([]);
   });
 });
 
 describe('地面装饰', () => {
-  it('九个模板都有地面定义,band/blob 尺寸合法', () => {
+  it('14 个模板都有地面定义,band/blob 尺寸合法', () => {
     for (const id of LAYOUT_IDS) {
       const f = floorOf(id, W, H);
       expect(f.shape === 'band' || f.shape === 'blob').toBe(true);
@@ -238,9 +271,36 @@ describe('地面装饰', () => {
     }
   });
 
+  it('模板个性:冰面中央空、沙丘带里无实心件、废墟每列有门洞', () => {
+    for (const seed of [3, 17, 2026]) {
+      const ice = buildLayout('icefield', ctxOf(seed));
+      for (const p of solidsOf(ice.props)) {
+        expect(Math.hypot(p.xM - W * 0.52, p.yM - H / 2), `冰湖中央@${seed}`).toBeGreaterThanOrEqual(LAYOUT_RULES.centerFreeM);
+      }
+      const dunes = buildLayout('dunes', ctxOf(seed));
+      const bandY = H * 0.52;
+      const bandH = Math.max(2.6, H * 0.2);
+      for (const p of solidsOf(dunes.props)) {
+        expect(Math.abs(p.yM - bandY), `沙丘带@${seed}`).toBeGreaterThanOrEqual(bandH / 2);
+      }
+      const ruins = buildLayout('ruins', ctxOf(seed));
+      for (const x of [7.5, W - 7.5]) {
+        const col = solidsOf(ruins.props).filter((p) => Math.abs(p.xM - x) < 0.6).map((p) => p.yM).sort((a, b) => a - b);
+        let gap = 0;
+        for (let i = 1; i < col.length; i++) gap = Math.max(gap, col[i] - col[i - 1]);
+        expect(gap, `废墟墙列@${seed} x=${x}`).toBeGreaterThanOrEqual(LAYOUT_RULES.doorM);
+      }
+    }
+  });
+
   it('浅滩的水带 / 窄道的土路落在房间中段', () => {
     expect(floorOf('shore', W, H).kind).toBe('water');
     expect(floorOf('narrow', W, H).kind).toBe('path');
+    expect(floorOf('icefield', W, H).kind).toBe('ice');
+    expect(floorOf('drift', W, H).kind).toBe('path');
+    expect(floorOf('dunes', W, H).kind).toBe('sand');
+    // 冰面配色三章都有(雪原最亮,林地偏青)
+    expect(floorPalette('ice', 2)!.base).not.toBe(floorPalette('ice', 1)!.base);
     expect(insideWater(floorOf('shore', W, H), W / 2, H * 0.62)).toBe(true);
     expect(insideWater(floorOf('shore', W, H), W / 2, 2)).toBe(false);
     // 土路在走廊里,不会被墙压住

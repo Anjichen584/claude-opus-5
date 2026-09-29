@@ -200,7 +200,7 @@ export class RunManager {
     // 周常铁律「地脉」:战斗房地形被定死(精英房也让一步,免得两种规则打架)
     const forced = runMods.forcedLayout !== null && (kind === 'battle' || kind === 'elite')
       ? runMods.forcedLayout
-      : pickLayout(ctxKind, this.rng);
+      : pickLayout(ctxKind, this.rng, this.chapter); // 章节决定地貌词(二章冰原/三章荒漠)
     this.layout = buildLayout(forced, {
       rng: this.rng,
       widthM: balance.arena.widthM,

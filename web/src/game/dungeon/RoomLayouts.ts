@@ -38,7 +38,14 @@ export interface Reserved {
 }
 
 export const LAYOUT_IDS = [
-  'scatter', 'pillars', 'grove', 'lane', 'narrow', 'ring', 'shore', 'boss', 'calm',
+  // 第一章(翠语林地)
+  'scatter', 'pillars', 'grove', 'lane', 'narrow', 'ring', 'shore',
+  // 第二章(霜语冰原)
+  'icefield', 'drift', 'crystal',
+  // 第三章(烬语荒漠)
+  'dunes', 'ruins',
+  // 通用
+  'boss', 'calm',
 ] as const;
 export type LayoutId = (typeof LAYOUT_IDS)[number];
 
@@ -52,10 +59,15 @@ export const LAYOUT_LABELS: Record<LayoutId, string> = {
   shore: '溪畔浅滩',
   boss: 'Boss 场',
   calm: '静谧房间',
+  icefield: '冰湖裂面',
+  drift: '雪丘夹道',
+  crystal: '晶簇洞',
+  dunes: '沙丘起伏',
+  ruins: '荒漠废墟',
 };
 
 /** 地面装饰:只影响背景烘焙,不参与碰撞(浅滩是可以趟过去的) */
-export type FloorKind = 'none' | 'water' | 'moss' | 'sand' | 'path';
+export type FloorKind = 'none' | 'water' | 'moss' | 'sand' | 'path' | 'ice';
 export interface FloorFeature {
   readonly kind: FloorKind;
   readonly shape: 'band' | 'blob';
@@ -93,7 +105,19 @@ export const LAYOUT_RULES = {
   maxLooseSolids: L.maxLooseSolids,
   maxWallProps: L.maxWallProps,
   maxProps: L.maxProps,
+  /** 门洞净宽(窄道/废墟共用;≥ 2×(岩半径+玩家半径)=1.44 才走得过去) */
+  doorM: L.doorM,
+  /** 模板个性:中央净空半径(冰湖/晶簇洞的"舞台") */
+  centerFreeM: L.centerFreeM,
+  /** 废墟断墙柱距 */
+  ruinsWallSpacingM: L.ruinsWallSpacingM,
 } as const;
+
+/** 每章的战斗房模板权重(balance.layouts.chapterWeights);缺章回退第一章 */
+export function weightsOf(chapter: number): Record<string, number> {
+  const table = L.chapterWeights as Record<string, Record<string, number>>;
+  return table[String(chapter)] ?? table['1'];
+}
 
 /** bush(灌木/芦苇)不挡路;tree/rock 是实心 */
 export function propRadius(pk: PropKind): number {
@@ -265,6 +289,123 @@ const tmplShore = (ctx: LayoutCtx): Prop[] => {
   ];
 };
 
+/**
+ * 冰湖裂面(第二章):中央一大片冰面当"舞台",外圈一圈碎岩像冻结的裂缝。
+ * 冰面中央必须留空 —— 不然冰面就成了装饰,玩家不会在上面打。
+ */
+const tmplIcefield = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const cx = W * 0.52;
+  const cy = H * 0.5;
+  const rad = Math.min(W, H) * 0.3;
+  const out: Prop[] = [];
+  const slots = 11;
+  for (let i = 0; i < slots; i++) {
+    if (i % 4 === 0) continue; // 三处缺口(与环形擂台同思路,但外圈用岩不用树)
+    const a = (i / slots) * Math.PI * 2;
+    out.push({
+      pk: 'rock', role: 'loose',
+      xM: cx + Math.cos(a) * rad * ctx.rng.range(1.0, 1.12),
+      yM: cy + Math.sin(a) * rad * ctx.rng.range(1.0, 1.12),
+    });
+  }
+  out.push({ pk: 'tree', xM: 6, yM: 2.4, role: 'loose' });
+  out.push({ pk: 'tree', xM: W - 5, yM: H - 2.4, role: 'loose' });
+  return [...out, ...dust(ctx, 'bush', 4, 6.5, W - 6, 2, H - 2)];
+};
+
+/**
+ * 雪丘夹道(第二章):两道斜向雪堆(岩块砌成)斜切房间,中间留一条宽走廊。
+ * 与"窄道"的区别:墙是斜的、只留一条主通道(没有门洞),走位压力来自"只能沿一条线拉扯"。
+ */
+const tmplDrift = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const half = Math.max(LAYOUT_RULES.minCorridorM / 2 + propRadius('rock'), 2.4);
+  const out: Prop[] = [];
+  const n = 14;
+  const span = W - 12;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = 6 + t * span;
+    // 走廊**中间收窄、两端放宽**(像被雪丘挤出来的一条道):墙与中线的距离 = half + |偏移|,
+    // 恒 ≥ half,所以通道净宽永远 ≥ minCorridorM(把墙往同一侧平移会让两墙在端点交叉,踩过坑)
+    const pinch = Math.abs(t - 0.5) * span * 0.22;
+    out.push({ pk: 'rock', role: 'wall', xM: x, yM: H / 2 - (half + pinch) });
+    out.push({ pk: 'rock', role: 'wall', xM: x, yM: H / 2 + (half + pinch) });
+  }
+  return [...out, ...dust(ctx, 'bush', 5, 6.5, W - 6, 1.8, H - 1.8)];
+};
+
+/**
+ * 晶簇洞(第二章):四角放射状冰晶丛(岩),中央空场。
+ * 视觉上是"发育中的晶洞",玩法上是四个可绕背的掩体角落。
+ */
+const tmplCrystal = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const out: Prop[] = [];
+  const corners: Array<[number, number, number]> = [
+    [7.5, H * 0.16, 0.6], [W - 6.5, H * 0.16, 2.2],
+    [7.5, H * 0.84, -0.6], [W - 6.5, H * 0.84, -2.2],
+  ];
+  for (const [cx, cy, spread] of corners) {
+    for (let i = 0; i < 3; i++) {
+      out.push({
+        pk: 'rock', role: 'loose',
+        xM: cx + Math.cos(spread + i * 0.7) * (0.8 + i * 0.55),
+        yM: cy + Math.sin(spread + i * 0.7) * (0.8 + i * 0.55),
+      });
+    }
+  }
+  return [...out, ...dust(ctx, 'bush', 4, 7, W - 6, 2.4, H - 2.4)];
+};
+
+/**
+ * 沙丘起伏(第三章):一条横贯的沙丘带(可通行,不是障碍),丘脊上零散岩块与滚草。
+ * 沙丘带里不放实心件 —— 沙丘是"地形起伏感",不是墙。
+ */
+const tmplDunes = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const bandY = H * 0.52;
+  const bandH = Math.max(2.6, H * 0.2);
+  const out: Prop[] = [];
+  for (let i = 0; i < 4; i++) {
+    const x = 7 + (i * (W - 14)) / 3;
+    out.push({ pk: 'rock', role: 'loose', xM: x, yM: bandY - bandH / 2 - 1.1 + ctx.rng.range(-0.4, 0.4) });
+    out.push({ pk: 'bush', role: 'loose', xM: x + 1.4, yM: bandY + bandH / 2 + 1.1 + ctx.rng.range(-0.4, 0.4) });
+  }
+  out.push({ pk: 'tree', xM: W - 5.6, yM: 2.4, role: 'loose' });
+  return [...out, ...dust(ctx, 'rock', 3, 7, W - 7, 1.8, bandY - bandH / 2 - 1.6)];
+};
+
+/**
+ * 荒漠废墟(第三章):两列断墙(柱距 ruinsWallSpacingM)夹出一条纵向街,每列各开一个门洞。
+ * 与前两个"横向"模板互补:废墟是**纵向**推进,适合守卫/近战职业贴墙打。
+ */
+const tmplRuins = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const y0 = 3.5;
+  const y1 = H - 3.5;
+  const span = y1 - y0;
+  const col = (x: number, doorY: number): Prop[] => {
+    const n = Math.max(3, Math.round(span / LAYOUT_RULES.ruinsWallSpacingM));
+    const out: Prop[] = [];
+    for (let i = 0; i <= n; i++) {
+      const y = y0 + (span * i) / n;
+      if (Math.abs(y - doorY) < LAYOUT_RULES.doorM / 2) continue; // 门洞
+      out.push({ pk: 'rock', role: 'wall', xM: x, yM: y });
+    }
+    return out;
+  };
+  const xa = 7.5;
+  const xb = W - 7.5;
+  return [
+    ...col(xa, y0 + span * 0.3),
+    ...col(xb, y0 + span * 0.7),
+    ...dust(ctx, 'bush', 4, 10, W - 10, 2, H - 2),
+    { pk: 'rock', xM: W / 2, yM: 2.2, role: 'loose' },
+  ];
+};
+
 /** Boss 场:只在边角留两点装饰,保证 Boss 与玩家的走位空间 */
 const tmplBoss = (ctx: LayoutCtx): Prop[] => {
   const [W, H] = [ctx.widthM, ctx.heightM];
@@ -293,6 +434,11 @@ const TEMPLATES: Record<LayoutId, (ctx: LayoutCtx) => Prop[]> = {
   narrow: tmplNarrow,
   ring: tmplRing,
   shore: tmplShore,
+  icefield: tmplIcefield,
+  drift: tmplDrift,
+  crystal: tmplCrystal,
+  dunes: tmplDunes,
+  ruins: tmplRuins,
   boss: tmplBoss,
   calm: tmplCalm,
 };
@@ -319,6 +465,17 @@ export function floorOf(id: LayoutId, widthM: number, heightM: number): FloorFea
       return { kind: 'sand', shape: 'blob', xM: W * 0.58, yM: H * 0.5, wM: 10.5, hM: 10.5 };
     case 'scatter':
       return { kind: 'moss', shape: 'blob', xM: W * 0.62, yM: H * 0.42, wM: 6, hM: 4 };
+    case 'icefield':
+      // 冰面就是这块地的玩法舞台:占中央一大片,中央留空由 auditLayout 守卫
+      return { kind: 'ice', shape: 'blob', xM: W * 0.52, yM: H * 0.5, wM: Math.min(W * 0.56, 16), hM: Math.min(H * 0.7, 10.5) };
+    case 'crystal':
+      return { kind: 'ice', shape: 'blob', xM: W / 2, yM: H / 2, wM: 12.5, hM: 8.5 };
+    case 'drift':
+      return { kind: 'path', shape: 'band', xM: W / 2, yM: H / 2, wM: W - 12, hM: Math.max(3.0, H * 0.2) };
+    case 'dunes':
+      return { kind: 'sand', shape: 'band', xM: W / 2, yM: H * 0.52, wM: W - 8, hM: Math.max(2.6, H * 0.2) };
+    case 'ruins':
+      return { kind: 'sand', shape: 'blob', xM: W / 2, yM: H / 2, wM: 11, hM: 8 };
     default:
       return { kind: 'none', shape: 'blob', xM: W / 2, yM: H / 2, wM: 0, hM: 0 };
   }
@@ -348,6 +505,11 @@ export function floorPalette(kind: FloorKind, chapter: 1 | 2 | 3): FloorPalette 
       forest: { base: '#c2ae7c', edge: '#d8c48c', spark: '#efe0b0' },
       snow: { base: '#c9d6dc', edge: '#e2edf2', spark: '#ffffff' },
       desert: { base: '#dcc691', edge: '#efdca8', spark: '#f7ecc4' },
+    },
+    ice: {
+      forest: { base: '#8fc6d8', edge: '#cfe7ef', spark: '#ffffff' },
+      snow: { base: '#a8d8e8', edge: '#dff2f8', spark: '#ffffff' },
+      desert: { base: '#bcd8de', edge: '#e6f2f4', spark: '#ffffff' },
     },
     path: {
       forest: { base: '#b09a72', edge: '#c9b384', spark: '#e0cfa2' },
@@ -441,6 +603,35 @@ export function auditLayout(res: LayoutResult, ctx: LayoutCtx): string[] {
     const freeHalf = R.minCorridorM / 2 + propRadius('rock');
     for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('窄道通道被堵');
   }
+  if (res.id === 'icefield' || res.id === 'crystal') {
+    // 中央净空:冰面/晶洞的"舞台"必须能站人,否则模板个性就失去意义
+    const cx = res.id === 'icefield' ? W * 0.52 : W / 2;
+    const cy = res.id === 'icefield' ? H / 2 : H / 2;
+    for (const p of solids) {
+      if (Math.hypot(p.xM - cx, p.yM - cy) < R.centerFreeM) bad.push(`${res.id} 中央净空被堵`);
+    }
+  }
+  if (res.id === 'drift') {
+    // 与窄道同一条不变量:走廊净宽 ≥ minCorridorM(墙心离中线 ≥ minCorridorM/2 + 岩半径)
+    const freeHalf = R.minCorridorM / 2 + propRadius('rock') - 1e-6;
+    for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('雪丘走廊被堵');
+  }
+  if (res.id === 'dunes') {
+    // 沙丘带是地形起伏,不是墙:带内不许有实心件
+    const bandY = H * 0.52;
+    const bandH = Math.max(2.6, H * 0.2);
+    for (const p of solids) if (Math.abs(p.yM - bandY) < bandH / 2) bad.push('沙丘带里立了实心件');
+  }
+  if (res.id === 'ruins') {
+    // 每列断墙必须留一个 ≥ doorM 的门洞(否则玩家会被关在墙里)
+    for (const x of [7.5, W - 7.5]) {
+      const col = solids.filter((p) => Math.abs(p.xM - x) < 0.6).map((p) => p.yM).sort((a, b) => a - b);
+      if (col.length < 2) continue;
+      let best = 0;
+      for (let i = 1; i < col.length; i++) best = Math.max(best, col[i] - col[i - 1]);
+      if (best < R.doorM) bad.push(`废墟墙列缺口过窄 ${best.toFixed(2)}m < ${R.doorM}m`);
+    }
+  }
   if (res.id === 'ring') {
     const cx = W * 0.58;
     const cy = H / 2;
@@ -465,9 +656,10 @@ export function buildLayout(id: LayoutId, ctx: LayoutCtx): LayoutResult {
 /** 房间类型 → 模板清单('battle' 用权重表抽,其余从 byKind 均抽) */
 export type LayoutCtxKind = 'battle' | 'elite' | 'boss' | 'calm';
 
-export function pickLayout(kind: LayoutCtxKind, rng: Rng): LayoutId {
+export function pickLayout(kind: LayoutCtxKind, rng: Rng, chapter = 1): LayoutId {
   if (kind === 'battle') {
-    const weights = L.combatWeights as Record<string, number>;
+    // 按章节取权重:第 1 章仍是原来的表(chapterWeights.1 == combatWeights),二/三章各带地貌词
+    const weights = weightsOf(chapter);
     const ids = LAYOUT_IDS.filter((i) => i in weights) as LayoutId[];
     let total = 0;
     for (const i of ids) total += weights[i] ?? 0;
