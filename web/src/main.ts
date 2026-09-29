@@ -10,8 +10,10 @@ import { sfx } from '@engine/audio/Sfx';
 import { music } from '@engine/audio/Music';
 import { GameScene } from '@game/GameScene';
 import { meta } from '@game/meta/Save';
+import { tutorial } from '@game/meta/Tutorial';
 
-meta.load(); // 局外存档(祭坛/星尘/统计)
+meta.load();               // 局外存档(祭坛/星尘/统计/引导进度)
+tutorial.restore(meta.data.tutorial); // 引导进度续上(中途关掉也能接着走)
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);

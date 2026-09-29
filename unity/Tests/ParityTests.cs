@@ -36,6 +36,7 @@ namespace StarfallKnights.Tests
             CheckPixelFont(check, near, root);
             CheckLeaderboard(check, near, root);
             CheckClassBasics(check, near, root);
+            CheckTutorial(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -75,6 +76,9 @@ namespace StarfallKnights.Tests
             // 竞技场尺寸(中 Boss 的撞墙判定要读;此前是 parity 盲区)
             var arena = MiniJson.Opt(doc, "arena");
             if (arena != null) Walk(arena, "arena");
+            // 新手引导的数值叶子(moveM/hintY/saveSlots)
+            var tutorial = MiniJson.Opt(doc, "tutorial");
+            if (tutorial != null) Walk(tutorial, "tutorial");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -507,6 +511,71 @@ namespace StarfallKnights.Tests
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;
             }
+        }
+
+        /// <summary>
+        /// 引导与存档槽 parity:步骤 id 顺序、步数、跳过键、槽数,以及"只有当前步骤的动作才作数"的推进规则。
+        /// 步骤表是字符串数组(生成器跳过字符串),所以这里单独比对 —— 否则"web 教 5 步、Unity 教 4 步"没人会发现。
+        /// </summary>
+        private static void CheckTutorial(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            check(!string.IsNullOrEmpty(root), "引导 parity 需要仓库根(含 web/src/data)");
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var t = MiniJson.Opt(doc, "tutorial");
+            if (t == null) { check(false, "balance.tutorial 存在"); return; }
+
+            // steps 是**数组** → 用 OptArr(MiniJson.Opt 只认对象,拿数组会返回 null → 空引用)
+            var steps = MiniJson.OptArr(t, "steps");
+            if (steps == null) { check(false, "balance.tutorial.steps 是数组"); return; }
+            var ids = new List<string>();
+            foreach (var item in steps)
+            {
+                var row = MiniJson.Obj(item);
+                ids.Add(MiniJson.Str(row, "id"));
+                // 文案里允许写死的只有移动键(WASD/方向键):其余按键必须走 {action} 占位符,
+                // 否则玩家改过键,引导就在骗人(web 侧同款规则见 meta/__tests__/tutorial.test.ts)
+                string hint = MiniJson.Str(row, "hint");
+                foreach (var literalKey in new[] { "Tab", "空格" })
+                {
+                    if (hint.Contains(literalKey) && !hint.Contains("{" + literalKey + "}"))
+                        check(false, $"引导文案 {ids[ids.Count - 1]} 里出现了写死的按键 {literalKey}");
+                }
+                check(MiniJson.Str(row, "title").Length > 0, $"引导步骤 {ids[ids.Count - 1]} 有标题");
+            }
+            check(ids.Count == Tutorial.StepIds.Length,
+                $"引导步数一致(JSON {ids.Count} vs C# {Tutorial.StepIds.Length})");
+            bool orderOk = ids.Count == Tutorial.StepIds.Length;
+            for (int i = 0; i < ids.Count && orderOk; i++) orderOk = ids[i] == Tutorial.StepIds[i];
+            check(orderOk, "引导步骤顺序与 C# 镜像一致(" + string.Join("/", ids) + ")");
+            check(ids.Count == 5, $"引导恰好 5 步(实际 {ids.Count})");
+
+            string skip = MiniJson.Str(t, "skipKey");
+            check(skip == Tutorial.SkipKey, $"跳过键一致({skip} vs {Tutorial.SkipKey})");
+
+            int slots = (int)MiniJson.Num(t, "saveSlots", 0);
+            check(slots == SaveSlots.Count, $"存档槽数量一致(JSON {slots} vs C# {SaveSlots.Count})");
+            check(SaveSlots.KeyOf(0) == "sk_save" && SaveSlots.KeyOf(1) == "sk_save_slot1",
+                "槽 0 用历史键、槽 1/2 加后缀(老玩家零迁移)");
+            check(!SaveSlots.IsValid(-1) && !SaveSlots.IsValid(SaveSlots.Count), "槽下标越界判定");
+
+            // 推进规则:C# 侧与 web 同款(顺序可预测 + 夹回越界 + 完成后不再变)
+            int step = 0; bool done = false;
+            check(!Tutorial.Notify(ref step, ref done, "dash"), "顺序不对的动作不作数(先翻滚不算)");
+            check(Tutorial.Notify(ref step, ref done, "move") && step == 1, "第 1 步走动通过");
+            for (int i = 1; i < Tutorial.StepCount; i++) Tutorial.Notify(ref step, ref done, Tutorial.StepIds[i]);
+            check(done && step == Tutorial.StepCount, "5 步走完 → done");
+            check(!Tutorial.Notify(ref step, ref done, "move"), "完成后任何动作都不再推进");
+            int bad = 999; bool badDone = false;
+            Tutorial.Notify(ref bad, ref badDone, "move");
+            check(bad == Tutorial.StepCount && badDone, "越界 step 夹回并视为已完成");
+            int s2 = 3; bool d2 = false;
+            Tutorial.Skip(ref s2, ref d2);
+            check(s2 == Tutorial.StepCount && d2, "跳过 = 立刻结束");
+            Tutorial.Restart(ref s2, ref d2);
+            check(s2 == 0 && !d2, "重看引导回到第 1 步");
         }
 
         /// <summary>从当前程序集位置向上找含 web/src/data 的目录。</summary>

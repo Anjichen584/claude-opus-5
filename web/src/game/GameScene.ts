@@ -14,7 +14,7 @@ import {
   MidBossStag,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
-  ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
+  SfxEvent, ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
   ToastEvent, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
 import { elementColor } from '@game/combat/Elements';
@@ -57,12 +57,16 @@ import { BOARD_LABEL, submitRun, type BoardId } from '@game/meta/Leaderboard';
 import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
+import { tutorial, formatHint } from '@game/meta/Tutorial';
 import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
+
+/** 引导总步数(展示用;步骤表在 balance.tutorial.steps) */
+const TUTORIAL_TOTAL = balance.tutorial.steps.length;
 
 const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   battle: { color: '#dfe8f2', label: '战斗' },
@@ -352,6 +356,63 @@ export class GameScene {
     this.world.emit(new ToastEvent('🏕 星陨营地:打木桩试招,走近建筑按 F', UI.gold));
   }
 
+  // ---- 新手引导(meta/Tutorial.ts)的轮询状态 ----
+  /** 本步骤内累计移动距离(px),用于"走两步"判定 */
+  private tutMoveAcc = 0;
+  private tutPrevX = 0;
+  private tutPrevY = 0;
+  /** 上一帧的 cdQ,用于检测"真的放出了一个技能" */
+  private tutPrevCdQ = 0;
+
+  /**
+   * 引导推进:每帧调用(营地与局内都算)。
+   * 用**轮询**而不是往每个动作里插通知:翻滚/技能/背包的起手点分散在 4 个模块,
+   * 插通知要改 4 处且容易漏;轮询只读已存在的状态,漏不掉。
+   */
+  private tickTutorial(): void {
+    if (tutorial.done) return;
+    const tr = this.world.get(this.playerE, Transform);
+    const p = this.world.get(this.playerE, Player);
+    if (!tr || !p) return;
+
+    const step = tutorial.current;
+    if (!step) return;
+
+    // 走动:累计位移(不要求方向,站着不动不算)
+    if (step.id === 'move') {
+      const d = Math.hypot(tr.x - this.tutPrevX, tr.y - this.tutPrevY);
+      if (d > 0.5 && d < 30) this.tutMoveAcc += d; // 过滤瞬移/传送门
+      if (this.tutMoveAcc >= balance.tutorial.moveM * M) this.completeTutorial('move');
+    }
+    this.tutPrevX = tr.x;
+    this.tutPrevY = tr.y;
+
+    // 翻滚:翻滚中(有无敌帧)
+    if (step.id === 'dash' && p.dashT > 0) this.completeTutorial('dash');
+
+    // 技能:cdQ 由 0 变为正 = 真的放出了一个技能(营地木桩上也能放)
+    if (step.id === 'skill' && this.tutPrevCdQ <= 0 && p.cdQ > 0) this.completeTutorial('skill');
+    this.tutPrevCdQ = p.cdQ;
+
+    // 背包:面板打开过
+    if (step.id === 'bag' && this.inventoryUI.open) this.completeTutorial('bag');
+
+    // 祭坛:在营地里对祭坛做了强化(由 CampUI 的 altar 面板消费按键触发,见 updateCamp)
+  }
+
+  /** 完成一步:落盘 + 即时反馈 */
+  private completeTutorial(id: 'move' | 'dash' | 'skill' | 'bag' | 'altar'): void {
+    if (!tutorial.notify(id)) return;
+    meta.data.tutorial = tutorial.snapshot();
+    meta.save();
+    const next = tutorial.current;
+    this.world.emit(new ToastEvent(
+      next ? `✅ 引导 ${tutorial.displayIndex - 1}/5 完成 → 下一步:${next.title}` : '🎉 引导完成!去「远征」开一局吧',
+      '#5FD068',
+    ));
+    if (!next) this.world.emit(new SfxEvent('ult'));
+  }
+
   /** 最近的可交互建筑(<1.3m) */
   private campNear(): number | null {
     const ptr = this.world.get(this.playerE, Transform);
@@ -371,6 +432,14 @@ export class GameScene {
     this.touch.update(this.renderer.width, this.renderer.height, {
       interact: this.campNearE !== null, night: false,
     });
+
+    // 引导跳过键:H(固定键,不可改绑)
+    if (!tutorial.done && this.input.wasPressed(balance.tutorial.skipKey)) {
+      tutorial.skip();
+      meta.data.tutorial = tutorial.snapshot();
+      meta.save();
+      this.world.emit(new ToastEvent('已跳过新手引导(设置里可重看)', '#8f98b2'));
+    }
 
     // 设置面板(营地 Esc 直接打开;含"返回标题"按钮)
     if (this.settingsUI.open) {
@@ -425,11 +494,14 @@ export class GameScene {
     // F 交互
     if (this.campNearE !== null && (this.input.wasPressed(bindOf('interact')) || this.input.wasPressed('PadB'))) {
       const st = this.world.mustGet(this.campNearE, CampStation);
+      // 引导第 5 步:走到祭坛前交互就算学会(强化本身还要花钱,不强制消费)
+      if (st.kind === 'altar') this.completeTutorial('altar');
       if (st.kind === 'forge') this.forgeInteract();
       else this.campUI.open(st.kind);
     }
 
     for (const s of this.systems) s.update(this.world, dt);
+    this.tickTutorial();
 
     // 计时器衰减(受击闪白/印记/木桩晃动)
     for (const e of this.world.query(Health)) {
@@ -488,6 +560,37 @@ export class GameScene {
     return `${base}_f2`;
   }
 
+  /**
+   * 引导提示条(屏幕下方居中):步骤序号 + 当前文案 + 跳过键。
+   * 文案里的按键在 `meta/Tutorial.formatHint` 里替换成**当前绑定** —— 改过键也不会指错。
+   */
+  private renderTutorialHint(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const step = tutorial.current;
+    if (!step) return;
+    const text = formatHint(step.hint);
+    const y = height * balance.tutorial.hintY;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '12px monospace';
+    const w = Math.max(ctx.measureText(text).width, 260) + 40;
+    ctx.globalAlpha = 0.92;
+    if (!drawPanel9(ctx, width / 2 - w / 2, y - 18, w, 30)) {
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(width / 2 - w / 2, y - 18, w, 30);
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`新手引导 ${tutorial.displayIndex}/${TUTORIAL_TOTAL} · ${step.title}`, width / 2, y + 1);
+    ctx.fillStyle = UI.text;
+    ctx.font = '12px monospace';
+    ctx.fillText(text, width / 2, y + 16);
+    ctx.fillStyle = UI.dim;
+    ctx.font = '10px monospace';
+    ctx.fillText(`[${keyLabel(balance.tutorial.skipKey)}] 跳过引导`, width / 2, y + 30);
+    ctx.restore();
+  }
+
   private renderCampHud(): void {
     const ctx = this.renderer.ctx;
     const width = this.renderer.width;
@@ -500,6 +603,7 @@ export class GameScene {
     ctx.textAlign = 'left';
     const kls = balance.classes[this.campUI.selectedClass];
     ctx.fillText(`🏕 星陨营地 · ${kls.hero}·${kls.name}`, 24, 34);
+    this.renderTutorialHint(ctx, width, height);
     ctx.textAlign = 'right';
     ctx.fillText(`✦ ${meta.data.stardust} · 📜 ${meta.data.blueprintShards}/${balance.blueprint.craftCost}${meta.data.craftQueued ? '(已预订)' : ''}`, width - 20, 34);
     ctx.textAlign = 'center';
@@ -644,7 +748,13 @@ export class GameScene {
         this.input.endFrame();
         return;
       }
-      if (this.menuUI.updateMenu() === 'start') this.enterCamp();
+      const menuAct = this.menuUI.updateMenu();
+      if (menuAct === 'slotChanged') {
+        // 换存档槽:引导进度与其他局外状态都得跟着换(否则会把 A 档的引导带进 B 档)
+        tutorial.restore(meta.data.tutorial);
+        this.tutMoveAcc = 0;
+        this.world.emit(new ToastEvent(`已切到存档 ${meta.slotIndex + 1}`, '#8f98b2'));
+      } else if (menuAct === 'start') this.enterCamp();
       this.input.endFrame();
       return;
     }

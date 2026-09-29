@@ -758,6 +758,12 @@ namespace StarfallKnights.Data
         public const float ArenaWolfTarget = 2f;
         /// <summary>arena.spawnInterval</summary>
         public const float ArenaSpawnInterval = 1.2f;
+        /// <summary>tutorial.moveM</summary>
+        public const float TutorialMoveM = 3f;
+        /// <summary>tutorial.hintY</summary>
+        public const float TutorialHintY = 0.86f;
+        /// <summary>tutorial.saveSlots</summary>
+        public const float TutorialSaveSlots = 3f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1103,6 +1109,9 @@ namespace StarfallKnights.Data
             { "arena.beeTarget", ArenaBeeTarget },
             { "arena.wolfTarget", ArenaWolfTarget },
             { "arena.spawnInterval", ArenaSpawnInterval },
+            { "tutorial.moveM", TutorialMoveM },
+            { "tutorial.hintY", TutorialHintY },
+            { "tutorial.saveSlots", TutorialSaveSlots },
         };
     }
 

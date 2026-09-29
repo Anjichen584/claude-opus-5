@@ -3,7 +3,8 @@ using System;
 namespace StarfallKnights.Meta
 {
     /// <summary>
-    /// 局外存档(镜像 web meta/Save.ts):星尘/祭坛/保底/图纸/统计。
+    /// 局外存档(镜像 web meta/Save.ts):星尘/祭坛/保底/图纸/统计/引导进度。
+    /// 3 个存档槽的键由 `SaveSlots.KeyOf(i)` 给出(0 号槽 = 历史单档键)。
     /// 纯 POCO + JsonUtility 兼容字段;宿主用 PlayerPrefs 或文件持久化:
     ///   保存 PlayerPrefs.SetString("sk_save", JsonUtility.ToJson(meta));
     ///   读取 JsonUtility.FromJson&lt;MetaSave&gt;(PlayerPrefs.GetString("sk_save", "{}"))。
@@ -19,6 +20,12 @@ namespace StarfallKnights.Meta
         public int pity;
         public int blueprintShards;
         public bool craftQueued;
+        /// <summary>新手引导:下一个待完成步骤下标(5 步全完成 → true)。镜像 web SaveData.tutorial。</summary>
+        public int tutorialStep;
+        public bool tutorialDone;
+        /// <summary>最后写入时间(存档槽界面显示"上次游玩";0 = 未知)</summary>
+        public long updatedAt;
+
         public int runs;
         public int clears;
         public int totalKills;

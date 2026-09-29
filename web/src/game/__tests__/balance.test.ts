@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import balance from '@data/balance.json';
+import { SLOT_COUNT } from '@game/meta/Save';
 
 /** 数据完整性:防止新增怪/物件时漏字段(出怪工厂依赖这些字段) */
 describe('balance.json 完整性', () => {
@@ -92,5 +93,24 @@ describe('balance.json 完整性', () => {
     expect(balance.rooms.spriteChance).toBeGreaterThan(0);
     expect(balance.rooms.spriteChance).toBeLessThanOrEqual(0.5);
     expect(balance.rooms.waveBudgetBase).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe('新手引导数据(balance.tutorial)', () => {
+  const T = balance.tutorial;
+  it('步骤 id 唯一且齐全(顺序即引导顺序)', () => {
+    const ids = T.steps.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(['move', 'dash', 'skill', 'bag', 'altar']);
+  });
+  it('展示参数在合理区间(hintY 要在屏幕内,否则提示条画到屏幕外)', () => {
+    expect(T.hintY).toBeGreaterThan(0.5);
+    expect(T.hintY).toBeLessThan(1);
+    expect(T.moveM).toBeGreaterThan(0);
+    expect(T.saveSlots).toBe(3);
+    expect(T.skipKey).toMatch(/^Key[A-Z]$/);
+  });
+  it('槽数与 SLOT_COUNT 一致(两处不一致会写出第三个槽或者丢档)', () => {
+    expect(T.saveSlots).toBe(SLOT_COUNT);
   });
 });

@@ -59,6 +59,13 @@ export interface SaveData {
   };
   /** 成就:已解锁 id → 首次解锁时间戳(只增不减) */
   achievements: { unlocked: Record<string, number> };
+  /**
+   * 新手引导进度:step = 下一个待完成的步骤下标(5 步全完成 → done=true)。
+   * 存进度而不是只存 done,是为了"中途关掉游戏还能接着引导"。
+   */
+  tutorial: { step: number; done: boolean };
+  /** 最后写入时间(存档槽界面显示"上次游玩";0 = 未知) */
+  updatedAt: number;
 }
 
 /** 默认键位(动作定义见 meta/Bindings.ts) */
@@ -93,6 +100,8 @@ export function defaultSave(): SaveData {
     },
     stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0, noHitClears: 0, dailyClears: 0, weeklyClears: 0, crafts: 0 },
     achievements: { unlocked: {} },
+    tutorial: { step: 0, done: false },
+    updatedAt: 0,
   };
 }
 
@@ -139,6 +148,12 @@ export function migrateSave(raw: unknown): MigrateResult {
     // 榜单是数组,不能走 spread 合并:整段交给 sanitize 重排/截断
     leaderboard: parsed.leaderboard ?? d.leaderboard,
     codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
+    tutorial: {
+      // 老档没有 tutorial 字段 → 视为"从没引导过";越界 step 夹回合法区间
+      step: Math.max(0, Math.floor(num((parsed as Partial<SaveData>).tutorial?.step))),
+      done: (parsed as Partial<SaveData>).tutorial?.done === true,
+    },
+    updatedAt: Math.max(0, num(parsed.updatedAt)),
     achievements: sanitizeAchievements((parsed as Partial<SaveData>).achievements),
     settings: {
       ...d.settings,

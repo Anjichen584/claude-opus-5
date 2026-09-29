@@ -85,6 +85,8 @@ def main() -> int:
         walk('Ch' + c, data, json_path=f'chapters.{c}', name_prefix='')
     # 竞技场尺寸:中 Boss 的"撞墙自晕"要读它,顺手进 parity(此前 arena 一直是 parity 盲区)
     walk('Arena', b['arena'], json_path='arena', name_prefix='')
+    # 新手引导的数值叶子(moveM/hintY/saveSlots);步骤 id/文案是字符串,由 ParityTests 的 CheckTutorial 比对
+    walk('Tutorial', b['tutorial'], json_path='tutorial', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -101,7 +103,7 @@ def main() -> int:
             yield path
 
     n_json = (sum(1 for _ in leaves(enemies)) + sum(1 for _ in leaves(chapters))
-              + sum(1 for _ in leaves(b['arena'])))
+              + sum(1 for _ in leaves(b['arena'])) + sum(1 for _ in leaves(b['tutorial'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 

@@ -605,6 +605,7 @@ namespace StarfallKnights.Tests
             TestWeakspots();
             TestCreatureAI();
             TestMidBoss();
+            TestTutorialAndSlots();
             TestBossAI();
             TestClassSkillSet();
             TestRoomLayouts();
@@ -1309,8 +1310,7 @@ namespace StarfallKnights.Tests
                 stag.Kind = EnemyKind.MidBossMossstag;
                 var ai = new CreatureAI();
                 int charges = 0, volleys = 0;
-                var prev = MobPhase.Chase;
-                // 用状态字典反推不方便,这里用"速度突变 + 弹幕出现"来数:
+                // 用"速度突变 + 弹幕出现"来数(状态机内部状态不便从测试读):
                 bool sawCharge = false;
                 for (int i = 0; i < 60 * 30; i++)
                 {
@@ -1319,7 +1319,7 @@ namespace StarfallKnights.Tests
                     {
                         sawCharge = true; charges++;
                     }
-                    else if (stag.Vel.Length() < 0.01f) sawCharge = false;
+                    else if (stag.Vel.Length() < 0.01f) sawCharge = false;   // 冲完停下 → 可以数下一次
                     if (w.Projectiles.Count > 0) { volleys++; w.Projectiles.Clear(); }
                 }
                 Check(charges >= 3, $"30 秒至少冲 3 次(实际 {charges})");
@@ -1331,6 +1331,49 @@ namespace StarfallKnights.Tests
             Check(EnemyKinds.IsBossTier(EnemyKind.MidBossMossstag) && !EnemyKinds.IsBoss(EnemyKind.MidBossMossstag),
                 "中 Boss 属 Boss 级但不是章 Boss");
             Check(EnemyKinds.ChapterOf(EnemyKind.MidBossMossstag) == 1, "苔冠巨鹿归第一章");
+        }
+
+
+        // ---------------- 新手引导 + 3 存档槽(镜像 web meta/Tutorial.ts / Save.ts) ----------------
+
+        private static void TestTutorialAndSlots()
+        {
+            Suite("新手引导 + 3 存档槽");
+
+            Check(Tutorial.StepCount == 5, $"引导 5 步(实际 {Tutorial.StepCount})");
+            Check(Tutorial.StepIds[0] == "move" && Tutorial.StepIds[4] == "altar",
+                "首步走动、末步祭坛");
+            Check(Tutorial.IsValidStep("dash") && !Tutorial.IsValidStep("dance"), "步骤 id 校验");
+            Check(Tutorial.MoveM > 1f, $"走动判定距离有值({Tutorial.MoveM} m)");
+            Check(Tutorial.ClampStep(-5) == 0 && Tutorial.ClampStep(99) == Tutorial.StepCount, "step 越界夹回");
+
+            // 推进:顺序可预测(先翻滚不算),重复上报不多推
+            int step = 0; bool done = false;
+            Check(!Tutorial.Notify(ref step, ref done, "skill"), "跳步不作数");
+            Check(Tutorial.Notify(ref step, ref done, "move"), "第 1 步通过");
+            Check(!Tutorial.Notify(ref step, ref done, "move"), "同一步重复上报不多推");
+            Check(step == 1, $"推进后停在第 2 步(实际 {step + 1})");
+
+            // 存档槽:3 槽、键命名、槽 0 兼容历史单档
+            Check(SaveSlots.Count == 3, $"3 个存档槽(实际 {SaveSlots.Count})");
+            Check(SaveSlots.KeyOf(0) == "sk_save", "0 号槽沿用历史键(老玩家零迁移)");
+            Check(SaveSlots.KeyOf(2) == "sk_save_slot2", "2 号槽带后缀");
+            var keys = new List<string>(SaveSlots.AllKeys());
+            Check(keys.Count == 3 && keys[0] != keys[1] && keys[1] != keys[2], "三个槽的键互不相同");
+            Check(SaveSlots.IsValid(0) && SaveSlots.IsValid(2) && !SaveSlots.IsValid(3), "槽下标范围");
+
+            // 存档 POCO 带引导进度与写入时间(Web 侧同款字段)
+            var save = new MetaSave { tutorialStep = 3, tutorialDone = false, updatedAt = 1700000000L, stardust = 42 };
+            Check(save.tutorialStep == 3 && !save.tutorialDone, "存档能带引导进度");
+            Check(save.updatedAt > 0, "存档记最后写入时间");
+            Check(save.stardust == 42, "星尘字段共存(引导不影响钱包)");
+
+            // 两个槽的档是互相独立的对象(换档不串数据)
+            var slotA = new MetaSave { stardust = 111, tutorialStep = 2 };
+            var slotB = new MetaSave { stardust = 222 };
+            slotA.stardust += 1;
+            Check(slotB.stardust == 222 && slotA.stardust == 112, "两槽数据互不影响");
+            Check(slotB.tutorialStep == 0, "空槽的引导从头开始");
         }
 
         // ---------------- 图鉴(收录) ----------------

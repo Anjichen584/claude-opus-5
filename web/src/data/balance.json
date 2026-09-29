@@ -1016,5 +1016,39 @@
       "lanternCost": 203,
       "unlockClears": 2
     }
+  },
+  "tutorial": {
+    "$doc": "新手引导 5 步(全部在营地里完成):文案里的按键取**当前绑定**(meta/Bindings),改绑后不会说谎。每步由动作驱动,完成后自动推进;按 skipKey 可跳过。",
+    "steps": [
+      {
+        "id": "move",
+        "title": "走动",
+        "hint": "按住 WASD / 方向键,在营地里走两步"
+      },
+      {
+        "id": "dash",
+        "title": "翻滚",
+        "hint": "按 {dash} 翻滚一次 —— 翻滚全程无敌,是躲 Boss 的主力"
+      },
+      {
+        "id": "skill",
+        "title": "技能",
+        "hint": "对准木桩按 {q} 放一次技能 —— 技能位越靠后越猛,但冷却也更长"
+      },
+      {
+        "id": "bag",
+        "title": "背包",
+        "hint": "按 {bag} 打开背包:点符文就能镶到技能上"
+      },
+      {
+        "id": "altar",
+        "title": "祭坛",
+        "hint": "走到祭坛前按 {interact},用星尘永久强化自己"
+      }
+    ],
+    "moveM": 3.0,
+    "skipKey": "KeyH",
+    "hintY": 0.86,
+    "saveSlots": 3
   }
 }
