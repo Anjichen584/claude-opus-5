@@ -41,8 +41,12 @@ export interface SaveData {
   pity: number;
   /** 图纸碎片(Boss 掉落,集齐后铸造开局橙装) */
   blueprintShards: number;
-  /** 已预订铸造:下局开局自带随机橙装 */
+  /** 旧口径:已预订铸造(下局开局自带**随机**橙装)。新档走 craftQueuedId,这里只作老档兜底 */
   craftQueued: boolean;
+  /** 已学蓝图 id(铸台:学会才铸造得出指定橙装;只增不减) */
+  blueprints: string[];
+  /** 铸台预约的蓝图 id:下局开局直接拿到这张图纸的产品(null = 没预约) */
+  craftQueuedId: string | null;
   /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 周常挑战最佳(键 = ISO 周,如 2026-W40;跨周自动作废) */
@@ -95,6 +99,8 @@ export function defaultSave(): SaveData {
     pity: 0,
     blueprintShards: 0,
     craftQueued: false,
+    blueprints: [],
+    craftQueuedId: null,
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     weekly: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
   leaderboard: { speed: [], kills: [], hit: [], nohit: [] },
@@ -175,6 +181,12 @@ export function migrateSave(raw: unknown): MigrateResult {
   data.pity = Math.max(0, Math.floor(num(data.pity)));
   data.blueprintShards = Math.max(0, Math.floor(num(data.blueprintShards)));
   data.craftQueued = data.craftQueued === true;
+  // 已学蓝图:只留字符串、去重、限量(写坏的档不至于让铸台列出 1 万个空行)
+  data.blueprints = Array.isArray(data.blueprints)
+    ? [...new Set(data.blueprints.filter((x): x is string => typeof x === 'string' && x.length > 0))].slice(0, 64)
+    : [];
+  data.craftQueuedId = typeof data.craftQueuedId === 'string' && data.craftQueuedId.length > 0
+    ? data.craftQueuedId : null;
   const cleanRecord = (r: { key: unknown; cleared: unknown; bestTimeS: unknown; bestKills: unknown }):
     { key: string; cleared: boolean; bestTimeS: number; bestKills: number } => ({
     key: typeof r.key === 'string' ? r.key : '',

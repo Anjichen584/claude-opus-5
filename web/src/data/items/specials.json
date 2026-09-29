@@ -1,0 +1,14 @@
+{
+  "$doc": "橙装特效定义(全原创命名)。数值全部在 balance.specials,这里只有 id/部位/名称/文案 —— 规则见 game/loot/Specials.ts。每部位至少 1 个(有测试钉住)。",
+  "list": [
+    { "id": "tempest",     "slot": "weapon", "itemName": "怒涛之刃",   "desc": "第三段连击范围 +40%" },
+    { "id": "frostfang",   "slot": "weapon", "itemName": "霜咬",       "desc": "普攻命中附加一层冰印记" },
+    { "id": "windhood",    "slot": "helmet", "itemName": "猎风兜帽",   "desc": "移动中攻击力 +12%" },
+    { "id": "starhelm",    "slot": "helmet", "itemName": "星陨兜帽",   "desc": "受击后 3 秒内攻击力 +20%" },
+    { "id": "stoneheart",  "slot": "chest",  "itemName": "磐石胸甲",   "desc": "生命低于 35% 时受到的伤害 −20%" },
+    { "id": "thornmail",   "slot": "chest",  "itemName": "棘刺胸甲",   "desc": "受伤时对身边 2m 内的敌人反弹伤害" },
+    { "id": "emberstride", "slot": "boots",  "itemName": "焰行者之靴", "desc": "翻滚沿途留下火焰轨迹" },
+    { "id": "echo_ring",   "slot": "ring",   "itemName": "回响之戒",   "desc": "每第 5 次命中造成双倍伤害" },
+    { "id": "soulfeast",   "slot": "amulet", "itemName": "噬魂坠",     "desc": "击杀回复 3 点生命" }
+  ]
+}

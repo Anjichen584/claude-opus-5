@@ -7,6 +7,7 @@ using StarfallKnights.Data;
 using StarfallKnights.Dungeon;
 using StarfallKnights.Meta;
 using StarfallKnights.Skills;
+using StarfallKnights.Loot;
 
 namespace StarfallKnights.Tests
 {
@@ -40,6 +41,7 @@ namespace StarfallKnights.Tests
             CheckTouch(check, root);
             CheckAnim(check, root);
             CheckReactions(check, root);
+            CheckLoot(check, root);
         }
 
         /// <summary>
@@ -225,6 +227,12 @@ namespace StarfallKnights.Tests
             // 元素反应(reactions 段)—— 同样:手抄常量漂了一整批才被发现,现在进 parity
             var reactions = MiniJson.Opt(doc, "reactions");
             if (reactions != null) Walk(reactions, "reactions");
+            // 橙装特效 / 消耗品 / 蓝图(轮 19–21):三段数值键同样进通用循环
+            foreach (var sect in new[] { "specials", "consumables", "blueprint" })
+            {
+                var seg = MiniJson.Opt(doc, sect);
+                if (seg != null) Walk(seg, sect);
+            }
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -288,6 +296,165 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
             check(rowBad == 0, $"{enemies.Count} 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+        }
+
+        /// <summary>
+        /// 装备规则 parity(2026-09-29,M2 内容包 轮 19–21):橙装特效 9 / 消耗品 4 / 蓝图 6。
+        ///
+        /// 为什么单独一层:这三段的**字符串叶子**(specials.frostfangElement、consumables.flask.element)
+        /// 与 **web/src/data/blueprints.json 的字符串字段**(slot/rarity/special/affixes)**会被
+        /// gen_bestiary.py 的规则跳过** —— 数值 parity 全绿也可能"元素名改了/特效换了/词条表改了"而无人发现。
+        /// 这里补上字符串比对,再钉住几条最容易在移植时被抹平的边界口径。
+        /// </summary>
+        private static void CheckLoot(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string balPath = Path.Combine(root, "web/src/data/balance.json");
+            string bpPath = Path.Combine(root, "web/src/data/blueprints.json");
+            string spPath = Path.Combine(root, "web/src/data/items/specials.json");
+            if (!File.Exists(balPath) || !File.Exists(bpPath) || !File.Exists(spPath))
+            {
+                check(false, "存在 balance.json / blueprints.json / items/specials.json");
+                return;
+            }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(balPath)));
+
+            // ---- 字符串叶子:生成器比对不到的那两个 ----
+            var specials = MiniJson.Opt(doc, "specials");
+            var consumables = MiniJson.Opt(doc, "consumables");
+            string frost = MiniJson.Str(specials, "frostfangElement");
+            check(frost == LootRules.FrostfangElement,
+                $"霜咬补的元素一致(JSON={frost} vs C#={LootRules.FrostfangElement})");
+            string flaskEl = MiniJson.Str(MiniJson.Opt(consumables, "flask"), "element");
+            check(flaskEl == LootRules.FlaskElement,
+                $"元素瓶附魔一致(JSON={flaskEl} vs C#={LootRules.FlaskElement})");
+
+            // ---- 特效表:9 个 / id 唯一 / 部位全覆盖 ----
+            var spDoc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(spPath)));
+            var spList = MiniJson.OptArr(spDoc, "list") ?? new List<object>();
+            check(spList.Count == LootRules.Specials.Length,
+                $"特效条数一致(JSON {spList.Count} vs C# {LootRules.Specials.Length})");
+            int spBad = 0;
+            for (int i = 0; i < Math.Min(spList.Count, LootRules.Specials.Length); i++)
+            {
+                var row = MiniJson.Obj(spList[i]);
+                var cs = LootRules.Specials[i];
+                if (MiniJson.Str(row, "id") != cs.Id || MiniJson.Str(row, "slot") != cs.Slot
+                    || MiniJson.Str(row, "itemName") != cs.ItemName) spBad++;
+            }
+            check(spBad == 0, $"9 个特效逐条(id/部位/物品名)与 specials.json 一致");
+            check(LootRules.SlotsWithoutSpecial().Count == 0,
+                "六个部位都有特效(空部位 = 那个部位永远不出橙装特效)");
+
+            // ---- 规则:每个特效至少一条行为断言(边界优先) ----
+            check(Math.Abs(LootRules.HitDamageMult(new[] { "echo_ring" }, 5) - Bestiary.SpecialEchoMult) < Tol
+                  && Math.Abs(LootRules.HitDamageMult(new[] { "echo_ring" }, 4) - 1f) < Tol,
+                "回响之戒:第 5 击 ×2,第 4 击不变");
+            check(Math.Abs(LootRules.HitDamageMult(new string[0], 5) - 1f) < Tol, "没这件装备 = 中性(不是恰好也 ×2)");
+            var st = LootRules.StrikeElement(new[] { "frostfang" }, null);
+            check(st.Element == LootRules.FrostfangElement, "霜咬:空元素命中补冰");
+            check(LootRules.StrikeElement(new[] { "frostfang" }, "fire").Element == "fire", "霜咬不抢已有元素(火不被冰覆盖)");
+            check(Math.Abs(LootRules.KillHeal(new[] { "soulfeast" }) - Bestiary.SpecialSoulfeastHeal) < Tol
+                  && LootRules.KillHeal(new string[0]) == 0f, "噬魂坠击杀回复;没装备回 0");
+            check(Math.Abs(LootRules.ComboRangeMult(new[] { "tempest" }, true) - Bestiary.SpecialTempestRangeMult) < Tol
+                  && Math.Abs(LootRules.ComboRangeMult(new[] { "tempest" }, false) - 1f) < Tol,
+                "怒涛之刃:只有终结段放大范围");
+            check(Math.Abs(LootRules.DamageTakenMult(new[] { "stoneheart" }, 0.1f)
+                           - (1f - Bestiary.SpecialStoneheartReduce)) < Tol
+                  && Math.Abs(LootRules.DamageTakenMult(new[] { "stoneheart" }, 0.9f) - 1f) < Tol,
+                "磐石胸甲:低血减伤,满血不减");
+            check(LootRules.ReflectOnHurt(new[] { "thornmail" }, 1e9f) == (int)Bestiary.SpecialThornCap,
+                "棘刺反伤有封顶(没上限会一次清场)");
+            check(LootRules.ReflectOnHurt(new[] { "thornmail" }, -5f) == 0
+                  && LootRules.ReflectOnHurt(new string[0], 100f) == 0, "反伤不吃负伤害,没装备不回伤");
+            check(Math.Abs(LootRules.WindhoodAtkPct(new[] { "windhood" }, true) - Bestiary.SpecialWindhoodAtkPct) < Tol
+                  && LootRules.WindhoodAtkPct(new[] { "windhood" }, false) == 0f,
+                "猎风兜帽:移动才有加成");
+            check(Math.Abs(LootRules.StarhelmAtkPct(new[] { "starhelm" }, 0.5f) - Bestiary.SpecialStarhelmAtkPct) < Tol
+                  && LootRules.StarhelmAtkPct(new[] { "starhelm" }, Bestiary.SpecialStarhelmWindowS + 0.1f) == 0f,
+                "星陨兜帽:窗口内才有加成");
+            check(LootRules.DashLeavesFire(new[] { "emberstride" }) && !LootRules.DashLeavesFire(new string[0]),
+                "焰行者之靴:翻滚留火(有/没有两态)");
+
+            // ---- 消耗品:四条边界 ----
+            check(LootRules.ShieldCap(1000f) == (int)Math.Round(1000f * Bestiary.ConsumableShieldCapPct)
+                  && LootRules.ShieldCap(1f) == 1, "护盾上限 = 生命 × capPct,下限 1");
+            var s1 = LootRules.ApplyShield(1000f);
+            var s2 = LootRules.ApplyShield(1000f);
+            check(Math.Abs(s1.Amount - s2.Amount) < Tol, "连喝两瓶不叠厚(只刷新)");
+            var ab = LootRules.AbsorbDamage(s1.Amount, s1.T, 10f);
+            check(Math.Abs(ab.Left) < Tol && ab.HasShield, "先吃盾再进血");
+            var ab2 = LootRules.AbsorbDamage(s1.Amount, s1.T, s1.Amount);
+            check(Math.Abs(ab2.Left) < Tol && !ab2.HasShield, "盾刚好破:这一次不掉血,盾消失");
+            var ab3 = LootRules.AbsorbDamage(s1.Amount, s1.T, s1.Amount + 10f);
+            check(Math.Abs(ab3.Left - 10f) < Tol, "打穿盾之后多出来的伤害照常进血");
+            check(!LootRules.TickShield(0.05f, 0.2f).Alive, "盾到期即消失(不留 0 盾僵尸状态)");
+            var cl = LootRules.Cleanse(99);
+            check(cl.Removed == (int)Bestiary.ConsumableCleanseDebuffMax, "净化一次清不完(有上限)");
+            check(cl.Iframes > 0f && cl.Iframes < 2f * BestiaryPlayer.PlayerDashDuration,
+                $"净化无敌({cl.Iframes}s)与翻滚同量级,不取代翻滚");
+            check(Math.Abs(LootRules.SlowFactor("normal") - Bestiary.ConsumableTimeslowSlowPct) < Tol
+                  && LootRules.SlowFactor("boss") > 0f
+                  && LootRules.SlowFactor("boss") < LootRules.SlowFactor("normal"),
+                "时缓:普通全效、Boss 打折但**不是免疫**");
+            var fl = LootRules.ApplyFlask();
+            check(fl.Element == LootRules.FlaskElement && !LootRules.TickFlask(0.05f, 0.2f).Alive,
+                "元素瓶覆盖式刷新且有时限");
+
+            // ---- 蓝图:6 张,字符串字段逐项比(生成器覆盖不到的那一段) ----
+            var bpDoc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(bpPath)));
+            var bpList = MiniJson.OptArr(bpDoc, "list") ?? new List<object>();
+            check(bpList.Count == LootRules.Blueprints.Length,
+                $"蓝图条数一致(JSON {bpList.Count} vs C# {LootRules.Blueprints.Length})");
+            int bpBad = 0;
+            string firstBad = "";
+            for (int i = 0; i < Math.Min(bpList.Count, LootRules.Blueprints.Length); i++)
+            {
+                var row = MiniJson.Obj(bpList[i]);
+                var cs = LootRules.Blueprints[i];
+                var affixes = MiniJson.OptArr(row, "affixes") ?? new List<object>();
+                bool ok = MiniJson.Str(row, "id") == cs.Id && MiniJson.Str(row, "slot") == cs.Slot
+                          && MiniJson.Str(row, "rarity") == cs.Rarity && MiniJson.Str(row, "special") == cs.Special
+                          && Math.Abs(MiniJson.Num(row, "costShards", 0) - cs.CostShards) < Tol
+                          && affixes.Count == cs.Affixes.Length;
+                if (ok)
+                {
+                    for (int j = 0; j < affixes.Count; j++)
+                        if (affixes[j] as string != cs.Affixes[j]) ok = false;
+                }
+                if (!ok) { bpBad++; if (firstBad == "") firstBad = MiniJson.Str(row, "id"); }
+            }
+            check(bpBad == 0, $"6 张蓝图逐项(部位/稀有度/特效/词条/价)与 blueprints.json 一致{(bpBad > 0 ? "，首个不一致:" + firstBad : "")}");
+
+            // 蓝图的特效必须属于它的部位,否则铸出来的是"错部位的橙装"
+            int slotBad = 0;
+            foreach (var bp in LootRules.Blueprints)
+            {
+                int idx = -1;
+                for (int i = 0; i < LootRules.Specials.Length; i++) if (LootRules.Specials[i].Id == bp.Special) idx = i;
+                if (idx < 0 || LootRules.Specials[idx].Slot != bp.Slot) slotBad++;
+            }
+            check(slotBad == 0, "每张蓝图的特效部位与蓝图部位一致");
+
+            // ---- 铸造 / 重铸的边界(菜单里最容易被点出来的三条) ----
+            var owned = new List<string>();
+            foreach (var bp in LootRules.Blueprints) owned.Add(bp.Id);
+            check(LootRules.CraftBlocker("bp_不存在", 999, owned) == "unknown", "找不到的蓝图报 unknown(不是静默失败)");
+            check(LootRules.CraftBlocker(LootRules.Blueprints[0].Id, 999, new List<string>()) == "owned",
+                "没学会不让造(报 owned,与 unknown 分开)");
+            check(LootRules.CraftBlocker(LootRules.Blueprints[0].Id, 0, owned) == "shards", "碎片不够报 shards");
+            var made = LootRules.Craft(LootRules.Blueprints[0].Id, 99, owned);
+            check(made.Special == LootRules.Blueprints[0].Special
+                  && made.ShardsLeft == 99 - LootRules.Blueprints[0].CostShards
+                  && made.Slot == LootRules.Blueprints[0].Slot, "铸造:扣碎片 + 出指定特效 + 指定部位");
+            check(LootRules.Blueprints[0].CostShards <= (int)Bestiary.BlueprintCraftCost * 3,
+                "蓝图价与铸台基准价同量级(防手滑写出天价图纸)");
+            check(LootRules.ReforgeRerollCount(3) == Math.Min((int)Bestiary.BlueprintReforgeRerollMax, 2),
+                "重铸最多重掷 reforgeRerollMax 条");
+            check(LootRules.ReforgeRerollCount(1) == 0, "只有一条词条时不重掷(至少留一条锚点)");
+            check(LootRules.CanReforge(2, (int)Bestiary.BlueprintReforgeCost)
+                  && !LootRules.CanReforge(2, (int)Bestiary.BlueprintReforgeCost - 1)
+                  && !LootRules.CanReforge(0, 9999), "重铸:星尘不够 / 没词条都洗不了");
         }
 
         /// <summary>

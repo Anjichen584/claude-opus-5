@@ -9,6 +9,7 @@ import { meta } from '@game/meta/Save';
 import { markRuneOwned } from '@game/meta/Codex';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { bindOf } from '@game/meta/Bindings';
+import { CONS_VISUAL, consumableDef } from '@game/loot/Consumables';
 
 /**
  * 商店交互:走近摊位(<1m)按 F 购买。
@@ -68,6 +69,19 @@ export class ShopSystem implements System {
         }
         p.potionCharges++;
         world.emit(new ToastEvent('药剂 +1', UI.hpLow));
+        break;
+      }
+      case 'cons': {
+        const id = stand.consId;
+        if (!id) return;
+        const def = consumableDef(id);
+        const held = p.consumables.filter((x) => x === id).length;
+        if (held >= balance.loot.consMax) {
+          world.emit(new ToastEvent(`${def?.name ?? id} 已带满(${held}/${balance.loot.consMax})`, UI.dim));
+          return;
+        }
+        p.consumables.push(id);
+        world.emit(new ToastEvent(`购入 ${def?.name ?? id}(2/3/4 使用)`, CONS_VISUAL[id].color));
         break;
       }
       case 'rune': {

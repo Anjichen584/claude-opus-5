@@ -18,6 +18,24 @@ const v1 = {
 };
 
 describe('存档迁移', () => {
+  /**
+   * 蓝图是轮 20 新加的字段:老档一个都没有,新档是只增不减的集合。
+   * 这里锁三件事:老档补空、脏数据(非字符串/重复/超长)洗掉、铸台预约能回读。
+   */
+  it('蓝图字段:老档(没有 blueprints)补空数组,不崩', () => {
+    expect(migrateSave(v1).data.blueprints).toEqual([]);
+    expect(migrateSave(v1).data.craftQueuedId).toBeNull();
+  });
+
+  it('蓝图字段:非字符串/重复项被洗掉,合法 id 原样保留', () => {
+    const dirty = { ...v1, v: 2, blueprints: ['bp_a', 'bp_a', 7, null, '', 'bp_b'], craftQueuedId: 42 };
+    const d = migrateSave(dirty).data;
+    expect(d.blueprints).toEqual(['bp_a', 'bp_b']);
+    expect(d.craftQueuedId).toBeNull();
+    const good = migrateSave({ ...v1, v: 2, blueprints: ['bp_tempest_blade'], craftQueuedId: 'bp_tempest_blade' }).data;
+    expect(good.craftQueuedId).toBe('bp_tempest_blade');
+  });
+
   it('默认档就是当前版本', () => {
     expect(migrateSave(null).data.v).toBe(CURRENT_SAVE_VERSION);
   });

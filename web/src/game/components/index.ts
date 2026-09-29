@@ -83,6 +83,28 @@ export class Player {
   elemDmg = 0; // 元素伤害加成(小数)
   pickupRadiusM = 0.8;
   specials: string[] = []; // 橙装特效 id 列表
+  /** 特效定义(Equip.recompute 写入;渲染/战斗层直接用,不必再查表) */
+  specialDefs: import('@game/loot/Specials').SpecialDef[] = [];
+  /** 受伤减免 0..0.75(词条「坚韧」+ 特效「磐石」) */
+  dmgReduce = 0;
+  /** 回血速率乘区(词条「回春」) */
+  regenMult = 1;
+  /** 幸运点数(词条;影响紫橙权重) */
+  luck = 0;
+  /** 怒气获取乘区(词条「战意」) */
+  rageMult = 1;
+  /** 距上次受击秒数(特效「星陨兜帽」的窗口判定用) */
+  sinceHurtS = Number.POSITIVE_INFINITY;
+  /** 条件词条的局面指纹(AffixRules.condKeyOf):翻转时才重算属性 */
+  condKey = '';
+  /** 护盾(消耗品「星壳药剂」;null = 无盾) */
+  shield: import('@game/loot/Consumables').ShieldState | null = null;
+  /** 元素附魔(消耗品「元素瓶」;null = 无) */
+  flask: import('@game/loot/Consumables').FlaskState | null = null;
+  /** 命中计数(特效「回响之戒」:每第 5 击 ×2;1 起) */
+  hitCount = 0;
+  /** 消耗品袋(轮 21:护盾/净化/时缓/元素瓶;按顺序消耗) */
+  consumables: import('@game/loot/Consumables').ConsumableId[] = [];
   fireTrailAccum = 0;
   // 资源(Phase 3)
   stardust = 0;
@@ -163,10 +185,12 @@ export class Pickup {
   magnet = false;
 
   constructor(
-    public kind: 'item' | 'stardust' | 'potion' | 'rune',
+    public kind: 'item' | 'stardust' | 'potion' | 'rune' | 'cons',
     public item: import('@game/loot/Items').Item | null = null,
     public value = 0,
     public runeId: string | null = null,
+    /** kind='cons' 时的消耗品 id(见 loot/Consumables.ts) */
+    public consId: import('@game/loot/Consumables').ConsumableId | null = null,
   ) {}
 }
 
@@ -361,10 +385,12 @@ export class ShopStand {
   animT = Math.random() * 10;
 
   constructor(
-    public wares: 'item' | 'potion' | 'rune',
+    public wares: 'item' | 'potion' | 'rune' | 'cons',
     public price: number,
     public item: import('@game/loot/Items').Item | null = null,
     public runeId: string | null = null,
+    /** wares='cons' 时卖的是哪种消耗品 */
+    public consId: import('@game/loot/Consumables').ConsumableId | null = null,
   ) {}
 }
 

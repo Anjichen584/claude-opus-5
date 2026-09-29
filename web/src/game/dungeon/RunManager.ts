@@ -13,6 +13,7 @@ import {
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { scaleAtk, scaleHp } from './Scaling';
 import { runMods } from './RunMods';
+import { shopConsumables, type ConsumableId } from '@game/loot/Consumables';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 import {
@@ -138,6 +139,16 @@ export class RunManager {
         const pot = world.create();
         world.add(pot, new Transform(10 * M, cy + 2 * M));
         world.add(pot, new ShopStand('potion', S.potionPrice));
+        // 消耗品摊(轮 21):从 4 种里随机摆 2 摊(**不重复**),价格由数据表给
+        const menu = shopConsumables();
+        const first = this.rng.pick(menu);
+        const second = this.rng.pick(menu.filter((d) => d.id !== first.id));
+        const pair: Array<[number, typeof first]> = [[11.8, first], [13.6, second]];
+        for (const [x, def] of pair) {
+          const st = world.create();
+          world.add(st, new Transform(x * M, cy + 2 * M));
+          world.add(st, new ShopStand('cons', def.price, null, null, def.id as ConsumableId));
+        }
         const klass = world.mustGet(playerE, Player).klass;
         const prefix = `${klass}_`;
         const runeIds = [...RUNE_POOL.values()].filter((r) => r.skill.startsWith(prefix)).map((r) => r.id);

@@ -1,0 +1,23 @@
+{
+  "$doc": "蓝图(10-FULL-PLAN 轮 20)。铸台按蓝图铸造:必得指定部位 + 指定橙装特效 + 固定几条词条。costShards 覆盖 balance.blueprint.craftCost(特殊蓝图更贵)。",
+  "list": [
+    { "id": "bp_tempest_blade", "name": "《怒涛》",     "slot": "weapon", "rarity": "legendary", "special": "tempest",
+      "affixes": ["atk_pct", "crit_rate", "atk_flat"], "costShards": 5,
+      "lore": "潮线刻在剑脊上:退得越远,回来得越狠。" },
+    { "id": "bp_frost_fang",    "name": "《霜咬》",     "slot": "weapon", "rarity": "legendary", "special": "frostfang",
+      "affixes": ["atk_pct", "elem_dmg", "crit_dmg"], "costShards": 6,
+      "lore": "齿痕里凝着化不开的冰。它咬住的东西,别人跑不掉。" },
+    { "id": "bp_wind_hood",     "name": "《猎风》",     "slot": "helmet", "rarity": "legendary", "special": "windhood",
+      "affixes": ["hp_pct", "cdr", "rage_pct"], "costShards": 5,
+      "lore": "林间猎人终身只做一顶尖帽:跑起来的时候,风会替你挡。" },
+    { "id": "bp_stone_heart",   "name": "《磐石》",     "slot": "chest",  "rarity": "legendary", "special": "stoneheart",
+      "affixes": ["hp_pct", "dmg_reduce", "regen_pct"], "costShards": 6,
+      "lore": "穿上它的人活了下来,穿着它的人也不肯倒下。" },
+    { "id": "bp_ember_step",    "name": "《焰行》",     "slot": "boots",  "rarity": "legendary", "special": "emberstride",
+      "affixes": ["move_pct", "swift"], "costShards": 5,
+      "lore": "踩过的地面会记得他 —— 短短两秒。" },
+    { "id": "bp_echo_ring",     "name": "《回响》",     "slot": "ring",   "rarity": "legendary", "special": "echo_ring",
+      "affixes": ["crit_rate", "crit_dmg", "luck_flat"], "costShards": 6,
+      "lore": "第五下。每一次都数着 —— 它替你记。" }
+  ]
+}

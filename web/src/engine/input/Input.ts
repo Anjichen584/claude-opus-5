@@ -16,6 +16,9 @@ export class Input {
   mouseY = 0;
   mouseDown = false;
   mousePressed = false;
+  /** 右键按住 / 本帧按下(背包里重铸装备;见 ui/InventoryUI.ts) */
+  mouseRight = false;
+  mouseRightPressed = false;
 
   // ---- 手柄(标准映射)----
   /** 左摇杆(移动) */
@@ -169,13 +172,20 @@ export class Input {
       this.mouseX = e.clientX * this.pointerScale;
       this.mouseY = e.clientY * this.pointerScale;
     });
+    target.addEventListener('contextmenu', (e) => e.preventDefault());
     target.addEventListener('mousedown', (e) => {
+      if (e.button === 2) {
+        this.mouseRight = true;
+        this.mouseRightPressed = true;
+        return;
+      }
       if (e.button === 0) {
         this.mouseDown = true;
         this.mousePressed = true;
       }
     });
     window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) this.mouseRight = false;
       if (e.button === 0) this.mouseDown = false;
     });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -244,6 +254,7 @@ export class Input {
   endFrame(): void {
     this.pressed.clear();
     this.mousePressed = false;
+    this.mouseRightPressed = false;
     this.touchStarted.length = 0;
     this.lastKey = null;
   }

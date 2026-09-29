@@ -808,7 +808,9 @@
         ]
       ]
     },
-    "runeDropElite": 0.35
+    "runeDropElite": 0.35,
+    "dropCons": 0.055,
+    "consMax": 4
   },
   "reactions": {
     "markDurS": 4.0,
@@ -987,9 +989,13 @@
     "fountainMax": 150
   },
   "blueprint": {
+    "$doc": "图纸与铸台(10-FULL-PLAN 轮 20):Boss 掉碎片 + 概率掉整张图纸 → 铸台学会 → 铸造指定橙装(下局开局携带);局内背包右键重铸词条。",
     "shardsPerBoss": 1,
     "nightBonus": 1,
-    "craftCost": 5
+    "craftCost": 5,
+    "reforgeCost": 120,
+    "reforgeRerollMax": 3,
+    "dropChance": 0.35
   },
   "chapters": {
     "1": {
@@ -1103,5 +1109,53 @@
     "btnTouchPadPx": 14.0,
     "safeMarginPx": 26.0,
     "btnScale": 1.0
+  },
+  "specials": {
+    "$doc": "橙装特效数值(10-FULL-PLAN 轮 19:3 → 9 个,每部位至少 1 个)。定义见 loot/Specials.ts + data/items/specials.json。",
+    "echoEvery": 5,
+    "echoMult": 2.0,
+    "thornFrac": 0.25,
+    "thornRadiusM": 2.0,
+    "thornCap": 20.0,
+    "soulfeastHeal": 3.0,
+    "tempestRangeMult": 1.4,
+    "windhoodAtkPct": 12.0,
+    "starhelmAtkPct": 20.0,
+    "starhelmWindowS": 3.0,
+    "stoneheartThreshold": 0.35,
+    "stoneheartReduce": 0.2,
+    "frostfangElement": "ice",
+    "frostfangMarks": 1.0,
+    "emberstrideBurnS": 2.0
+  },
+  "consumables": {
+    "$doc": "消耗品(10-FULL-PLAN 轮 21):护盾 / 净化 / 时缓 / 元素瓶。边界与反制写在 loot/Consumables.ts。",
+    "shield": {
+      "name": "星壳药剂",
+      "price": 70,
+      "capPct": 0.5,
+      "durS": 12.0
+    },
+    "cleanse": {
+      "name": "净澈露",
+      "price": 60,
+      "debuffMax": 3.0,
+      "iframesS": 0.3
+    },
+    "timeslow": {
+      "name": "滞时砂",
+      "price": 90,
+      "radiusM": 4.5,
+      "slowPct": 0.5,
+      "durS": 3.0,
+      "bossFactor": 0.5
+    },
+    "flask": {
+      "name": "元素瓶",
+      "price": 80,
+      "elementS": 8.0,
+      "chargeMax": 1.0,
+      "element": "fire"
+    }
   }
 }

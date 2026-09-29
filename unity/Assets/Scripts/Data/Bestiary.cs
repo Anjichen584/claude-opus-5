@@ -908,6 +908,74 @@ namespace StarfallKnights.Data
         public const float ReactionsBrittlePct = 0.25f;
         /// <summary>reactions.numb.stunS</summary>
         public const float ReactionsNumbStunS = 1.2f;
+        /// <summary>specials.echoEvery</summary>
+        public const float SpecialEchoEvery = 5f;
+        /// <summary>specials.echoMult</summary>
+        public const float SpecialEchoMult = 2f;
+        /// <summary>specials.thornFrac</summary>
+        public const float SpecialThornFrac = 0.25f;
+        /// <summary>specials.thornRadiusM</summary>
+        public const float SpecialThornRadiusM = 2f;
+        /// <summary>specials.thornCap</summary>
+        public const float SpecialThornCap = 20f;
+        /// <summary>specials.soulfeastHeal</summary>
+        public const float SpecialSoulfeastHeal = 3f;
+        /// <summary>specials.tempestRangeMult</summary>
+        public const float SpecialTempestRangeMult = 1.4f;
+        /// <summary>specials.windhoodAtkPct</summary>
+        public const float SpecialWindhoodAtkPct = 12f;
+        /// <summary>specials.starhelmAtkPct</summary>
+        public const float SpecialStarhelmAtkPct = 20f;
+        /// <summary>specials.starhelmWindowS</summary>
+        public const float SpecialStarhelmWindowS = 3f;
+        /// <summary>specials.stoneheartThreshold</summary>
+        public const float SpecialStoneheartThreshold = 0.35f;
+        /// <summary>specials.stoneheartReduce</summary>
+        public const float SpecialStoneheartReduce = 0.2f;
+        /// <summary>specials.frostfangMarks</summary>
+        public const float SpecialFrostfangMarks = 1f;
+        /// <summary>specials.emberstrideBurnS</summary>
+        public const float SpecialEmberstrideBurnS = 2f;
+        /// <summary>consumables.shield.price</summary>
+        public const float ConsumableShieldPrice = 70f;
+        /// <summary>consumables.shield.capPct</summary>
+        public const float ConsumableShieldCapPct = 0.5f;
+        /// <summary>consumables.shield.durS</summary>
+        public const float ConsumableShieldDurS = 12f;
+        /// <summary>consumables.cleanse.price</summary>
+        public const float ConsumableCleansePrice = 60f;
+        /// <summary>consumables.cleanse.debuffMax</summary>
+        public const float ConsumableCleanseDebuffMax = 3f;
+        /// <summary>consumables.cleanse.iframesS</summary>
+        public const float ConsumableCleanseIframesS = 0.3f;
+        /// <summary>consumables.timeslow.price</summary>
+        public const float ConsumableTimeslowPrice = 90f;
+        /// <summary>consumables.timeslow.radiusM</summary>
+        public const float ConsumableTimeslowRadiusM = 4.5f;
+        /// <summary>consumables.timeslow.slowPct</summary>
+        public const float ConsumableTimeslowSlowPct = 0.5f;
+        /// <summary>consumables.timeslow.durS</summary>
+        public const float ConsumableTimeslowDurS = 3f;
+        /// <summary>consumables.timeslow.bossFactor</summary>
+        public const float ConsumableTimeslowBossFactor = 0.5f;
+        /// <summary>consumables.flask.price</summary>
+        public const float ConsumableFlaskPrice = 80f;
+        /// <summary>consumables.flask.elementS</summary>
+        public const float ConsumableFlaskElementS = 8f;
+        /// <summary>consumables.flask.chargeMax</summary>
+        public const float ConsumableFlaskChargeMax = 1f;
+        /// <summary>blueprint.shardsPerBoss</summary>
+        public const float BlueprintShardsPerBoss = 1f;
+        /// <summary>blueprint.nightBonus</summary>
+        public const float BlueprintNightBonus = 1f;
+        /// <summary>blueprint.craftCost</summary>
+        public const float BlueprintCraftCost = 5f;
+        /// <summary>blueprint.reforgeCost</summary>
+        public const float BlueprintReforgeCost = 120f;
+        /// <summary>blueprint.reforgeRerollMax</summary>
+        public const float BlueprintReforgeRerollMax = 3f;
+        /// <summary>blueprint.dropChance</summary>
+        public const float BlueprintDropChance = 0.35f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1328,6 +1396,40 @@ namespace StarfallKnights.Data
             { "reactions.brittle.vulnS", ReactionsBrittleVulnS },
             { "reactions.brittle.pct", ReactionsBrittlePct },
             { "reactions.numb.stunS", ReactionsNumbStunS },
+            { "specials.echoEvery", SpecialEchoEvery },
+            { "specials.echoMult", SpecialEchoMult },
+            { "specials.thornFrac", SpecialThornFrac },
+            { "specials.thornRadiusM", SpecialThornRadiusM },
+            { "specials.thornCap", SpecialThornCap },
+            { "specials.soulfeastHeal", SpecialSoulfeastHeal },
+            { "specials.tempestRangeMult", SpecialTempestRangeMult },
+            { "specials.windhoodAtkPct", SpecialWindhoodAtkPct },
+            { "specials.starhelmAtkPct", SpecialStarhelmAtkPct },
+            { "specials.starhelmWindowS", SpecialStarhelmWindowS },
+            { "specials.stoneheartThreshold", SpecialStoneheartThreshold },
+            { "specials.stoneheartReduce", SpecialStoneheartReduce },
+            { "specials.frostfangMarks", SpecialFrostfangMarks },
+            { "specials.emberstrideBurnS", SpecialEmberstrideBurnS },
+            { "consumables.shield.price", ConsumableShieldPrice },
+            { "consumables.shield.capPct", ConsumableShieldCapPct },
+            { "consumables.shield.durS", ConsumableShieldDurS },
+            { "consumables.cleanse.price", ConsumableCleansePrice },
+            { "consumables.cleanse.debuffMax", ConsumableCleanseDebuffMax },
+            { "consumables.cleanse.iframesS", ConsumableCleanseIframesS },
+            { "consumables.timeslow.price", ConsumableTimeslowPrice },
+            { "consumables.timeslow.radiusM", ConsumableTimeslowRadiusM },
+            { "consumables.timeslow.slowPct", ConsumableTimeslowSlowPct },
+            { "consumables.timeslow.durS", ConsumableTimeslowDurS },
+            { "consumables.timeslow.bossFactor", ConsumableTimeslowBossFactor },
+            { "consumables.flask.price", ConsumableFlaskPrice },
+            { "consumables.flask.elementS", ConsumableFlaskElementS },
+            { "consumables.flask.chargeMax", ConsumableFlaskChargeMax },
+            { "blueprint.shardsPerBoss", BlueprintShardsPerBoss },
+            { "blueprint.nightBonus", BlueprintNightBonus },
+            { "blueprint.craftCost", BlueprintCraftCost },
+            { "blueprint.reforgeCost", BlueprintReforgeCost },
+            { "blueprint.reforgeRerollMax", BlueprintReforgeRerollMax },
+            { "blueprint.dropChance", BlueprintDropChance },
         };
     }
 

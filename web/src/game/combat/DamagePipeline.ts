@@ -12,6 +12,7 @@ import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { terrain } from '@game/dungeon/Terrain';
+import { hitDamageMult, killHeal, strikeElement, THORN_RADIUS_M, reflectOnHurt } from '@game/loot/Specials';
 
 const RX = balance.reactions;
 
@@ -71,10 +72,37 @@ export function dealDamage(world: World, o: DealOpts): void {
   // 地形:浅滩导电 —— 雷元素打水里的目标更疼,并附带短时麻痹(docs/01-GDD.md §9.2)
   const terrainAmp = terrain.elemAmp(o.element, tTr.x, tTr.y);
 
-  const amount = finalDamage(atk, o.mult * elemBonus * backstab * terrainAmp * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
+  let amount = finalDamage(atk, o.mult * elemBonus * backstab * terrainAmp * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
+
+  // 橙装「回响之戒」:每第 N 次命中 ×echoMult(计数从 1 起,只数玩家的命中)
+  if (srcPlayer && o.source !== null) {
+    srcPlayer.hitCount += 1;
+    const echo = hitDamageMult(srcPlayer.specials, srcPlayer.hitCount);
+    if (echo !== 1) amount = Math.round(amount * echo);
+  }
+
+  // 橙装「霜咬」:无元素命中时补一层冰印记(不覆盖玩家已有的元素铺场)
+  const strike = srcPlayer ? strikeElement(srcPlayer.specials, o.element ?? null) : { element: o.element ?? null, marks: 0 };
+  const hitElement: Element | null = strike.element;
 
   // ---- 玩家目标走受伤入口(尊重无敌帧/翻滚) ----
   if (world.has(o.target, Player)) {
+    // 橙装「棘刺胸甲」:受伤时对身边敌人反弹(有上限,见 Specials.reflectOnHurt)
+    const pl = world.get(o.target, Player);
+    const plTr = world.get(o.target, Transform);
+    if (pl && plTr && pl.iframes <= 0 && pl.dashT <= 0) {
+      const back = reflectOnHurt(pl.specials, amount);
+      if (back > 0) {
+        for (const e of world.query(Transform, Health, Faction)) {
+          if (world.has(e, Player)) continue;
+          const f = world.mustGet(e, Faction);
+          if (f.team === 'player') continue;
+          const etr = world.mustGet(e, Transform);
+          if (Math.hypot(etr.x - plTr.x, etr.y - plTr.y) > THORN_RADIUS_M * M) continue;
+          dealDamage(world, { source: o.target, target: e, mult: 1, element: null, hitAngle: 0, atkOverride: back, canCrit: false });
+        }
+      }
+    }
     PlayerSystem.applyHurt(world, o.target, amount);
     return;
   }
@@ -88,16 +116,16 @@ export function dealDamage(world: World, o: DealOpts): void {
 
   // ---- 元素印记与连锁 ----
   const marks = world.get(o.target, ElementMarks);
-  if (o.element && marks) {
+  if (hitElement && marks) {
     const existing = (Object.keys(marks.marks) as Element[]).find(
-      (el) => (marks.marks[el] ?? 0) > 0 && el !== o.element,
+      (el) => (marks.marks[el] ?? 0) > 0 && el !== hitElement,
     );
-    const reaction = existing ? reactionOf(existing, o.element) : null;
+    const reaction = existing ? reactionOf(existing, hitElement) : null;
     if (reaction && existing) {
       marks.marks = {}; // 反应消耗全部印记
-      triggerReaction(world, reaction.id, reaction.name, reaction.color, o, amount, tTr, depth, existing, o.element);
+      triggerReaction(world, reaction.id, reaction.name, reaction.color, o, amount, tTr, depth, existing, hitElement);
     } else {
-      marks.marks[o.element] = RX.markDurS;
+      marks.marks[hitElement] = RX.markDurS;
     }
   }
 
@@ -133,9 +161,13 @@ export function dealDamage(world: World, o: DealOpts): void {
 
   if (kill) {
     // 橙装「噬魂坠」:击杀回复 3 点生命
-    if (srcPlayer && o.source !== null && srcPlayer.specials.includes('soulfeast')) {
-      const srcHp = world.get(o.source, Health);
-      if (srcHp && srcHp.hp > 0) srcHp.hp = Math.min(srcHp.max, srcHp.hp + 3);
+    // 橙装「噬魂坠」:击杀回复(数值读 balance.specials)
+    if (srcPlayer && o.source !== null) {
+      const heal = killHeal(srcPlayer.specials);
+      if (heal > 0) {
+        const srcHp = world.get(o.source, Health);
+        if (srcHp && srcHp.hp > 0) srcHp.hp = Math.min(srcHp.max, srcHp.hp + heal);
+      }
     }
     const slime = world.get(o.target, FrostSlime);
     const kind = shroom ? 'shroomling'

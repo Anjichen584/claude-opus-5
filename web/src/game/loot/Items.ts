@@ -2,6 +2,8 @@ import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import affixPool from '@data/affixes/pool.json';
 import bases from '@data/items/bases.json';
+import type { AffixDef, CondId } from './AffixRules';
+import { specialsForSlot } from './Specials';
 
 export type Slot = 'weapon' | 'helmet' | 'chest' | 'boots' | 'ring' | 'amulet';
 export type Rarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary';
@@ -15,6 +17,10 @@ export interface AffixRoll {
   stat: string;
   value: number;
   suffix: string;
+  /** 负面面(tradeoff 词条):与加成**同时**生效,见 loot/AffixRules.ts */
+  neg?: { stat: string; name: string; suffix: string; value: number };
+  /** 条件(conditional 词条):不满足时加成面失效,负面面照旧 */
+  cond?: CondId;
 }
 
 export interface Item {
@@ -67,8 +73,10 @@ export class ItemFactory {
     let specialDesc: string | undefined;
 
     if (rarity === 'legendary') {
-      const sp = (bases.legendarySpecials as Record<string, { id: string; itemName: string; desc: string } | undefined>)[slot];
-      if (sp) {
+      // 9 个橙装特效按部位分池(轮 19:3 → 9,每部位 ≥1);随机取一个
+      const pool = specialsForSlot(slot);
+      if (pool.length > 0) {
+        const sp = this.rng.pick(pool);
         special = sp.id;
         specialDesc = sp.desc;
         name = sp.itemName;
@@ -115,7 +123,7 @@ export class ItemFactory {
     const count = (L.affixCount as Record<Rarity, number>)[rarity];
     if (count === 0) return [];
     const highTier = rarity === 'epic' || rarity === 'legendary';
-    const pool = affixPool.affixes.filter((a) => a.slots.includes(slot));
+    const pool = (affixPool.affixes as AffixDef[]).filter((a) => a.slots.includes(slot));   // 定义见 data/affixes/pool.json
     const picked: AffixRoll[] = [];
     const used = new Set<string>();
     let guard = 0;
@@ -124,13 +132,20 @@ export class ItemFactory {
       if (used.has(def.id)) continue;
       used.add(def.id);
       const [lo, hi] = highTier ? def.hi : def.lo;
-      picked.push({
+      const roll: AffixRoll = {
         id: def.id,
         name: def.name,
         stat: def.stat,
         value: this.rng.int(lo, hi),
         suffix: def.suffix,
-      });
+      };
+      // tradeoff 的负面面与加成一起掷(只掷加成 = 纯加强,取舍设计就失效了)
+      if (def.neg) {
+        const [nlo, nhi] = highTier ? def.neg.hi : def.neg.lo;
+        roll.neg = { stat: def.neg.stat, name: def.neg.name, suffix: def.neg.suffix, value: this.rng.int(nlo, nhi) };
+      }
+      if (def.cond) roll.cond = def.cond;
+      picked.push(roll);
     }
     return picked;
   }

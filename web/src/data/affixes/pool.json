@@ -1,13 +1,522 @@
 {
-  "$doc": "词条池(docs/03-NUMBERS.md §5)。lo=绿蓝档范围, hi=紫橙档范围;value 为整数随机。",
+  "$doc": "词条池(docs/03-NUMBERS.md §5)。lo=绿蓝档范围, hi=紫橙档范围;value 为整数随机。kind:normal 普通 / tradeoff 带负面(neg 段) / conditional 条件生效(cond 见 loot/AffixRules.ts 的 CondId)。",
   "affixes": [
-    { "id": "atk_pct",    "name": "攻击",     "stat": "atkPct",    "suffix": "%", "slots": ["weapon", "ring", "amulet"],  "lo": [4, 8],   "hi": [8, 15] },
-    { "id": "hp_pct",     "name": "生命",     "stat": "hpPct",     "suffix": "%", "slots": ["helmet", "chest", "boots"],  "lo": [5, 10],  "hi": [10, 18] },
-    { "id": "crit_rate",  "name": "暴击率",   "stat": "critRate",  "suffix": "%", "slots": ["weapon", "ring"],            "lo": [3, 5],   "hi": [5, 9] },
-    { "id": "crit_dmg",   "name": "暴击伤害", "stat": "critDmg",   "suffix": "%", "slots": ["weapon", "amulet"],          "lo": [8, 15],  "hi": [15, 30] },
-    { "id": "cdr",        "name": "冷却缩减", "stat": "cdr",       "suffix": "%", "slots": ["helmet", "amulet"],          "lo": [3, 6],   "hi": [6, 10] },
-    { "id": "move_pct",   "name": "移动速度", "stat": "movePct",   "suffix": "%", "slots": ["boots"],                     "lo": [3, 5],   "hi": [5, 8] },
-    { "id": "elem_dmg",   "name": "元素伤害", "stat": "elemDmg",   "suffix": "%", "slots": ["weapon", "ring", "amulet"],  "lo": [6, 12],  "hi": [12, 20] },
-    { "id": "pickup_pct", "name": "拾取半径", "stat": "pickupPct", "suffix": "%", "slots": ["boots", "amulet"],           "lo": [10, 20], "hi": [20, 40] }
+    {
+      "id": "atk_pct",
+      "name": "攻击",
+      "stat": "atkPct",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring",
+        "amulet"
+      ],
+      "lo": [
+        4,
+        8
+      ],
+      "hi": [
+        8,
+        15
+      ]
+    },
+    {
+      "id": "hp_pct",
+      "name": "生命",
+      "stat": "hpPct",
+      "suffix": "%",
+      "slots": [
+        "helmet",
+        "chest",
+        "boots"
+      ],
+      "lo": [
+        5,
+        10
+      ],
+      "hi": [
+        10,
+        18
+      ]
+    },
+    {
+      "id": "crit_rate",
+      "name": "暴击率",
+      "stat": "critRate",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring"
+      ],
+      "lo": [
+        3,
+        5
+      ],
+      "hi": [
+        5,
+        9
+      ]
+    },
+    {
+      "id": "crit_dmg",
+      "name": "暴击伤害",
+      "stat": "critDmg",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "amulet",
+        "ring"
+      ],
+      "lo": [
+        8,
+        15
+      ],
+      "hi": [
+        15,
+        30
+      ]
+    },
+    {
+      "id": "cdr",
+      "name": "冷却缩减",
+      "stat": "cdr",
+      "suffix": "%",
+      "slots": [
+        "helmet",
+        "amulet",
+        "chest"
+      ],
+      "lo": [
+        3,
+        6
+      ],
+      "hi": [
+        6,
+        10
+      ]
+    },
+    {
+      "id": "move_pct",
+      "name": "移动速度",
+      "stat": "movePct",
+      "suffix": "%",
+      "slots": [
+        "boots"
+      ],
+      "lo": [
+        3,
+        5
+      ],
+      "hi": [
+        5,
+        8
+      ]
+    },
+    {
+      "id": "elem_dmg",
+      "name": "元素伤害",
+      "stat": "elemDmg",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring",
+        "amulet"
+      ],
+      "lo": [
+        6,
+        12
+      ],
+      "hi": [
+        12,
+        20
+      ]
+    },
+    {
+      "id": "pickup_pct",
+      "name": "拾取半径",
+      "stat": "pickupPct",
+      "suffix": "%",
+      "slots": [
+        "boots",
+        "amulet"
+      ],
+      "lo": [
+        10,
+        20
+      ],
+      "hi": [
+        20,
+        40
+      ]
+    },
+    {
+      "id": "atk_flat",
+      "name": "锋利",
+      "stat": "atkFlat",
+      "suffix": "",
+      "slots": [
+        "weapon",
+        "ring"
+      ],
+      "lo": [
+        3,
+        6
+      ],
+      "hi": [
+        6,
+        12
+      ]
+    },
+    {
+      "id": "hp_flat",
+      "name": "厚重",
+      "stat": "hpFlat",
+      "suffix": "",
+      "slots": [
+        "helmet",
+        "chest",
+        "boots"
+      ],
+      "lo": [
+        8,
+        16
+      ],
+      "hi": [
+        16,
+        30
+      ]
+    },
+    {
+      "id": "dmg_reduce",
+      "name": "坚韧",
+      "stat": "dmgReduce",
+      "suffix": "%",
+      "slots": [
+        "helmet",
+        "chest"
+      ],
+      "lo": [
+        3,
+        6
+      ],
+      "hi": [
+        6,
+        10
+      ]
+    },
+    {
+      "id": "regen_pct",
+      "name": "回春",
+      "stat": "regenPct",
+      "suffix": "%",
+      "slots": [
+        "chest",
+        "amulet"
+      ],
+      "lo": [
+        10,
+        20
+      ],
+      "hi": [
+        20,
+        35
+      ]
+    },
+    {
+      "id": "luck_flat",
+      "name": "幸运",
+      "stat": "luck",
+      "suffix": "",
+      "slots": [
+        "ring",
+        "amulet"
+      ],
+      "lo": [
+        1,
+        3
+      ],
+      "hi": [
+        3,
+        6
+      ]
+    },
+    {
+      "id": "rage_pct",
+      "name": "战意",
+      "stat": "ragePct",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "helmet"
+      ],
+      "lo": [
+        8,
+        15
+      ],
+      "hi": [
+        15,
+        25
+      ]
+    },
+    {
+      "id": "berserk",
+      "name": "狂血",
+      "stat": "atkPct",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring"
+      ],
+      "lo": [
+        8,
+        14
+      ],
+      "hi": [
+        14,
+        22
+      ],
+      "kind": "tradeoff",
+      "neg": {
+        "stat": "hpPct",
+        "name": "生命",
+        "suffix": "%",
+        "lo": [
+          4,
+          8
+        ],
+        "hi": [
+          6,
+          12
+        ]
+      }
+    },
+    {
+      "id": "heavy",
+      "name": "重甲",
+      "stat": "hpPct",
+      "suffix": "%",
+      "slots": [
+        "chest",
+        "boots"
+      ],
+      "lo": [
+        10,
+        16
+      ],
+      "hi": [
+        16,
+        26
+      ],
+      "kind": "tradeoff",
+      "neg": {
+        "stat": "movePct",
+        "name": "移速",
+        "suffix": "%",
+        "lo": [
+          3,
+          5
+        ],
+        "hi": [
+          5,
+          8
+        ]
+      }
+    },
+    {
+      "id": "greed",
+      "name": "贪狼",
+      "stat": "pickupPct",
+      "suffix": "%",
+      "slots": [
+        "ring",
+        "amulet"
+      ],
+      "lo": [
+        20,
+        35
+      ],
+      "hi": [
+        35,
+        55
+      ],
+      "kind": "tradeoff",
+      "neg": {
+        "stat": "critRate",
+        "name": "暴击率",
+        "suffix": "%",
+        "lo": [
+          2,
+          4
+        ],
+        "hi": [
+          3,
+          6
+        ]
+      }
+    },
+    {
+      "id": "glass",
+      "name": "琉璃",
+      "stat": "elemDmg",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "amulet"
+      ],
+      "lo": [
+        10,
+        18
+      ],
+      "hi": [
+        18,
+        28
+      ],
+      "kind": "tradeoff",
+      "neg": {
+        "stat": "hpPct",
+        "name": "生命",
+        "suffix": "%",
+        "lo": [
+          5,
+          9
+        ],
+        "hi": [
+          8,
+          14
+        ]
+      }
+    },
+    {
+      "id": "swift",
+      "name": "疾影",
+      "stat": "movePct",
+      "suffix": "%",
+      "slots": [
+        "boots"
+      ],
+      "lo": [
+        6,
+        10
+      ],
+      "hi": [
+        10,
+        16
+      ],
+      "kind": "tradeoff",
+      "neg": {
+        "stat": "hpPct",
+        "name": "生命",
+        "suffix": "%",
+        "lo": [
+          4,
+          8
+        ],
+        "hi": [
+          6,
+          12
+        ]
+      }
+    },
+    {
+      "id": "backwater",
+      "name": "背水",
+      "stat": "atkPct",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring"
+      ],
+      "lo": [
+        10,
+        18
+      ],
+      "hi": [
+        18,
+        30
+      ],
+      "kind": "conditional",
+      "cond": "lowHp"
+    },
+    {
+      "id": "nightwalker",
+      "name": "夜行",
+      "stat": "atkPct",
+      "suffix": "%",
+      "slots": [
+        "helmet",
+        "amulet",
+        "chest"
+      ],
+      "lo": [
+        8,
+        14
+      ],
+      "hi": [
+        14,
+        24
+      ],
+      "kind": "conditional",
+      "cond": "night"
+    },
+    {
+      "id": "kingslayer",
+      "name": "弑君",
+      "stat": "elemDmg",
+      "suffix": "%",
+      "slots": [
+        "weapon",
+        "ring"
+      ],
+      "lo": [
+        10,
+        18
+      ],
+      "hi": [
+        18,
+        30
+      ],
+      "kind": "conditional",
+      "cond": "boss"
+    },
+    {
+      "id": "unblemished",
+      "name": "无瑕",
+      "stat": "critRate",
+      "suffix": "%",
+      "slots": [
+        "helmet",
+        "amulet"
+      ],
+      "lo": [
+        6,
+        10
+      ],
+      "hi": [
+        10,
+        16
+      ],
+      "kind": "conditional",
+      "cond": "fullHp"
+    },
+    {
+      "id": "poised",
+      "name": "蓄势",
+      "stat": "critDmg",
+      "suffix": "%",
+      "slots": [
+        "boots",
+        "amulet"
+      ],
+      "lo": [
+        12,
+        20
+      ],
+      "hi": [
+        20,
+        35
+      ],
+      "kind": "conditional",
+      "cond": "poised"
+    }
   ]
 }

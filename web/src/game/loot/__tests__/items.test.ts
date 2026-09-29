@@ -3,6 +3,7 @@ import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import affixPool from '@data/affixes/pool.json';
 import { ItemFactory, RARITIES, SLOTS } from '../Items';
+import { specialDef } from '../Specials';
 import type { Rarity, Slot } from '../Items';
 
 describe('装备生成器 (docs/03-NUMBERS.md §5-6)', () => {
@@ -56,13 +57,17 @@ describe('装备生成器 (docs/03-NUMBERS.md §5-6)', () => {
     expect(f.pityCount).toBe(0); // 出橙后重置
   });
 
-  it('橙装带专属特效(有定义的部位)', () => {
+  it('橙装**每个部位**都有专属特效(轮 19:3 → 9 个,每部位 ≥1)', () => {
     const f = new ItemFactory(new Rng(5));
-    const boots = f.make('boots', 'legendary');
-    expect(boots.special).toBe('emberstride');
-    expect(boots.name).toBe('焰行者之靴');
-    const chest = f.make('chest', 'legendary');
-    expect(chest.special).toBeUndefined(); // 胸甲无特效定义,正常命名
+    for (const slot of SLOTS) {
+      const item = f.make(slot, 'legendary');
+      expect(item.special, `${slot} 缺特效`).toBeTruthy();
+      const def = specialDef(item.special!);
+      expect(def, `${item.special} 没有定义`).toBeTruthy();
+      expect(def!.slot, `${item.special} 属于 ${def!.slot} 却被装在 ${slot}`).toBe(slot);
+      expect(item.name, '橙装名字用特效名(不是稀有度前缀·基名)').toBe(def!.itemName);
+      expect(item.specialDesc).toBe(def!.desc);
+    }
   });
 
   it('同 seed 掉落序列完全一致(可复现)', () => {

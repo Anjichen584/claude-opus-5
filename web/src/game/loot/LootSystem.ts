@@ -12,6 +12,8 @@ import { meta } from '@game/meta/Save';
 import { enemyEntry, markEnemyKill, markRuneOwned } from '@game/meta/Codex';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { runMods } from '@game/dungeon/RunMods';
+import { BLUEPRINTS } from './Blueprint';
+import { CONSUMABLE_IDS, CONS_VISUAL, consumableDef } from './Consumables';
 
 const L = balance.loot;
 
@@ -68,6 +70,20 @@ export class LootSystem implements System {
         meta.data.blueprintShards += gain;
         meta.save();
         world.emit(new ToastEvent(`📜 图纸碎片 +${gain}(共 ${meta.data.blueprintShards})`, '#e8c07a'));
+        // 整张图纸:碎片是"保底线路",这里是"惊喜线路" —— 集齐后不再空掉,折成碎片
+        if (this.rng.chance(bp.dropChance)) {
+          const fresh = BLUEPRINTS.filter((x) => !meta.data.blueprints.includes(x.id));
+          if (fresh.length > 0) {
+            const picked = this.rng.pick(fresh);
+            meta.data.blueprints.push(picked.id);
+            meta.save();
+            world.emit(new ToastEvent(`📜 图纸出土「${picked.name}」→ 营地铸台可铸`, '#e8c07a'));
+          } else {
+            meta.data.blueprintShards += 2;
+            meta.save();
+            world.emit(new ToastEvent('📜 图纸已集齐 → 碎片 +2', '#e8c07a'));
+          }
+        }
       }
       if (isMid) {
         const item = this.factory.make(
@@ -96,6 +112,11 @@ export class LootSystem implements System {
       // 药剂
       if (this.rng.chance(L.dropPotion * lootMult * runMods.dropMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
+      }
+      // 消耗品(轮 21):比药剂更少见,给商店之外多一条来路
+      if (this.rng.chance(L.dropCons * lootMult * runMods.dropMult)) {
+        this.spawnPickup(world, kill.x, kill.y,
+          new Pickup('cons', null, 0, null, this.rng.pick([...CONSUMABLE_IDS])));
       }
       // 符文:精英 35% / 中 Boss 与章 Boss 必掉(只掉本职业未拥有的,集齐后掉星尘)
       if (isBoss || isMid || (isElite && this.rng.chance(L.runeDropElite))) {
@@ -188,6 +209,21 @@ export class LootSystem implements System {
           world.emit(new ToastEvent(`获得 ${item.name}`, RARITY_COLORS[item.rarity]));
           world.emit(new SfxEvent(item.rarity === 'legendary' || item.rarity === 'epic' ? 'ult' : 'skill'));
         }
+        break;
+      }
+      case 'cons': {
+        const id = pk.consId;
+        if (!id) break;
+        const def = consumableDef(id);
+        const held = p.consumables.filter((x) => x === id).length;
+        if (held < L.consMax) {
+          p.consumables.push(id);
+          world.emit(new ToastEvent(`🧪 获得 ${def?.name ?? id}(2/3/4 使用)`, CONS_VISUAL[id].color));
+        } else {
+          p.stardust += 15;
+          world.emit(new ToastEvent(`${def?.name ?? id} 已带满(上限 ${L.consMax})→ 星尘 +15`, UI.dim));
+        }
+        world.emit(new SfxEvent('skill'));
         break;
       }
       case 'rune': {

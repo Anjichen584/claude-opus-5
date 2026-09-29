@@ -59,6 +59,8 @@ import { BOARD_LABEL, submitRun, type BoardId } from '@game/meta/Leaderboard';
 import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
+import { buildFromBlueprint, blueprintOf } from '@game/loot/Blueprint';
+import { CONS_VISUAL, type ConsumableId } from '@game/loot/Consumables';
 import { tutorial, formatHint } from '@game/meta/Tutorial';
 import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
@@ -231,8 +233,23 @@ export class GameScene {
     w.add(this.playerE, playerComp);
     w.add(this.playerE, new Inventory());
     const equip = new Equipment();
-    // 星辉铸台:预订的开局橙装
-    if (meta.data.craftQueued) {
+    // 星辉铸台:预订的开局装备。蓝图件按"图纸给定"的部位/特效/词条出炉(钱在铸台就付过了)
+    if (meta.data.craftQueuedId) {
+      const bpId = meta.data.craftQueuedId;
+      meta.data.craftQueuedId = null;
+      meta.save();
+      const gift = buildFromBlueprint(bpId, new Rng(0x5EED + meta.data.stats.runs),
+        (slot, rarity) => this.loot.factory.make(slot, rarity));
+      if (gift) {
+        equip.slots[gift.slot] = gift;
+        w.emit(new ToastEvent(`📜 铸台出品「${blueprintOf(bpId)?.name ?? ''}」:${gift.name}!`, RARITY_COLORS.legendary));
+      } else {
+        w.emit(new ToastEvent('📜 铸台:图纸记录已失效(数据更新过),碎片已退', UI.gold));
+        meta.data.blueprintShards += balance.blueprint.craftCost;
+        meta.save();
+      }
+    } else if (meta.data.craftQueued) {
+      // 旧档兜底:布尔口径(随机橙装)
       meta.data.craftQueued = false;
       meta.save();
       const slots = ['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const;
@@ -459,6 +476,11 @@ export class GameScene {
     sk.rr.cd = Math.max(0, p.cdR);
     sk.rr.max = this.skills.cooldownOf('R');
     this.touch.hud.potion = p.potionCharges;
+    this.touch.hud.cons = {
+      shield: p.consumables.filter((x) => x === 'shield').length,
+      cleanse: p.consumables.filter((x) => x === 'cleanse').length,
+      timeslow: p.consumables.filter((x) => x === 'timeslow').length,
+    };
     this.touch.hud.rReady = p.rage >= RAGE_FOR_R && p.cdR <= 0;
   }
 
@@ -523,6 +545,12 @@ export class GameScene {
       this.input.endFrame();
       return;
     }
+    if (act === 'crafted') {
+      // 学会/铸造都算铸台动作:成就看的是 crafts 计数(见 meta/Achievements.ts)
+      this.awardAchievements();
+      this.input.endFrame();
+      return;
+    }
     if (panelWasOpen) {
       this.input.endFrame();
       return;
@@ -541,8 +569,7 @@ export class GameScene {
       const st = this.world.mustGet(this.campNearE, CampStation);
       // 引导第 5 步:走到祭坛前交互就算学会(强化本身还要花钱,不强制消费)
       if (st.kind === 'altar') this.completeTutorial('altar');
-      if (st.kind === 'forge') this.forgeInteract();
-      else this.campUI.open(st.kind);
+      this.campUI.open(st.kind);
     }
 
     for (const s of this.systems) s.update(this.world, dt);
@@ -675,25 +702,6 @@ export class GameScene {
       this.world.emit(new ToastEvent(`🏆 成就解锁「${a.icon} ${a.name}」`, '#ffd94f'));
     }
     if (fresh.length > 0) meta.save();
-  }
-
-  /** 星辉铸台:即时交互 */
-  private forgeInteract(): void {
-    const bp = balance.blueprint;
-    if (meta.data.craftQueued) {
-      this.world.emit(new ToastEvent('📜 已预订:下局开局自带传奇装备!', UI.gold));
-      return;
-    }
-    if (meta.data.blueprintShards >= bp.craftCost) {
-      meta.data.blueprintShards -= bp.craftCost;
-      meta.data.craftQueued = true;
-      meta.data.stats.crafts++;
-      this.awardAchievements();
-      meta.save();
-      this.world.emit(new ToastEvent('📜 铸造完成!下局开局自带随机橙装', RARITY_COLORS.legendary));
-    } else {
-      this.world.emit(new ToastEvent(`碎片不足:${meta.data.blueprintShards}/${bp.craftCost}(Boss 掉落,夜战翻倍)`, UI.dim));
-    }
   }
 
   private endRun(victory: boolean): void {
@@ -1672,6 +1680,12 @@ export class GameScene {
             ctx.font = 'bold 18px monospace';
             ctx.textAlign = 'center';
             ctx.fillText('❤', tr.x, tr.y - 30 + bob);
+          } else if (stand.wares === 'cons' && stand.consId) {
+            const vis = CONS_VISUAL[stand.consId];
+            ctx.fillStyle = vis.color;
+            ctx.font = 'bold 18px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(vis.glyph, tr.x, tr.y - 30 + bob);
           } else {
             ctx.fillStyle = '#B067E8';
             ctx.font = 'bold 20px monospace';
@@ -1757,7 +1771,10 @@ export class GameScene {
         const tr = w.mustGet(e, Transform);
         const pk = w.mustGet(e, Pickup);
         const color = pk.kind === 'item' && pk.item ? RARITY_COLORS[pk.item.rarity] : '#f2d98c';
-        list.push({ y: tr.y - 1, draw: () => drawPickup(ctx, tr.x, tr.y, pk.kind, color, pk.bobPhase, pk.item?.glyph) });
+        const glyph = pk.kind === 'cons' && pk.consId ? CONS_VISUAL[pk.consId].glyph
+          : pk.kind === 'cons' ? undefined : pk.item?.glyph;
+        const consColor = pk.kind === 'cons' && pk.consId ? CONS_VISUAL[pk.consId].color : color;
+        list.push({ y: tr.y - 1, draw: () => drawPickup(ctx, tr.x, tr.y, pk.kind, consColor, pk.bobPhase, glyph) });
       }
       {
         const e = this.playerE;
@@ -2081,6 +2098,21 @@ export class GameScene {
     ctx.fillText(`✦ ${p.stardust}`, width - 110, 52);
     ctx.fillStyle = p.potionCharges > 0 ? UI.hpLow : UI.dim;
     ctx.fillText(`药剂[1] ×${p.potionCharges}`, width - 24, 52);
+    // 消耗品栏(轮 21):按 2/3/4 使用。只显示**身上有**的那些,免得 HUD 常年挂三条 0
+    let cxx = width - 24;
+    for (const id of ['shield', 'cleanse', 'timeslow'] as ConsumableId[]) {
+      const n = p.consumables.filter((x) => x === id).length;
+      if (n <= 0) continue;
+      const vis = CONS_VISUAL[id];
+      ctx.fillStyle = vis.color;
+      const label = `${vis.glyph}${n}`;
+      ctx.fillText(label, cxx, 68);
+      cxx -= 40;
+    }
+    if (p.shield) {
+      ctx.fillStyle = CONS_VISUAL.shield.color;
+      ctx.fillText(`🛡${Math.round(p.shield.amount)}(${p.shield.t.toFixed(0)}s)`, cxx, 68);
+    }
 
     // 底部提示
     ctx.textAlign = 'center';
@@ -2090,7 +2122,7 @@ export class GameScene {
       ? (clock.isNight() ? `🌙 掉落×2 · 🏮钮花✦${this.run.chapterCfg.lanternCost}买天亮 · 🎒镶符文` : '清房踩传送门 · 异元素连击触发连锁 · 靠近摊位按 F 钮')
       : clock.isNight()
       ? `🌙 夜间掉落×2 · [L] 星灯 ✦${this.run.chapterCfg.lanternCost} 立即天亮 · [Tab]背包镶符文`
-      : '清空房间踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包/符文 · 商店按[F]买';
+      : '踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包(右键重铸) · 2/3/4 消耗品 · 商店按[F]买';
     ctx.fillText(hint, width / 2, height - 12);
   }
 

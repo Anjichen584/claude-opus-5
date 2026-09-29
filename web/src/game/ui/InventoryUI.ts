@@ -12,7 +12,9 @@ import { drawElementIcon } from '@game/gfx/draw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { ITEM_ICON, drawIcon } from '@game/gfx/icons';
 import { bindOf } from '@game/meta/Bindings';
-import type { Element } from '@game/components';
+import { reforge, reforgeBlocker } from '@game/loot/Blueprint';
+import { Rng } from '@engine/core/Rng';
+import { ToastEvent, type Element } from '@game/components';
 
 /** 技能 id → 快捷键标签 */
 const SKILL_KEY: Record<string, string> = {
@@ -30,7 +32,9 @@ const SLOT_NAMES: Record<Slot, string> = {
 
 /**
  * 背包界面(Tab 开关):左侧 6 装备位,右侧 4×6 背包格。
- * 悬停显示词条详情与同部位对比;左键穿戴/卸下。打开时游戏暂停(由 GameScene 控制)。
+ * 悬停显示词条详情与同部位对比;左键穿戴/卸下。
+ * **右键(手柄 Y)重铸**:花星尘重掷背包里那件装备的词条(轮 20 的局内出口,见 loot/Blueprint.ts)。
+ * 打开时游戏暂停(由 GameScene 控制)。
  */
 export class InventoryUI {
   open = false;
@@ -40,6 +44,8 @@ export class InventoryUI {
   private hoverInv = -1;
   private hoverEq: Slot | null = null;
   private hoverRune: string | null = null;
+  /** 重铸用的随机源:带种子(重铸结果可复现,也免得共用工厂的保底计数器) */
+  private readonly rng = new Rng(778899);
 
   constructor(private readonly input: Input) {}
 
@@ -64,12 +70,41 @@ export class InventoryUI {
       if (inside(rr.rect, mx, my)) this.hoverRune = rr.runeId;
     }
 
-    if (this.input.mousePressed) {
+    if (this.hoverInv >= 0 && (this.input.mouseRightPressed || this.input.wasPressed('PadY'))) {
+      this.tryReforge(world, pe, this.hoverInv);
+    } else if (this.input.mousePressed) {
       if (this.hoverInv >= 0) equipFromInventory(world, pe, this.hoverInv);
       else if (this.hoverEq) unequipSlot(world, pe, this.hoverEq);
       else if (this.hoverRune) this.toggleRune(world, pe, this.hoverRune);
     }
     return true;
+  }
+
+  /**
+   * 重铸背包里的第 idx 件装备(右键 / 手柄 Y)。
+   * 只洗词条:部位/稀有度/特效都不动 —— 所以它是"打磨",不是"换新"(理由见 loot/Blueprint.ts 文件头)。
+   */
+  private tryReforge(world: World, pe: Entity, idx: number): void {
+    const inv = world.mustGet(pe, Inventory);
+    const p = world.mustGet(pe, Player);
+    const item = inv.items[idx] ?? null;
+    const ctx = { stardust: p.stardust };
+    const blocker = reforgeBlocker(item, ctx);
+    if (blocker !== null) {
+      const msg = blocker === 'noAffix' ? '这件装备没有词条可洗'
+        : blocker === 'stardust' ? `星尘不足(重铸需 ✦${balance.blueprint.reforgeCost})`
+          : '把鼠标移到背包里的装备上再右键';
+      world.emit(new ToastEvent(msg, UI.dim));
+      return;
+    }
+    const out = reforge(item!, ctx, this.rng);
+    if (!out) return;
+    p.stardust = ctx.stardust;
+    inv.items[idx] = out;
+    const changed = out.affixes.filter((a, i) => a.value !== item!.affixes[i].value).length;
+    world.emit(new ToastEvent(
+      `🔁 重铸 ${out.name}:重掷 ${changed} 条词条(-✦${balance.blueprint.reforgeCost})`, RARITY_COLORS[out.rarity],
+    ));
   }
 
   /** 点击符文:镶嵌到其目标技能 / 已镶嵌则卸下 */

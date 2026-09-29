@@ -99,6 +99,13 @@ def main() -> int:
     # json 权威值 蒸汽 1.8 / 超载 2.2(+击退 2.0)/ 脆蚀 0.25、4s / 麻痹 1.2s,
     # 而手抄常量是 0.9 / 1.6 / 0.2 / 0.8。reactions 以前**根本没进 parity**,所以没人发现。
     walk('Reactions', b['reactions'], json_path='reactions', name_prefix='')
+    # 橙装特效 / 消耗品 / 蓝图(2026-09-29,M2 内容包的轮 19–21):三段数值叶子全部进 parity。
+    # 注意:这三段的**字符串叶子**(specials.frostfangElement、consumables.flask.element,
+    # 以及 web/src/data/blueprints.json 里的 slot/rarity/special/affixes)**会被下面的规则跳过** ——
+    # ParityTests.CheckLoot 用字符串比对补上,否则"把元素改了"这种改动会静默漏过去。
+    walk('Special', b['specials'], json_path='specials', name_prefix='')
+    walk('Consumable', b['consumables'], json_path='consumables', name_prefix='')
+    walk('Blueprint', b['blueprint'], json_path='blueprint', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -119,7 +126,10 @@ def main() -> int:
               + sum(1 for _ in leaves(b['touch']))
               + sum(1 for _ in leaves(b['anim']))
               + sum(1 for _ in leaves(b['player']))
-              + sum(1 for _ in leaves(b['reactions'])))
+              + sum(1 for _ in leaves(b['reactions']))
+              + sum(1 for _ in leaves(b['specials']))
+              + sum(1 for _ in leaves(b['consumables']))
+              + sum(1 for _ in leaves(b['blueprint'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 

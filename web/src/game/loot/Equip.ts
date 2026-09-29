@@ -3,6 +3,9 @@ import balance from '@data/balance.json';
 import { runMods } from '@game/dungeon/RunMods';
 import { Equipment, Health, Inventory, Player, Stats } from '@game/components';
 import { meta } from '@game/meta/Save';
+import { clock } from '@game/dungeon/Clock';
+import { effectiveFaces, type AffixContext } from './AffixRules';
+import { specialDef, statMods, type SpecialDef } from './Specials';
 import type { Item } from './Items';
 
 /**
@@ -10,7 +13,7 @@ import type { Item } from './Items';
  * 重算规则(docs/03-NUMBERS.md §5):基础值 + 装备基础属性(加法) → 百分比词条(乘法)。
  */
 
-export function recompute(world: World, pe: Entity): void {
+export function recompute(world: World, pe: Entity, ctx?: Partial<AffixContext>): void {
   const B = balance.player;
   const stats = world.mustGet(pe, Stats);
   const hp = world.mustGet(pe, Health);
@@ -33,7 +36,24 @@ export function recompute(world: World, pe: Entity): void {
   let movePct = 0;
   let elemPct = 0;
   let pickupPct = 0;
+  // 轮 18 新增的词条面:固定攻击/固定生命/受伤减免/回血速率/幸运/怒气获取
+  let atkFlatAdd = 0;
+  let hpFlatAdd = 0;
+  let dmgReducePct = 0;
+  let regenPct = 0;
+  let luckFlat = 0;
+  let ragePct = 0;
   const specials: string[] = [];
+  const specialDefs: SpecialDef[] = [];
+
+  // 条件词条要的局面(调用方可覆盖;默认从世界/时钟读,保证菜单与实战一致)
+  const affixCtx: AffixContext = {
+    hpRatio: hp.max > 0 ? hp.hp / hp.max : 1,
+    isNight: clock.isNight(),
+    bossNearby: false,
+    moving: p.moving,
+    ...ctx,
+  };
 
   for (const item of Object.values(eq.slots)) {
     if (!item) continue;
@@ -45,29 +65,45 @@ export function recompute(world: World, pe: Entity): void {
       case 'critRate': critFlat += item.baseValue / 100; break;
       default: break;
     }
-    // 词条
-    for (const a of item.affixes) {
-      switch (a.stat) {
-        case 'atkPct': atkPct += a.value; break;
-        case 'hpPct': hpPct += a.value; break;
-        case 'critRate': critFlat += a.value / 100; break;
-        case 'critDmg': critDmgPct += a.value; break;
-        case 'cdr': cdrPct += a.value; break;
-        case 'movePct': movePct += a.value; break;
-        case 'elemDmg': elemPct += a.value; break;
-        case 'pickupPct': pickupPct += a.value; break;
+    // 词条:**当前生效**的那些面(条件不满足的加成面会被过滤掉,但代价面照旧)
+    for (const f of effectiveFaces(item.affixes, affixCtx)) {
+      const sign = f.side === 'plus' ? 1 : -1;
+      const v = f.value * sign;
+      switch (f.stat) {
+        case 'atkPct': atkPct += v; break;
+        case 'hpPct': hpPct += v; break;
+        case 'atkFlat': atkFlatAdd += v; break;
+        case 'hpFlat': hpFlatAdd += v; break;
+        case 'critRate': critFlat += v / 100; break;
+        case 'critDmg': critDmgPct += v; break;
+        case 'cdr': cdrPct += v; break;
+        case 'movePct': movePct += v; break;
+        case 'elemDmg': elemPct += v; break;
+        case 'pickupPct': pickupPct += v; break;
+        case 'dmgReduce': dmgReducePct += v; break;
+        case 'regenPct': regenPct += v; break;
+        case 'luck': luckFlat += v; break;
+        case 'ragePct': ragePct += v; break;
         default: break;
       }
     }
-    if (item.special) specials.push(item.special);
+    if (item.special) {
+      specials.push(item.special);
+      const d = specialDef(item.special);
+      if (d) specialDefs.push(d);
+    }
   }
 
-  stats.atk = Math.round(atkFlat * (1 + atkPct / 100));
+  // 橙装特效的持续型属性修正(猎风兜帽:移动时 +攻;星陨兜帽:受击窗口内 +攻)
+  const spec = statMods(specials, { moving: affixCtx.moving, sinceHurtS: p.sinceHurtS ?? Infinity });
+  atkPct += spec.atkPct;
+
+  stats.atk = Math.round((atkFlat + atkFlatAdd) * (1 + atkPct / 100));
   stats.critRate = Math.min(critFlat, 1);
   stats.critDmg = B.critDmg + critDmgPct / 100;
   stats.moveSpeed = B.moveSpeed * kls.speedMult * (1 + pl.runBuffSpeed) * (1 + (moveBasePct + movePct) / 100);
 
-  const newMax = Math.round(hpFlat * (1 + hpPct / 100));
+  const newMax = Math.round((hpFlat + hpFlatAdd) * (1 + hpPct / 100));
   const ratio = hp.max > 0 ? hp.hp / hp.max : 1;
   hp.max = newMax;
   hp.hp = Math.min(newMax, Math.max(1, Math.round(newMax * ratio)));
@@ -77,6 +113,12 @@ export function recompute(world: World, pe: Entity): void {
   p.elemDmg = elemPct / 100;
   p.pickupRadiusM = balance.loot.pickupBaseM * (1 + pickupPct / 100);
   p.specials = specials;
+  // 轮 18/19 新增的派生字段(受伤减免走 applyHurt;回血速率走脱战回血;怒气走命中攒怒)
+  p.dmgReduce = Math.max(0, Math.min(0.75, dmgReducePct / 100));   // 上限 75%:再高就等于无敌
+  p.regenMult = 1 + Math.max(0, regenPct) / 100;
+  p.luck = luckFlat;
+  p.rageMult = 1 + Math.max(0, ragePct) / 100;
+  p.specialDefs = specialDefs;
 }
 
 /** 穿上背包第 idx 件;原装备回背包。 */

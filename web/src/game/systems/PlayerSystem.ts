@@ -5,11 +5,18 @@ import type { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 import { M, UI } from '@game/constants';
 import {
-  DashGhostEvent, Faction, Health, MeleeSweep, Player, PlayerHurtEvent, Projectile,
-  SfxEvent, SlashFxEvent, Stats, ToastEvent, Transform, Velocity, Zone,
+  BossKazra, BossNanmir, BossVelsha, DashGhostEvent, Faction, Health, MeleeSweep, MidBossStag,
+  Buffs, Player, PlayerHurtEvent, Projectile, SfxEvent, SlashFxEvent, Stats, ToastEvent,
+  Transform, Velocity, Zone,
 } from '@game/components';
 
 import { basicSpec, comboStep, lungeImpulse, moveSlowOf, shotStep } from '@game/combat/BasicAttack';
+import { damageTakenMult, dashLeavesFire } from '@game/loot/Specials';
+import { applyShield, cleanse, slowFactor, tickFlask, tickShield, TIMESLOW_DUR_S, TIMESLOW_RADIUS_M } from '@game/loot/Consumables';
+import { condKeyOf } from '@game/loot/AffixRules';
+import { recompute } from '@game/loot/Equip';
+import { clock } from '@game/dungeon/Clock';
+import { absorbDamage } from '@game/loot/Consumables';
 import { bindOf } from '@game/meta/Bindings';
 
 const B = balance.player;
@@ -127,7 +134,7 @@ export class PlayerSystem implements System {
           world.emit(new DashGhostEvent(tr.x, tr.y, tr.face));
         }
         // 橙装「焰行者之靴」:翻滚沿途留火焰轨迹
-        if (p.specials.includes('emberstride')) {
+        if (dashLeavesFire(p.specials)) {
           p.fireTrailAccum += dt;
           if (p.fireTrailAccum >= 0.06) {
             p.fireTrailAccum = 0;
@@ -227,11 +234,91 @@ export class PlayerSystem implements System {
 
       p.moving = Math.hypot(vel.vx, vel.vy) > 20;
 
+      // ---- 条件词条:局面翻转时才重算属性(见 loot/AffixRules.ts condKeyOf)----
+      {
+        const ctx = {
+          hpRatio: hp.max > 0 ? hp.hp / hp.max : 1,
+          isNight: clock.isNight(),
+          bossNearby: world.query(BossNanmir, Transform).length > 0
+            || world.query(BossVelsha, Transform).length > 0
+            || world.query(BossKazra, Transform).length > 0
+            || world.query(MidBossStag, Transform).length > 0,
+          moving: p.moving,
+        };
+        const key = condKeyOf(ctx);
+        if (key !== p.condKey) {
+          p.condKey = key;
+          recompute(world, e, ctx);
+        }
+      }
+
+      // ---- 消耗品(键 2 护盾 / 3 净化 / 4 时缓;背包里有才可用)----
+      if (p.consumables.length > 0) {
+        const use = (idx: number): string | null => {
+          const id = p.consumables[idx];
+          if (!id) return null;
+          p.consumables.splice(idx, 1);
+          return id;
+        };
+        if (this.input.wasPressed('Digit2')) {
+          const id = use(p.consumables.indexOf('shield'));
+          if (id) {
+            p.shield = applyShield(p.shield, hp.max);
+            world.emit(new ToastEvent(`${balance.consumables.shield.name}:护盾 ${p.shield.amount}`, '#9ad8ff'));
+            world.emit(new SfxEvent('skill'));
+          }
+        }
+        if (this.input.wasPressed('Digit3')) {
+          const id = use(p.consumables.indexOf('cleanse'));
+          if (id) {
+            // 玩家身上的异常来源:自身 Buffs(减速/麻痹/脆蚀)+ 元素印记(印记**不清**,那是玩家的构筑资源)
+            const own = world.get(e, Buffs);
+            const count = own ? [own.stunT, own.slowT, own.vulnT].filter((t) => t > 0).length : 0;
+            const res = cleanse({ count });
+            if (own) {
+              if (own.stunT > 0) own.stunT = 0;
+              if (own.slowT > 0) own.slowT = 0;
+              if (own.vulnT > 0) own.vulnT = 0;
+            }
+            p.iframes = Math.max(p.iframes, res.iframes);
+            world.emit(new ToastEvent(`${balance.consumables.cleanse.name}:清除 ${res.removed} 项异常`, '#c9f27e'));
+            world.emit(new SfxEvent('skill'));
+          }
+        }
+        if (this.input.wasPressed('Digit4')) {
+          const id = use(p.consumables.indexOf('timeslow'));
+          if (id) {
+            let hit = 0;
+            const rPx = TIMESLOW_RADIUS_M * M;
+            for (const foe of world.query(Transform, Buffs)) {
+              if (world.has(foe, Player)) continue;
+              const ftr = world.mustGet(foe, Transform);
+              if (Math.hypot(ftr.x - tr.x, ftr.y - tr.y) > rPx) continue;
+              // Boss 不能被冻住(反制写在这里,而不是靠"Boss 免疫 buff"这类隐式约定)
+              const tier = world.has(foe, BossNanmir) || world.has(foe, BossVelsha) || world.has(foe, BossKazra)
+                || world.has(foe, MidBossStag) ? 'boss' : 'normal';
+              const fb = world.mustGet(foe, Buffs);
+              const f = slowFactor({ tier });
+              fb.slowT = Math.max(fb.slowT, TIMESLOW_DUR_S);
+              fb.slowPct = Math.max(fb.slowPct, f);
+              hit++;
+            }
+            world.emit(new ToastEvent(`${balance.consumables.timeslow.name}:${hit} 个敌人减速`, '#b8c8ff'));
+            world.emit(new SfxEvent('ult'));
+          }
+        }
+      }
+
+      // ---- 护盾/附魔计时(到期即失效)----
+      p.shield = tickShield(p.shield, dt);
+      p.flask = tickFlask(p.flask, dt);
+      if (p.sinceHurtS !== Number.POSITIVE_INFINITY) p.sinceHurtS += dt;
+
       // ---- 脱战回血 ----
       if (p.regenDelay > 0) {
         p.regenDelay -= dt;
       } else if (hp.hp < hp.max && hp.hp > 0) {
-        hp.hp = Math.min(hp.max, hp.hp + hp.max * B.regen.ratePct * dt);
+        hp.hp = Math.min(hp.max, hp.hp + hp.max * B.regen.ratePct * p.regenMult * dt);
       }
     }
   }
@@ -241,15 +328,31 @@ export class PlayerSystem implements System {
     const p = world.mustGet(playerE, Player);
     const hp = world.mustGet(playerE, Health);
     if (p.iframes > 0 || p.respawnT > 0 || p.dashT > 0) return;
-    hp.hp -= amount;
+
+    // 受伤减免:词条「坚韧」(常驻)+ 特效「磐石胸甲」(低血时)
+    const hpRatio = hp.max > 0 ? hp.hp / hp.max : 1;
+    const spec = damageTakenMult(p.specials, hpRatio);
+    let dmg = Math.max(1, Math.round(amount * (1 - p.dmgReduce) * spec));
+    // 护盾先吃(消耗品「星壳药剂」):吃完还剩就扣血,不剩就只是破盾
+    const [left, shield] = absorbDamage(p.shield, dmg);
+    p.shield = shield;
+    if (left <= 0) {
+      p.regenDelay = B.regen.delay;
+      world.emit(new PlayerHurtEvent(0, false));   // 破盾也是"被打到"(震屏/闪白照给)
+      p.sinceHurtS = 0;
+      return;
+    }
+    dmg = left;
+    hp.hp -= dmg;
     hp.flash = balance.feel.flashSec;
     p.regenDelay = B.regen.delay;
+    p.sinceHurtS = 0;
     const died = hp.hp <= 0;
     if (died) {
       hp.hp = 0;
       p.deaths += 1;
       p.respawnT = B.respawn.delay;
     }
-    world.emit(new PlayerHurtEvent(amount, died));
+    world.emit(new PlayerHurtEvent(dmg, died));
   }
 }

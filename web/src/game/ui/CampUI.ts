@@ -8,6 +8,8 @@ import { weeklyChallenge, weeklyKey, weeklyLabel, type WeeklyChallenge } from '@
 import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
+import { BLUEPRINTS, blueprintOf, craftBlocker, blockerText } from '@game/loot/Blueprint';
+import { specialDef } from '@game/loot/Specials';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
 import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
 import {
@@ -17,10 +19,31 @@ import {
 interface Rect { x: number; y: number; w: number; h: number }
 
 type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
-export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' | 'codex' | 'achv';
+export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' | 'codex' | 'achv' | 'forge';
 
 const inside = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+/** 铸台里显示的部位名(玩家看得懂的一句话,不是内部 key) */
+const SLOT_LABEL: Record<string, string> = {
+  weapon: '武器', helmet: '头盔', chest: '胸甲', boots: '靴子', ring: '戒指', amulet: '项链',
+};
+const slotLabel = (s: string): string => SLOT_LABEL[s] ?? s;
+
+/**
+ * 按宽度硬折行:画布没有自动换行(measureText 只给宽度),中文按字宽 ≈ 字号算。
+ * 只用在铸台的描述行 —— 长描述不至于横穿面板。
+ */
+function wrap(text: string, cols: number): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const ch of text) {
+    line += ch;
+    if (line.length >= cols) { out.push(line); line = ''; }
+  }
+  if (line) out.push(line);
+  return out.slice(0, 3);
+}
 
 function panelBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
   if (drawPanel9(ctx, x, y, w, h)) return;
@@ -32,8 +55,8 @@ function panelBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 }
 
 /**
- * 星陨营地面板层:出征(章节+出发)/ 星陨祭坛(三系升级)/ 职业试炼(换角色)。
- * 铸台为即时交互不开面板。出战职业/章节的唯一存储在此。
+ * 星陨营地面板层:出征(章节+出发)/ 星陨祭坛(三系升级)/ 职业试炼(换角色)/ 星辉铸台(蓝图)。
+ * 出战职业/章节的唯一存储在此;铸台的"已学蓝图"存 meta.data.blueprints(只增不减)。
  */
 export class CampUI {
   panel: CampPanel = 'none';
@@ -46,6 +69,10 @@ export class CampUI {
   dailyTab: 'today' | 'week' = 'today';
   /** 星陨殿堂页签:成就 / 排行榜 */
   hallTab: 'achv' | 'board' = 'achv';
+  /** 铸台选中的蓝图 id(默认第一张) */
+  forgePick: string = BLUEPRINTS[0]?.id ?? '';
+  /** 铸台当前提示:挡住了为什么 / 成功后一句话(菜单里没有 Toast,就地显示) */
+  forgeNotice = '';
 
   private rects: Array<{ rect: Rect; act: string }> = [];
 
@@ -61,7 +88,7 @@ export class CampUI {
   }
 
   /** 面板打开时每帧调用。返回 'start'(出发)| 'classChanged' | null;消费输入。 */
-  update(): 'start' | 'startDaily' | 'startWeekly' | 'classChanged' | null {
+  update(): 'start' | 'startDaily' | 'startWeekly' | 'classChanged' | 'crafted' | null {
     if (this.panel === 'none') return null;
     if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyF') || this.input.wasPressed('PadB')) {
       this.panel = 'none';
@@ -120,6 +147,9 @@ export class CampUI {
         }
       }
       if (r.act.startsWith('up_')) this.tryUpgrade(r.act.slice(3) as 'hp' | 'atk' | 'luck');
+      if (r.act.startsWith('bp_')) { this.forgePick = r.act.slice(3); this.forgeNotice = ''; }
+      if (r.act === 'forgeLearn') return this.tryLearn();
+      if (r.act === 'forgeCraft') return this.tryCraft();
       if (r.act === 'codex_enemy') { this.codexTab = 'enemy'; this.codexPick = null; }
       if (r.act === 'codex_rune') { this.codexTab = 'rune'; this.codexPick = null; }
       if (r.act.startsWith('cx_')) this.codexPick = r.act.slice(3);
@@ -136,7 +166,8 @@ export class CampUI {
     ctx.fillRect(0, 0, w, h);
     ctx.textAlign = 'center';
 
-    if (this.panel === 'expedition') this.renderExpedition(ctx, w, h);
+    if (this.panel === 'forge') this.renderForge(ctx, w, h);
+    else if (this.panel === 'expedition') this.renderExpedition(ctx, w, h);
     else if (this.panel === 'altar') this.renderAltar(ctx, w, h);
     else if (this.panel === 'daily') this.renderDaily(ctx, w, h);
     else if (this.panel === 'codex') this.renderCodex(ctx, w, h);
@@ -701,6 +732,151 @@ export class CampUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.fillText('[Enter] 出发 · [Esc/F] 关闭', w / 2, py + ph - 14);
+  }
+
+  // ---- 星辉铸台:学图纸 / 按图纸铸造 ----
+
+  /**
+   * 学会图纸:花碎片把它写进存档。
+   * 为什么把"学会"和"铸造"拆成两步:图纸是**长期投资**(学了永久留着,可反复铸),
+   * 铸造是**当次消费**(扣碎片换一件开局装备)。合成一步会让玩家误以为图纸是一次性的。
+   */
+  private tryLearn(): 'crafted' | null {
+    const bp = blueprintOf(this.forgePick);
+    if (!bp) { this.forgeNotice = '找不到这张蓝图'; return null; }
+    if (meta.data.blueprints.includes(bp.id)) { this.forgeNotice = '这张图纸已经会了'; return null; }
+    if (meta.data.blueprintShards < bp.costShards) {
+      this.forgeNotice = `碎片不足:${meta.data.blueprintShards}/${bp.costShards}(Boss 掉落,夜战 +1)`;
+      return null;
+    }
+    meta.data.blueprintShards -= bp.costShards;
+    meta.data.blueprints.push(bp.id);
+    meta.save();
+    this.forgeNotice = `已学会「${bp.name}」—— 现在可以铸造了(图纸永久保留)`;
+    return 'crafted';
+  }
+
+  /** 铸造:扣碎片 → 预约下局开局携带这件蓝图成品(部位/特效/词条都是定的) */
+  private tryCraft(): 'crafted' | null {
+    const bp = blueprintOf(this.forgePick);
+    if (!bp) { this.forgeNotice = '找不到这张蓝图'; return null; }
+    const blocker = craftBlocker(bp.id, {
+      shards: meta.data.blueprintShards,
+      owned: meta.data.blueprints,
+      inventorySize: 0, inventoryMax: balance.loot.invSize,
+    });
+    if (blocker !== null) { this.forgeNotice = blockerText(blocker, bp.id); return null; }
+    if (meta.data.craftQueued || meta.data.craftQueuedId) {
+      this.forgeNotice = '铸台已在淬火:下局的开局装备已预订(不能同时预约两件)';
+      return null;
+    }
+    meta.data.blueprintShards -= balance.blueprint.craftCost;
+    meta.data.craftQueuedId = bp.id;
+    meta.data.stats.crafts++;
+    meta.save();
+    this.forgeNotice = `铸造完成:下局开局自带「${bp.name}」成品`;
+    return 'crafted';
+  }
+
+  /** 铸台面板:左列 6 张图纸(点选),右侧详情 + 两个按钮 */
+  private renderForge(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pw = 700;
+    const ph = 340;
+    const px = w / 2 - pw / 2;
+    const py = h / 2 - ph / 2;
+    panelBox(ctx, px, py, pw, ph);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('📜 星辉铸台 · 蓝图', w / 2, py + 32);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(`📜 碎片 ${meta.data.blueprintShards} · 已学 ${meta.data.blueprints.length}/${BLUEPRINTS.length} · 铸造价 ${balance.blueprint.craftCost} 碎片/件`,
+      w / 2, py + 54);
+
+    // 左:图纸列表
+    const listW = 268;
+    BLUEPRINTS.forEach((bp, i) => {
+      const rect: Rect = { x: px + 20, y: py + 70 + i * 38, w: listW, h: 34 };
+      const learned = meta.data.blueprints.includes(bp.id);
+      const picked = bp.id === this.forgePick;
+      ctx.fillStyle = picked ? '#26304a' : '#1a1f30';
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.strokeStyle = picked ? UI.gold : '#3a4154';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillStyle = learned ? UI.text : UI.dim;
+      ctx.fillText(bp.name, rect.x + 10, rect.y + 15);
+      ctx.font = '11px monospace';
+      ctx.fillStyle = learned ? '#8fd4c8' : UI.dim;
+      ctx.fillText(`${learned ? '已学' : '未学'} · ${slotLabel(bp.slot)} · 📜${bp.costShards}`, rect.x + 10, rect.y + 29);
+      ctx.textAlign = 'center';
+      this.rects.push({ rect, act: `bp_${bp.id}` });
+    });
+
+    // 右:详情 + 动作
+    const bp = blueprintOf(this.forgePick);
+    const dx = px + 20 + listW + 20;
+    const dw = pw - 40 - listW - 20;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#1a1f30';
+    ctx.fillRect(dx, py + 70, dw, 196);
+    ctx.strokeStyle = '#3a4154';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(dx, py + 70, dw, 196);
+    if (!bp) {
+      ctx.fillStyle = UI.dim;
+      ctx.fillText('左边点一张图纸看详情', dx + 12, py + 96);
+      return;
+    }
+    const sp = specialDef(bp.special);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`${bp.name} · ${bp.rarity === 'legendary' ? '橙装' : bp.rarity}`, dx + 12, py + 92);
+    ctx.fillStyle = UI.text;
+    ctx.font = '12px monospace';
+    ctx.fillText(`部位:${slotLabel(bp.slot)}`, dx + 12, py + 114);
+    ctx.fillStyle = '#B067E8';
+    ctx.fillText(`特效:${sp?.itemName ?? bp.special}`, dx + 12, py + 132);
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText(wrap(sp?.desc ?? '', 30).join(' / '), dx + 12, py + 148);
+    ctx.fillStyle = UI.text;
+    ctx.fillText(`固定词条:${bp.affixes.join(' · ')}`, dx + 12, py + 172);
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(`「${bp.lore}」`, dx + 12, py + 190);
+    ctx.fillStyle = meta.data.craftQueuedId === bp.id ? UI.gold : UI.dim;
+    ctx.fillText(meta.data.craftQueuedId === bp.id ? '状态:已预约(下局开局携带)' : '铸造后下局开局直接上身', dx + 12, py + 212);
+
+    // 按钮
+    const learned = meta.data.blueprints.includes(bp.id);
+    const btnW = (dw - 12) / 2;
+    const learnRect: Rect = { x: dx, y: py + 274, w: btnW, h: 34 };
+    const craftRect: Rect = { x: dx + btnW + 12, y: py + 274, w: btnW, h: 34 };
+    const canLearn = !learned && meta.data.blueprintShards >= bp.costShards;
+    const canCraftNow = learned && !meta.data.craftQueued && !meta.data.craftQueuedId
+      && meta.data.blueprintShards >= balance.blueprint.craftCost;
+    const paintBtn = (r: Rect, label: string, on: boolean): void => {
+      ctx.fillStyle = on ? '#2b3a2b' : '#1a1f30';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = on ? UI.hp : '#3a4154';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = on ? UI.text : UI.dim;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, r.x + r.w / 2, r.y + 22);
+      ctx.textAlign = 'left';
+    };
+    paintBtn(learnRect, learned ? '已学会' : `学会 📜${bp.costShards}`, canLearn);
+    paintBtn(craftRect, `铸造 📜${balance.blueprint.craftCost}`, canCraftNow);
+    this.rects.push({ rect: learnRect, act: 'forgeLearn' });
+    this.rects.push({ rect: craftRect, act: 'forgeCraft' });
+
+    ctx.fillStyle = this.forgeNotice ? UI.gold : UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText(this.forgeNotice || '点左侧选图纸 · 学会后可反复铸造 · [Esc/F] 关闭', w / 2, py + ph - 14);
   }
 
   // ---- 祭坛 ----

@@ -479,7 +479,7 @@ export function drawPickup(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  kind: 'item' | 'stardust' | 'potion' | 'rune',
+  kind: 'item' | 'stardust' | 'potion' | 'rune' | 'cons',
   color: string,
   bobPhase: number,
   glyph?: string,
@@ -514,6 +514,7 @@ export function drawPickup(
 
   if (kind === 'stardust' && drawSprite(ctx, 'pickup_stardust', x, y + bob, { scale: 1 })) return;
   if (kind === 'potion' && drawSprite(ctx, 'pickup_potion', x, y + bob, { scale: 1 })) return;
+  if (kind === 'cons' && drawSprite(ctx, 'pickup_potion', x, y + bob, { scale: 1 })) return;
 
   // ------- 程序化回退(贴图未加载) -------
   ctx.save();
@@ -554,6 +555,26 @@ export function drawPickup(
     px(ctx, '#c94f4f', -3, -7, 6, 7);
     px(ctx, '#e07a7a', -3, -7, 2, 5);
     px(ctx, '#8a6b1f', -1.5, -10, 3, 3);
+    ctx.restore();
+    return;
+  }
+
+  if (kind === 'cons') {
+    // 消耗品:同款小瓶 + 各自的辉光色 + 字形(颜色/字形来自 loot/Consumables.ts 的展示表)
+    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(bobPhase * 2);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, -5, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    px(ctx, '#2a2233', -4, -8, 8, 9);
+    px(ctx, color, -3, -6, 6, 6);
+    if (glyph) {
+      ctx.fillStyle = '#f4f4ff';
+      ctx.font = 'bold 8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(glyph, 0, 1);
+    }
     ctx.restore();
     return;
   }

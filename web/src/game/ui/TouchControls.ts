@@ -40,6 +40,7 @@ export interface TouchBtnLayout {
 /** 基准半径(px):布局的"大小"部分,位置部分见 layoutOf */
 const BASE_R: Record<string, number> = {
   atk: 44, dash: 30, q: 27, e: 27, rr: 27, potion: 22,
+  cons2: 19, cons3: 19, cons4: 19,
   interact: 30, lantern: 22, auto: 22, bag: 20, pause: 20,
 };
 
@@ -51,6 +52,11 @@ const BASE_POS: Array<{ id: string; dx: number; dy: number; dyIsRatio?: boolean 
   { id: 'e', dx: -140, dy: -196 },
   { id: 'rr', dx: -70, dy: -208 },
   { id: 'potion', dx: -258, dy: -108 },
+  // 消耗品(轮 21):排在药剂**上方一行**(压住 QER 技能条会被契约测试拦下 —— 事实证明确实压过),
+  // 数量为 0 时隐藏(见 update)
+  { id: 'cons2', dx: -306, dy: -156 },
+  { id: 'cons3', dx: -348, dy: -156 },
+  { id: 'cons4', dx: -390, dy: -156 },
   { id: 'interact', dx: -130, dy: -280 },
   { id: 'lantern', dx: -262, dy: -172 },
   { id: 'auto', dx: -322, dy: -214 },
@@ -113,6 +119,9 @@ export class TouchControls {
     { id: 'e', code: 'KeyE', label: 'E', r: 27, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'rr', code: 'KeyR', label: 'R', r: 27, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'potion', code: 'Digit1', label: '❤', sub: '药', r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
+    { id: 'cons2', code: 'Digit2', label: '🛡', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
+    { id: 'cons3', code: 'Digit3', label: '✿', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
+    { id: 'cons4', code: 'Digit4', label: '⏳', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'interact', code: 'KeyF', label: 'F', sub: '交互', r: 30, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'lantern', code: 'KeyL', label: '🏮', r: 22, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'auto', code: '', label: '🔁', sub: '自动', r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
@@ -131,7 +140,12 @@ export class TouchControls {
     potion: number;
     /** R 是否可用(怒气够 + 已解锁) */
     rReady: boolean;
-  } = { skills: { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 }, rr: { cd: 0, max: 1 } }, potion: 0, rReady: false };
+    /** 消耗品剩余数量(键 = 消耗品 id);为 0 的按钮自动隐藏 */
+    cons: Record<string, number>;
+  } = {
+    skills: { q: { cd: 0, max: 1 }, e: { cd: 0, max: 1 }, rr: { cd: 0, max: 1 } },
+    potion: 0, rReady: false, cons: { shield: 0, cleanse: 0, timeslow: 0 },
+  };
 
   constructor(private readonly input: Input) {
     applyTouchTuning(input);
@@ -155,6 +169,10 @@ export class TouchControls {
     this.layout(w, h);
     this.byId('interact').visible = opts.interact;
     this.byId('lantern').visible = opts.night;
+    // 消耗品按钮:身上有货才出现(空着手也全挂着只会挡视线)
+    this.byId('cons2').visible = (this.hud.cons.shield ?? 0) > 0;
+    this.byId('cons3').visible = (this.hud.cons.cleanse ?? 0) > 0;
+    this.byId('cons4').visible = (this.hud.cons.timeslow ?? 0) > 0;
     this.byId('auto').sub = this.autoAttack ? '自动开' : '自动关';
 
     // 命中检测:touchstart 落点在按钮内 → 认领;hold 钮跟踪按住状态
@@ -260,6 +278,14 @@ export class TouchControls {
         ctx.font = 'bold 11px monospace';
         ctx.fillStyle = this.hud.potion > 0 ? UI.text : UI.dim;
         ctx.fillText(String(this.hud.potion), b.x + b.r * 0.72, b.y - b.r * 0.72);
+      }
+      // 消耗品:右下角小数字(与药剂同一读法)
+      if (b.id === 'cons2' || b.id === 'cons3' || b.id === 'cons4') {
+        const id = b.id === 'cons2' ? 'shield' : b.id === 'cons3' ? 'cleanse' : 'timeslow';
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = UI.text;
+        ctx.fillText(String(this.hud.cons[id] ?? 0), b.x + b.r * 0.72, b.y + b.r * 0.72);
       }
       // Q/E/R 冷却秒数(数字比弧线好读)
       if (cd > 0 && (b.id === 'q' || b.id === 'e' || b.id === 'rr')) {

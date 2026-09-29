@@ -221,4 +221,30 @@ describe('触屏按钮接线(注入的键 / 自动攻击 / 命中区)', () => {
     expect(input.virtual.get(bindOf('attack'))).toBeUndefined();
     expect(input.pressed).toEqual([]);
   });
+  /**
+   * 消耗品按钮(轮 21):手机上没有键盘,2/3/4 必须有触屏出口。
+   * 默认隐藏(身上没货就不占屏幕),数量 > 0 时由 TouchControls.update 点亮 —— 这里只锁"存在 + 键码"。
+   */
+  it('消耗品三个按钮挂在布局里,并映射到键盘 2/3/4', () => {
+    const laid = layoutOf(1350, 620).map((b) => b.id);
+    expect(laid).toContain('cons2');
+    expect(laid).toContain('cons3');
+    expect(laid).toContain('cons4');
+    const input = new FakeInput();
+    const touch = new TouchControls(input as unknown as Input);
+    // 触点 id 是数字(手指编号):两个手指分别落在这两个按钮上
+    const hit = (tid: number, id: string) => {
+      const b = layoutOf(1350, 620).find((x) => x.id === id)!;
+      return { id: tid, x: b.x, y: b.y, sx: b.x, sy: b.y, started: true, claimed: null as string | null };
+    };
+    // 有货才显示:shield=1 时只有 cons2 亮
+    touch.hud.cons = { shield: 1, cleanse: 0, timeslow: 2 };
+    input.pts.push(hit(1, 'cons2'));
+    input.pts.push(hit(2, 'cons4'));
+    touch.update(1350, 620, { interact: false, night: false });
+    expect(input.pressed).toContain('Digit2');
+    expect(input.pressed).toContain('Digit4');
+    expect(input.pressed).not.toContain('Digit3'); // 没有净化 → 按钮隐藏,点了也不该注入
+  });
+
 });
