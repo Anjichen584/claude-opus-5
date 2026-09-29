@@ -518,6 +518,9 @@ export class ReactionEvent {
     public y: number,
     public name: string,
     public color: string,
+    /** 触发本次连锁的两种元素(用于两枚元素图标交汇演出) */
+    public elA: string | null = null,
+    public elB: string | null = null,
   ) {}
 }
 

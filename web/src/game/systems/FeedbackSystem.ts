@@ -8,7 +8,7 @@ import {
   BeamFxEvent, DashGhostEvent, HitEvent, KillEvent, PlayerHurtEvent, ReactionEvent,
   RingFxEvent, SfxEvent, SlashFxEvent, ToastEvent,
 } from '@game/components';
-import { drawSlashArc } from '@game/gfx/draw';
+import { drawElementIcon, drawSlashArc } from '@game/gfx/draw';
 import { sprites } from '@engine/render/Sprites';
 
 interface Floater { x: number; y: number; vy: number; t: number; life: number; text: string; color: string; scale: number }
@@ -30,6 +30,8 @@ export class FeedbackSystem implements System {
   private beams: Beam[] = [];
   private rings: Ring[] = [];
   private bursts: Array<{ x: number; y: number; t: number; life: number; scale: number; rot: number }> = [];
+  /** 连锁反应演出:两枚触发元素图标相向交汇 */
+  private reactions: Array<{ x: number; y: number; elA: string; elB: string; color: string; t: number; life: number }> = [];
   hurtVignette = 0;
   kills = 0;
 
@@ -95,11 +97,17 @@ export class FeedbackSystem implements System {
       }
     }
 
-    // 元素连锁反应:大字 + 爆光 + 屏震 + 音效
+    // 元素连锁反应:大字 + 爆光 + 屏震 + 音效 + 元素图标交汇
     for (const rx of world.read(ReactionEvent)) {
       this.camera.shake(3, 0.12);
       this.loop.hitstop(60);
       sfx.play('reaction');
+      if (rx.elA && rx.elB) {
+        this.reactions.push({
+          x: rx.x, y: rx.y + 30, elA: rx.elA, elB: rx.elB, color: rx.color,
+          t: 0, life: 0.55,
+        });
+      }
       this.floaters.push({
         x: rx.x, y: rx.y, vy: -34, t: 0, life: 0.9,
         text: `${rx.name}!`, color: rx.color, scale: 1.7,
@@ -180,6 +188,7 @@ export class FeedbackSystem implements System {
     for (const b of this.beams) b.t += dt;
     for (const r of this.rings) r.t += dt;
     for (const bu of this.bursts) bu.t += dt;
+    for (const r of this.reactions) r.t += dt;
     this.floaters = this.floaters.filter((f) => f.t < f.life);
     this.particles = this.particles.filter((p) => p.t < p.life);
     this.slashes = this.slashes.filter((s) => s.t < s.dur);
@@ -187,6 +196,20 @@ export class FeedbackSystem implements System {
     this.beams = this.beams.filter((b) => b.t < b.life);
     this.rings = this.rings.filter((r) => r.t < r.life);
     this.bursts = this.bursts.filter((b) => b.t < b.life);
+    this.reactions = this.reactions.filter((r) => r.t < r.life);
+  }
+
+  /** 元素图标未加载时的色块回退 */
+  private elementDot(ctx: CanvasRenderingContext2D, el: string, x: number, y: number, alpha: number): void {
+    const col = ({ fire: '#ff9a6b', ice: '#8fdcff', bolt: '#ffe57a', toxin: '#b8e878' } as Record<string, string>)[el] ?? '#ffffff';
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = col;
+    ctx.fillRect(Math.round(x - 4), Math.round(y - 4), 8, 8);
+    ctx.strokeStyle = '#0d0f1a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(x - 4), Math.round(y - 4), 8, 8);
+    ctx.restore();
   }
 
   /** 加法混合画特效贴图(黑底=透明发光)。返回 false 表示贴图未加载。 */
@@ -209,6 +232,32 @@ export class FeedbackSystem implements System {
 
   /** 世界空间特效层(实体之上) */
   renderWorld(ctx: CanvasRenderingContext2D): void {
+    // 连锁反应演出:两枚元素图标相向撞击 + 反应色闪光(最上层,先画以保证不被特效盖住)
+    for (const r of this.reactions) {
+      const p = Math.min(1, r.t / r.life);
+      const approach = Math.min(1, p / 0.55);
+      const gap = 30 * (1 - approach);
+      const alpha = p < 0.72 ? 1 : Math.max(0, 1 - (p - 0.72) / 0.28);
+      const y = r.y - 18 - 7 * approach;
+      const size = 18 + 5 * approach;
+      if (!drawElementIcon(ctx, r.elA, r.x - gap, y, size, alpha)) {
+        this.elementDot(ctx, r.elA, r.x - gap, y, alpha);
+      }
+      if (!drawElementIcon(ctx, r.elB, r.x + gap, y, size, alpha)) {
+        this.elementDot(ctx, r.elB, r.x + gap, y, alpha);
+      }
+      if (p > 0.45) {
+        const fp = (p - 0.45) / 0.55;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (1 - fp) * 0.75;
+        ctx.fillStyle = r.color;
+        ctx.beginPath();
+        ctx.arc(r.x, y, 7 + 18 * fp, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
     for (const g of this.ghosts) {
       const a = (1 - g.t / g.life) * 0.35;
       ctx.save();

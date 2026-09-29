@@ -84,7 +84,7 @@ export function dealDamage(world: World, o: DealOpts): void {
     const reaction = existing ? reactionOf(existing, o.element) : null;
     if (reaction && existing) {
       marks.marks = {}; // 反应消耗全部印记
-      triggerReaction(world, reaction.id, reaction.name, reaction.color, o, amount, tTr, depth);
+      triggerReaction(world, reaction.id, reaction.name, reaction.color, o, amount, tTr, depth, existing, o.element);
     } else {
       marks.marks[o.element] = RX.markDurS;
     }
@@ -197,8 +197,10 @@ function triggerReaction(
   triggerAmount: number,
   tTr: Transform,
   depth: number,
+  elA: string | null = null,
+  elB: string | null = null,
 ): void {
-  world.emit(new ReactionEvent(tTr.x, tTr.y - 30, name, color));
+  world.emit(new ReactionEvent(tTr.x, tTr.y - 30, name, color, elA, elB));
 
   const enemiesAround = (rangeM: number): Entity[] =>
     world.query(Health, Transform, Faction).filter((e) => {
