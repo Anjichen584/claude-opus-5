@@ -10,7 +10,12 @@
 #   于是 push 被 non-fast-forward 拒绝。本脚本现在带「历史对齐」自愈:先 fetch,
 #   若自己在远程之后且工作树相对远程只有新增/修改(没有需要保留的本地提交),就自动
 #   `git reset --soft origin/main` 后重新提交再推 —— 见第 2 步。
-#   纪律:每写完一小块就推送;工作区不留大文件;临时拼图(预览 PNG)用完即删。
+#   2026-09-29 第三次事故:工作区快照 565 MB 超限(限 128 MB / 10000 文件),4286 个文件没保住。
+#   两个大头都是"工具链",不是项目文件:.NET SDK 装在 ~/.dotnet(约 500 MB,4000+ 文件)+
+#   全量 fetch 把 .git 撑到 65 MB。对策见本脚本第 1/3 步与 unity/Tests/run.sh:
+#   · SDK 装到 ~/.local/dotnet(该目录名不进快照,零预算占用);
+#   · 仓库 fetch 一律 --depth 1(不把历史里的老 art_src 二进制拉回来)。
+#   纪律:每写完一小块就推送;工作区不留大文件;临时拼图(预览 PNG)用完即删;工具链不进 /home/user 的可见路径。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -44,7 +49,9 @@ fi
 # ---- 1. 取远程 + 历史对齐(必须在提交之前!)----
 # 顺序很关键:如果先提交再对齐,本地会永远"领先一个提交",自愈分支就进不去了(实测踩到过)。
 # 场景:快照把 .git 历史回滚到更早的提交,工作树却是最新的 —— 此时 push 必被 non-fast-forward 拒绝。
-git fetch origin main -q 2>/dev/null || echo "ℹ️  取远程失败(离线?),继续尝试本地提交"
+# --depth 1 是必须的:远程历史里还躺着 ~69 MB 已废弃的 art_src 源图(见 docs/06 风险条目),
+# 全量 fetch 会把本地 .git 从 ~2 MB 撑到 ~65 MB,直接吃掉工作区预算。
+git fetch --depth 1 --no-tags origin main -q 2>/dev/null || echo "ℹ️  取远程失败(离线?),继续尝试本地提交"
 if git rev-parse --verify -q origin/main >/dev/null; then
   if ! git merge-base --is-ancestor origin/main HEAD 2>/dev/null; then
     LOCAL_ONLY=$(git log --oneline origin/main..HEAD 2>/dev/null | wc -l | tr -d ' ')
@@ -90,4 +97,22 @@ SIZE=$(du -sm --exclude=node_modules --exclude=dist --exclude=.git "$ROOT" 2>/de
 echo "🧹 已清理临时文件 · 工作区(不含 .git/node_modules)约 ${SIZE} MB"
 if [ "$SIZE" -gt "$LIMIT_MB" ]; then
   echo "⚠️  超过 ${LIMIT_MB} MB 警戒线 —— 检查是否有大文件误入仓库(源图/中间产物)"
+fi
+
+# ---- 5. 快照预算守卫(限 128 MB / 10000 文件)----
+# 光看仓库不够:上一次超限的 565 MB 里,500 MB 是 ~/.dotnet 的 .NET SDK、65 MB 是 .git,
+# 项目文件本体只有 2 MB。所以这里按"整个 $HOME 里会被快照的部分"再算一次。
+# 被快照排除的目录名:.local/.cache/.npm/.nuget 等 + node_modules/.git 之外的项目内产物。
+SNAP_MB=$(du -sm --exclude=node_modules --exclude=.local --exclude=.cache --exclude=.npm \
+  --exclude=.nuget --exclude=.git --exclude=dist --exclude=bin --exclude=obj \
+  "$HOME" 2>/dev/null | cut -f1)
+SNAP_FILES=$(find "$HOME" -type f \
+  -not -path "*/node_modules/*" -not -path "*/.local/*" -not -path "*/.cache/*" \
+  -not -path "*/.npm/*" -not -path "*/.nuget/*" -not -path "*/.git/*" \
+  -not -path "*/dist/*" -not -path "*/bin/*" -not -path "*/obj/*" 2>/dev/null | wc -l | tr -d ' ')
+echo "📦 快照预算:约 ${SNAP_MB} MB / ${SNAP_FILES} 文件(上限 128 MB / 10000)"
+if [ "${SNAP_MB:-0}" -gt 120 ] || [ "${SNAP_FILES:-0}" -gt 8000 ]; then
+  echo "⚠️  接近快照上限!大头通常是「工具链装错地方」(SDK 要装 ~/.local/dotnet)或「大文件进了仓库」"
+else
+  echo "✅ 预算充足"
 fi
