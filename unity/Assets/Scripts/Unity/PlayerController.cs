@@ -9,12 +9,14 @@ namespace StarfallKnights.UnityLayer
 {
     /// <summary>
     /// 主角控制(逻辑驱动):WASD 移动 / 鼠标瞄准 / 左键三段连击 /
-    /// 空格翻滚 / Q·E·R 技能(BladeSkills,含怒气与符文位)。
+    /// 空格翻滚 / Q·E·R 技能(四职业可切,见 ClassSkillSet)。
     /// </summary>
     public sealed class PlayerController : MonoBehaviour
     {
         public readonly Actor Actor = new() { IsPlayer = true };
-        public readonly BladeSkills Skills = new();
+        public readonly ClassSkillSet Skills = new();
+        [Header("职业(镜像 web 四职业)")] public HeroClass Hero = HeroClass.Blade;
+        [Header("冷却缩减(0~0.4,装备/词条来)")] [Range(0f, 0.4f)] public float Cdr;
 
         private SysV2 _vel;
         private float _dashT, _dashCd, _iframes, _attackT, _comboTimer;
@@ -33,8 +35,10 @@ namespace StarfallKnights.UnityLayer
             Actor.Unit.CritRate = Balance.PlayerCritRate;
             Actor.Unit.CritDmg = Balance.PlayerCritDmg;
             Actor.Unit.IsPlayerTeam = true;
+            Skills.Class = Hero;
+            Skills.Cdr = Cdr;
             // 开局赠一枚随机 Q 符文(镜像 web 开局赠符,体验元素连锁)
-            Skills.RuneQ = RunePool.Blade[Random.Range(0, 3)];
+            Skills.GrantRandomQRune(new StarfallKnights.Core.Rng((uint)System.Environment.TickCount));
         }
 
         private void Update()
@@ -65,14 +69,29 @@ namespace StarfallKnights.UnityLayer
                 return;
             }
 
-            // 技能
+            // 技能(准星点用于猎手箭雨/秘术师闪现的限程,镜像 web renderer.mouseWorld)
+            var aimPoint = MouseWorld();
             if (Input.GetKeyDown(KeyCode.Q)) Skills.CastQ(w);
             if (Input.GetKeyDown(KeyCode.E))
             {
-                var dash = Skills.CastE(w);
-                if (dash.HasValue) StartDash(dash.Value.distM, dash.Value.durS, 0f);
+                var dash = Skills.CastE(w, aimPoint);
+                if (dash.HasValue)
+                {
+                    if (dash.Value.Teleported)
+                    {
+                        // 秘术师闪现:逻辑层已改坐标,宿主只补无敌帧 + 同步
+                        _iframes = Mathf.Max(_iframes, dash.Value.IframesS);
+                        Clamp();
+                        Sync();
+                    }
+                    else
+                    {
+                        StartDash(dash.Value.DistM, dash.Value.DurS, 0f);
+                        _iframes = Mathf.Max(_iframes, dash.Value.IframesS);
+                    }
+                }
             }
-            if (Input.GetKeyDown(KeyCode.R)) Skills.CastR(w);
+            if (Input.GetKeyDown(KeyCode.R)) Skills.CastR(w, null, aimPoint);
 
             // 移动(指数趋近)
             var ax = MoveAxis();
@@ -127,13 +146,22 @@ namespace StarfallKnights.UnityLayer
             return v.LengthSquared() > 1 ? SysV2.Normalize(v) : v;
         }
 
-        private float AimFace()
+        /// <summary>鼠标在逻辑平面上的位置(米);无相机时返回 null(退回朝向前方)。</summary>
+        private SysV2? MouseWorld()
         {
+            if (Camera.main == null) return null;
             var plane = new Plane(Vector3.up, Vector3.zero);
             var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (plane.Raycast(ray, out float d))
+            if (!plane.Raycast(ray, out float d)) return null;
+            return GameBootstrap.ToLogic(ray.GetPoint(d));
+        }
+
+        private float AimFace()
+        {
+            var mw = MouseWorld();
+            if (mw.HasValue)
             {
-                var p = GameBootstrap.ToLogic(ray.GetPoint(d)) - Actor.Pos;
+                var p = mw.Value - Actor.Pos;
                 if (p.LengthSquared() > 0.0001f) return Mathf.Atan2(p.Y, p.X);
             }
             return Actor.Face;

@@ -87,7 +87,31 @@ tools/sync.sh "提交信息"     # 提交 → 推送 → 清沙箱,一条命令�
 - **提交前先看体积**:`du -sh --exclude=node_modules .`;
 - **每次改动都要推送**:环境随时可能被重建,只有 GitHub 上的东西是安全的。
 
-### 已知的两次"配置丢失"(别浪费时间排查)
+### 跑 C# 逻辑层测试(Unity 副线)
+
+逻辑层是**零 UnityEngine 依赖**的纯 C#(`unity/Assets/Scripts` 下除 `Unity/` 以外的目录),
+不需要装 Unity 编辑器就能跑:
+
+```bash
+bash unity/Tests/run.sh          # 159 项断言,约 3 秒
+```
+
+沙箱/CI 基础镜像里**没有 .NET SDK**,装一次(约 1 分钟,装在系统路径):
+
+```bash
+curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+sudo bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet
+sudo ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+```
+
+> 别用 apt 里的 `mono-*`:最高只支持 C# 7.2,而本工程用了 C# 9 的目标类型 `new()`;
+> apt 也没有 `dotnet-sdk-8.0` 包。
+
+**改数值的规矩**:web 的 `data/*.json` 是唯一权威。只改 JSON 会让
+`ParityTests` 直接红(它会把两边逐键比对);改 C# 侧的 const 时,
+`Skills/*.cs` 里的 `Parity` 字典也要同步,否则同样报"多出/缺失的键"。
+
+### 已知的三次"环境小坑"(别浪费时间排查)
 
 1. **`.git/config` 会被快照剥离**(它和 `.git/credentials`、`.netrc` 同属敏感路径)。
    现象:`git log` 正常,但 `git remote -v` 为空、`git push` 报

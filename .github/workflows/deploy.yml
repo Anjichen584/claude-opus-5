@@ -13,6 +13,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # C# 逻辑层(Unity 副线)纯逻辑测试:不需要 Unity 编辑器,dotnet 即可跑
+  logic-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run logic tests (world / combat / skills / parity)
+        run: bash unity/Tests/run.sh
+
   build-deploy:
     runs-on: ubuntu-latest
     steps:

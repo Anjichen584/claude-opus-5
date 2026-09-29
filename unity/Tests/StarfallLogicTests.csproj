@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    纯逻辑层测试工程(零 Unity 依赖,零第三方包):
+    只编译 Assets/Scripts 下不依赖 UnityEngine 的目录,跑一个自带断言的 Main。
+    用法: bash unity/Tests/run.sh  (内部即 dotnet run,项目路径 unity/Tests)
+    CI: .github/workflows/deploy.yml 的 logic-test job
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>StarfallLogicTests</AssemblyName>
+    <RootNamespace>StarfallKnights.Tests</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="MiniJson.cs" />
+    <Compile Include="ParityTests.cs" />
+    <Compile Include="../Assets/Scripts/Core/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Combat/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Skills/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Dungeon/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Meta/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Loot/**/*.cs" />
+    <Compile Include="../Assets/Scripts/Data/**/*.cs" />
+  </ItemGroup>
+
+</Project>

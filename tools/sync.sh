@@ -56,7 +56,7 @@ fi
 
 # ---- 3. 清沙箱 ----
 rm -f "$HOME"/*.png "$HOME"/*.jpg 2>/dev/null || true   # 临时预览拼图
-rm -rf "$ROOT/web/dist" /tmp/refs /tmp/gh 2>/dev/null || true
+rm -rf "$ROOT/web/dist" "$ROOT/unity/Tests/bin" "$ROOT/unity/Tests/obj" /tmp/refs /tmp/gh 2>/dev/null || true
 SIZE=$(du -sm --exclude=node_modules --exclude=dist --exclude=.git "$ROOT" 2>/dev/null | cut -f1)
 echo "🧹 已清理临时文件 · 工作区(不含 .git/node_modules)约 ${SIZE} MB"
 if [ "$SIZE" -gt "$LIMIT_MB" ]; then

@@ -25,6 +25,10 @@ namespace StarfallKnights.Data
         public const float DashDistM = 2.8f;
         public const float CdrCap = 0.4f; // 冷却缩减上限 40%
 
+        // ---- 坐标(镜像 web/src/game/constants.ts M)----
+        /// <summary>1 米 = 48 像素(web 端 M);web 里以像素写的常量在 C# 里统一换算成米。</summary>
+        public const float PxPerM = 48f;
+
         // ---- 防御公式(formulas)----
         public const float DefK = 50f; // 减伤 = def / (def + K)
 

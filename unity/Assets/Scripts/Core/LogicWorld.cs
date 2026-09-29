@@ -14,6 +14,7 @@ namespace StarfallKnights.Core
         public Actor Player;
         public readonly List<Actor> Enemies = new();
         public readonly List<Zone> Zones = new();
+        public readonly List<Projectile> Projectiles = new();
         public readonly GameClock Clock = new();
 
         /// <summary>敌人死亡回调(掉落/特效由宿主接)。</summary>
@@ -33,7 +34,21 @@ namespace StarfallKnights.Core
                     OnEnemyDied?.Invoke(e);
                 }
             }
+            ProjectileSystem.Tick(this, dt);
             ZoneSystem.Tick(this, dt);
+        }
+
+        /// <summary>半径内最近的敌人(无则 null)。</summary>
+        public Actor NearestEnemy(Vector2 from, float radiusM)
+        {
+            Actor best = null;
+            float bestD = radiusM;
+            foreach (var e in Enemies)
+            {
+                float d = Vector2.Distance(e.Pos, from);
+                if (d <= bestD) { bestD = d; best = e; }
+            }
+            return best;
         }
 
         /// <summary>半径内的敌人(米)。</summary>
