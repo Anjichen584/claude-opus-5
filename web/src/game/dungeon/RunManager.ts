@@ -15,6 +15,10 @@ import { scaleAtk, scaleHp } from './Scaling';
 import { runMods } from './RunMods';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
+import {
+  buildLayout, isBlockedAt, isSolid as isSolidProp, pickLayout, propRadius,
+  type LayoutCtxKind, type LayoutResult, type Reserved,
+} from './RoomLayouts';
 
 export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event';
 
@@ -42,6 +46,11 @@ export class RunManager {
   private spriteSpawned = false;
   /** 当前章节(GameScene.startRun 设置) */
   chapter: 1 | 2 | 3 = 1;
+  /** 本房布局模板结果(RoomLayouts);营地/未开局为 null */
+  layout: LayoutResult | null = null;
+  /** 布局指纹:id + 房间序号,GameScene 据此判断要不要重烘焙地面 */
+  layoutKey = 'camp';
+  private layoutSeq = 0;
   private rng = new Rng(Date.now() >>> 0);
 
   /** 章节配置 */
@@ -67,7 +76,6 @@ export class RunManager {
     for (const e of world.query(ShopStand)) world.destroy(e);
     for (const e of world.query(EventTotem)) world.destroy(e);
     world.flushDestroyed();
-    this.scatterProps(world, kind);
     this.spriteSpawned = false;
 
     // 玩家回到房间左侧入口
@@ -76,6 +84,10 @@ export class RunManager {
     ptr.y = (balance.arena.heightM / 2) * M;
     ptr.prevX = ptr.x;
     ptr.prevY = ptr.y;
+
+    // 内容先落地:摊位/石碑/宝箱把位置登记成"净空区",摆件时自动绕开
+    const reserved: Reserved[] = [];
+    const hold = (xM: number, yM: number, rM: number): void => { reserved.push({ xM, yM, rM }); };
 
     switch (kind) {
       case 'battle':
@@ -94,6 +106,7 @@ export class RunManager {
           if (item.rarity === 'common' || item.rarity === 'fine') {
             item = this.factory.make(item.slot, 'rare');
           }
+          hold(10 + i * 4, balance.arena.heightM / 2, 1.1);
           const e = world.create();
           world.add(e, new Transform((10 + i * 4) * M, (balance.arena.heightM / 2) * M));
           world.add(e, new Velocity());
@@ -112,11 +125,14 @@ export class RunManager {
         rarities.push(w3 < S.thirdStandWeights.legendary ? 'legendary' : w3 < S.thirdStandWeights.legendary + S.thirdStandWeights.epic ? 'epic' : 'rare');
         rarities.forEach((rar, i) => {
           const item = this.factory.make(this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), rar);
+          hold(9 + i * 4, cy - 2, 1.4);
           const e = world.create();
           world.add(e, new Transform((9 + i * 4) * M, cy - 2 * M));
           world.add(e, new ShopStand('item', S.prices[rar], item));
         });
         // 药剂摊 + 符文摊
+        hold(10, cy + 2, 1.4);
+        hold(15, cy + 2, 1.4);
         const pot = world.create();
         world.add(pot, new Transform(10 * M, cy + 2 * M));
         world.add(pot, new ShopStand('potion', S.potionPrice));
@@ -134,6 +150,7 @@ export class RunManager {
         const cy = (balance.arena.heightM / 2) * M;
         const kinds: Array<'blood' | 'blessing' | 'fountain'> = ['blood', 'blessing', 'fountain'];
         kinds.forEach((k, i) => {
+          hold(9.5 + i * 4, balance.arena.heightM / 2, 1.4);
           const e = world.create();
           world.add(e, new Transform((9.5 + i * 4) * M, cy));
           world.add(e, new EventTotem(k));
@@ -150,6 +167,7 @@ export class RunManager {
           ? balance.enemies.boss_velsha
           : balance.boss.nanmir;
         const night = clock.isNight();
+        hold(balance.arena.widthM - 6, balance.arena.heightM / 2, 2.4); // Boss 落点留白
         const e = world.create();
         world.add(e, new Transform((balance.arena.widthM - 6) * M, (balance.arena.heightM / 2) * M));
         world.add(e, new Velocity());
@@ -173,6 +191,18 @@ export class RunManager {
         break;
       }
     }
+
+    // 布局:按房间类型抽模板 → 模板摆位 → 过一遍摆放规则(出入口/交互净空/可穿行)
+    const ctxKind: LayoutCtxKind =
+      kind === 'boss' ? 'boss' : kind === 'elite' ? 'elite' : kind === 'battle' ? 'battle' : 'calm';
+    this.layout = buildLayout(pickLayout(ctxKind, this.rng), {
+      rng: this.rng,
+      widthM: balance.arena.widthM,
+      heightM: balance.arena.heightM,
+      reserved,
+    });
+    this.layoutKey = `${this.layout.id}#${this.layoutSeq++}`;
+    this.spawnProps(world);
   }
 
   update(world: World, dt: number, playerE: number): 'playing' | 'victory' {
@@ -331,72 +361,38 @@ export class RunManager {
   }
 
   /** 场景物件:按地形模板布置(战斗房 4 模板随机,走位差异化) */
-  private scatterProps(world: World, kind: RoomKind): void {
-    const P = balance.props;
-    const W = balance.arena.widthM;
-    const H = balance.arena.heightM;
-    const put = (pk: 'tree' | 'rock' | 'bush', xM: number, yM: number): void => {
+  /** 把本房布局的物件落成实体(实心件带 Body 参与碰撞,bush 只是装饰) */
+  private spawnProps(world: World): void {
+    const props = this.layout?.props ?? [];
+    for (const p of props) {
       const e = world.create();
-      world.add(e, new Transform(xM * M, yM * M));
-      world.add(e, new PropObstacle(pk));
-      const radius = pk === 'tree' ? P.tree.bodyRadius : pk === 'rock' ? P.rock.bodyRadius : 0;
-      if (radius > 0) {
+      world.add(e, new Transform(p.xM * M, p.yM * M));
+      world.add(e, new PropObstacle(p.pk));
+      if (isSolidProp(p.pk)) {
         world.add(e, new Velocity()); // Body 需参与物理查询(速度恒 0)
-        world.add(e, new Body(radius, true));
-      }
-    };
-    const rnd = (pk: 'tree' | 'rock' | 'bush', n: number): void => {
-      for (let i = 0; i < n; i++) put(pk, this.rng.range(5, W - 4.5), this.rng.range(1.6, H - 1.4));
-    };
-
-    if (kind === 'boss') { put('tree', 6, 2); put('tree', W - 5, H - 2); put('rock', W / 2, 1.8); return; }
-    if (kind === 'treasure' || kind === 'shop' || kind === 'event') { rnd('bush', 5); rnd('tree', 2); return; }
-
-    // 战斗/精英:地形模板(精英偏好石柱阵)
-    const tpl = kind === 'elite'
-      ? 'pillars'
-      : this.rng.pick(['scatter', 'pillars', 'grove', 'lane'] as const);
-    switch (tpl) {
-      case 'scatter': {
-        rnd('tree', this.rng.int(P.tree.perRoomMin, P.tree.perRoomMax));
-        rnd('rock', this.rng.int(P.rock.perRoomMin, P.rock.perRoomMax));
-        rnd('bush', this.rng.int(P.bush.perRoomMin, P.bush.perRoomMax));
-        break;
-      }
-      case 'pillars': { // 石柱阵:3×2 网格岩石,卡怪走位
-        for (let i = 0; i < 3; i++) {
-          for (let j = 0; j < 2; j++) {
-            put('rock', 7 + i * (W - 12) / 2 + this.rng.range(-0.5, 0.5), 3 + j * (H - 6) + this.rng.range(-0.4, 0.4));
-          }
-        }
-        rnd('bush', 3);
-        break;
-      }
-      case 'grove': { // 密林四角:树丛占角,中场开阔
-        const corners: Array<[number, number]> = [[6, 2.2], [W - 5, 2.2], [6, H - 2.2], [W - 5, H - 2.2]];
-        for (const [cx, cy] of corners) {
-          put('tree', cx, cy);
-          put('tree', cx + this.rng.range(-1.4, 1.4), cy + this.rng.range(-0.8, 0.8));
-        }
-        rnd('bush', 4);
-        break;
-      }
-      case 'lane': { // 林荫走廊:两排树夹出中路
-        for (let i = 0; i < 4; i++) {
-          const x = 7 + i * (W - 11) / 3;
-          put('tree', x, 2.0);
-          put('tree', x + 1.2, H - 2.0);
-        }
-        rnd('bush', 3);
-        break;
+        world.add(e, new Body(propRadius(p.pk), true));
       }
     }
   }
 
+  /** 找一个不卡在石头里的出怪点(窄道/环形里尤其重要) */
+  private freeSpot(): { x: number; y: number } {
+    const W = balance.arena.widthM;
+    const H = balance.arena.heightM;
+    let x = this.rng.range(8, W - 2);
+    let y = this.rng.range(1.5, H - 1.5);
+    for (let i = 0; i < 8 && isBlockedAt(this.layout, x, y); i++) {
+      x = this.rng.range(8, W - 2);
+      y = this.rng.range(1.5, H - 1.5);
+    }
+    return { x, y };
+  }
+
   private spawn(world: World, kind: SpawnKind, night: boolean): void {
     const cfg = balance.enemies[kind];
-    const x = this.rng.range(8, balance.arena.widthM - 2) * M;
-    const y = this.rng.range(1.5, balance.arena.heightM - 1.5) * M;
+    const { x: xM, y: yM } = this.freeSpot();
+    const x = xM * M;
+    const y = yM * M;
     const e = world.create();
     world.add(e, new Transform(x, y));
     world.add(e, new Velocity());

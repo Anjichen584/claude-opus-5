@@ -81,6 +81,75 @@ namespace StarfallKnights.Tests
             }
         }
 
+        // ---------------- 房间布局模板(web 生成规则 → C# 镜像) ----------------
+        private static void TestRoomLayouts()
+        {
+            Suite("房间布局模板(抽模板规则 / 摆放常量 / parity)");
+
+            var all = new List<string>();
+            all.AddRange(RoomLayouts.Combat);
+            all.AddRange(RoomLayouts.BossRoom);
+            all.AddRange(RoomLayouts.Calm);
+            Check(all.Count == 9, $"九个模板(战斗 7 + Boss + 静谧,实际 {all.Count})");
+            Check(new HashSet<string>(all).Count == all.Count, "模板名无重复");
+            Check(RoomLayouts.IsKnown("narrow") && RoomLayouts.IsKnown("boss") && RoomLayouts.IsKnown("calm"), "IsKnown 认得出已知模板");
+            Check(!RoomLayouts.IsKnown("volcano") && !RoomLayouts.IsKnown(""), "IsKnown 拒绝未知模板(运行时不留 undefined)");
+
+            int cover = 0;
+            foreach (var id in RoomLayouts.Combat) if (RoomLayouts.Weight(id) > 0) cover++;
+            Check(cover == RoomLayouts.Combat.Length, "每个战斗模板都有正权重");
+
+            // 战斗房按权重抽:2000 次里每个模板都该露面
+            var rng = new Random(2026);
+            var seen = new Dictionary<string, int>();
+            bool onlyCombat = true;
+            for (int i = 0; i < 2000; i++)
+            {
+                var id = RoomLayouts.Pick(rng, "battle");
+                seen[id] = seen.TryGetValue(id, out var n) ? n + 1 : 1;
+                if (Array.IndexOf(RoomLayouts.Combat, id) < 0) onlyCombat = false;
+            }
+            Check(onlyCombat, "战斗房只会抽到战斗模板");
+            int missing = 0;
+            foreach (var id in RoomLayouts.Combat) if (!seen.ContainsKey(id)) missing++;
+            Check(missing == 0, $"七个战斗模板抽样都会出现(缺少 {missing} 个)");
+
+            var rng2 = new Random(88);
+            bool eliteOk = true, bossOk = true, calmOk = true;
+            for (int i = 0; i < 200; i++)
+            {
+                var e = RoomLayouts.Pick(rng2, "elite");
+                if (e == "scatter" || Array.IndexOf(RoomLayouts.Elite, e) < 0) eliteOk = false;
+                if (RoomLayouts.Pick(rng2, "boss") != "boss") bossOk = false;
+                if (RoomLayouts.Pick(rng2, "calm") != "calm") calmOk = false;
+            }
+            Check(eliteOk, "精英房只抽有地形的模板(不出散布)");
+            Check(bossOk, "Boss 房固定 Boss 场");
+            Check(calmOk, "商店/宝藏/秘境固定静谧房间");
+
+            // 同种子可复现(回放/测试的前提)
+            var a = new Random(1234);
+            var b = new Random(1234);
+            var seqA = new List<string>();
+            var seqB = new List<string>();
+            for (int i = 0; i < 50; i++)
+            {
+                seqA.Add(RoomLayouts.Pick(a, "battle"));
+                seqB.Add(RoomLayouts.Pick(b, "battle"));
+            }
+            Check(string.Join(",", seqA) == string.Join(",", seqB), "同种子抽样序列完全一致");
+
+            // 摆放规则之间的数值关系(不是拍脑袋写的,是被这条断言锁住的)
+            float playerDia = 2f * (Balance.RockBodyRadius + Balance.PlayerBodyRadius);
+            Check(RoomLayouts.MinGapM > playerDia, $"散件间距 {RoomLayouts.MinGapM}m 容得下玩家穿过(需 >{playerDia:0.##}m)");
+            Check(RoomLayouts.WallSpacingM < playerDia, $"墙砖间距 {RoomLayouts.WallSpacingM}m 小于玩家直径 → 墙是砌死的");
+            Check(RoomLayouts.MinCorridorM > 2f * Balance.PlayerBodyRadius, "窄道通道净宽容得下玩家");
+            Check(RoomLayouts.EntryClearXM > 2.5f && RoomLayouts.ExitClearXM > 2.5f, "出入口净空盖住玩家落点/传送门");
+            Check(RoomLayouts.MaxLooseSolids < RoomLayouts.MaxProps && RoomLayouts.MaxProps >= RoomLayouts.MaxWallProps,
+                "物件上限自洽(散件 < 总数,Boss 场留白不超上限)");
+            Check(RoomLayouts.Parity.Count == 16, $"layouts 段镜像 16 个数值键(实际 {RoomLayouts.Parity.Count})");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -104,6 +173,7 @@ namespace StarfallKnights.Tests
             TestCreatureAI();
             TestBossAI();
             TestClassSkillSet();
+            TestRoomLayouts();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));

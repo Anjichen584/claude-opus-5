@@ -488,13 +488,56 @@
     "treasureItems": 3,
     "spriteChance": 0.25
   },
-  "night": {
-    "cycleS": 360,
-    "dayS": 240,
-    "hpMult": 1.25,
-    "atkMult": 1.15,
-    "lootMult": 2,
-    "lanternCost": 120
+  "layouts": {
+    "entryClearXM": 4.6,
+    "exitClearXM": 4.6,
+    "minGapM": 1.6,
+    "minCorridorM": 3.2,
+    "reservedClearM": 1.6,
+    "wallSpacingM": 0.7,
+    "maxLooseSolids": 18,
+    "maxWallProps": 60,
+    "maxProps": 64,
+    "combatWeights": {
+      "scatter": 20,
+      "pillars": 16,
+      "grove": 14,
+      "lane": 16,
+      "narrow": 14,
+      "ring": 12,
+      "shore": 10
+    },
+    "byKind": {
+      "battle": [
+        "scatter",
+        "pillars",
+        "grove",
+        "lane",
+        "narrow",
+        "ring",
+        "shore"
+      ],
+      "elite": [
+        "pillars",
+        "narrow",
+        "ring",
+        "shore"
+      ],
+      "boss": [
+        "boss"
+      ],
+      "calm": [
+        "calm"
+      ]
+    }
+  },
+"night": {
+  "cycleS": 360,
+  "dayS": 240,
+  "hpMult": 1.25,
+  "atkMult": 1.15,
+  "lootMult": 2,
+  "lanternCost": 120
   },
   "scalingPerDepth": {
     "hp": 1.06,

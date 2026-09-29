@@ -33,12 +33,13 @@
 | `Data/Bestiary.cs` | `data/balance.json`(全量) | **自动生成**:21 种敌人属性行 + 三章配置 + 304 个行为参数常量(`python3 tools/gen_bestiary.py`) |
 | `Combat/Telegraphs.cs` | `TelegraphStrike` / Boss 预警 | 预警区域:亮圈 → 到点结算 → 可残留元素地带 |
 | `Dungeon/CreatureAI.cs` | `EnemySystem/CritterSystem/EliteSystem/TundraSystem/DesertSystem` | 18 种杂兵 AI:炮台/风筝/滚撞/旋壳/俯冲/钻地/抛毒沼/瞬跳/精灵逃跑 |
+| `Dungeon/RoomLayouts.cs` | `game/dungeon/RoomLayouts.ts` | 房间布局模板镜像:9 种模板清单 + 抽模板权重(战斗房加权、精英房不出散布、Boss/静谧房固定)+ 摆放常量(出入口净空/散件间距/通道净宽/墙砖间距);数值走 `Parity`,与 balance.json 的 layouts 段 16 键逐项比对 |
 | `Dungeon/BossAI.cs` | `BossSystem/VelshaSystem/KazraSystem` | 三个 Boss:南弥尔(横扫/根须线/地刺矩阵/根须风暴 + 阶段硬直)、薇尔莎(冰弹环/暴风雪/召唤/寒风冲锋)、卡兹拉(钻地突袭/熔痕/召唤烬鼠);三阶段血线与 P3 提速 |
 
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 236 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
+bash unity/Tests/run.sh      # 258 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。

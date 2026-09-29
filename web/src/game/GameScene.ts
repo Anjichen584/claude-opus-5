@@ -48,6 +48,8 @@ import { SettingsUI } from '@game/ui/SettingsUI';
 import { bindOf, keyLabel } from '@game/meta/Bindings';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
+import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
+import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { markRuneOwned } from '@game/meta/Codex';
@@ -120,6 +122,8 @@ export class GameScene {
   private wasNight = false;
   private lastStats: RunStats = { victory: false, rooms: 0, kills: 0, timeS: 0, stardustGained: 0 };
   private bgHasTile = false;
+  /** 已烘焙进背景的布局指纹(换模板/换房 → 重烘焙地面) */
+  private bgLayoutKey = '';
 
   constructor(
     private readonly renderer: Renderer,
@@ -735,6 +739,12 @@ export class GameScene {
     // 草地贴图解码完成后重烘焙地面
     if (!this.bgHasTile && sprites.get(this.run !== undefined && this.run.chapter === 3 ? 'sand_tile' : this.run !== undefined && this.run.chapter === 2 ? 'snow_tile' : 'grass_tile')) {
       this.bgHasTile = true;
+      this.bg = this.bakeBackground();
+    }
+    // 换房 = 换布局:地面装饰(浅滩/苔痕/土路/砂地)跟着换
+    const layoutKey = this.state === 'run' ? this.run.layoutKey : 'camp';
+    if (layoutKey !== this.bgLayoutKey) {
+      this.bgLayoutKey = layoutKey;
       this.bg = this.bakeBackground();
     }
     const r = this.renderer;
@@ -1581,9 +1591,12 @@ export class GameScene {
     ctx.fillText(`${Math.ceil(hp.hp)} / ${hp.max}`, 28, 55);
 
     // 顶部中央:房间进度 + 昼夜
+    const layoutTag = this.run.layout !== null && this.run.roomKind !== 'boss'
+      ? ` · ${LAYOUT_LABELS[this.run.layout.id]}`
+      : '';
     const roomLabel = this.run.roomKind === 'boss'
       ? balance.boss.nanmir.name
-      : `房间 ${this.run.depth + 1}/${balance.rooms.count + 1} · ${PORTAL_STYLE[this.run.roomKind].label}`;
+      : `房间 ${this.run.depth + 1}/${balance.rooms.count + 1} · ${PORTAL_STYLE[this.run.roomKind].label}${layoutTag}`;
     ctx.textAlign = 'center';
     if (!drawPanel9(ctx, width / 2 - 150, 14, 300, 26)) {
       ctx.fillStyle = UI.panel;
@@ -1781,6 +1794,11 @@ export class GameScene {
           }
         }
       }
+    }
+    // 房间地面装饰(浅滩/苔痕/砂地/土路):只影响观感,不参与碰撞
+    const feat = this.state === 'run' ? this.run.layout?.floor : undefined;
+    if (feat !== undefined && feat.kind !== 'none') {
+      paintFloorFeature(ctx, feat, ch, rng);
     }
     for (let i = 0; i < 70; i++) {
       const x = rng.range(M, wPx - M);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using StarfallKnights.Combat;
 using StarfallKnights.Data;
+using StarfallKnights.Dungeon;
 using StarfallKnights.Skills;
 
 namespace StarfallKnights.Tests
@@ -28,6 +29,7 @@ namespace StarfallKnights.Tests
             CheckSkills(check, near, root);
             CheckRunes(check, near, root);
             CheckBestiary(check, near, root);
+            CheckLayouts(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -102,6 +104,84 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
             check(rowBad == 0, $"21 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+        }
+
+        /// <summary>房间布局 parity:balance.json 的 layouts 段(含 combatWeights)vs Dungeon/RoomLayouts.cs。</summary>
+        private static void CheckLayouts(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var layouts = MiniJson.Opt(doc, "layouts");
+            if (layouts == null) { check(false, "balance.json 有 layouts 段"); return; }
+
+            var leaves = new Dictionary<string, double>();
+            void Walk(object o, string prefix)
+            {
+                if (o is Dictionary<string, object> d)
+                {
+                    foreach (var kv in d) Walk(kv.Value, prefix.Length == 0 ? kv.Key : $"{prefix}.{kv.Key}");
+                }
+                else if (o is List<object> arr)
+                {
+                    for (int i = 0; i < arr.Count; i++) Walk(arr[i], $"{prefix}.{i}");
+                }
+                else if (o is double num)
+                {
+                    leaves[prefix] = num;
+                }
+            }
+            Walk(layouts, "layouts");
+
+            int mismatches = 0, matched = 0;
+            foreach (var kv in leaves)
+            {
+                if (!RoomLayouts.Parity.TryGetValue(kv.Key, out float csVal))
+                {
+                    mismatches++;
+                    check(false, $"布局规则常量缺失:{kv.Key}(JSON={kv.Value})");
+                    continue;
+                }
+                matched++;
+                if (Math.Abs(csVal - kv.Value) > Tol)
+                {
+                    mismatches++;
+                    check(false, $"布局规则不一致:{kv.Key}(JSON={kv.Value} vs C#={csVal})");
+                }
+            }
+            var extra = new List<string>();
+            foreach (var k in RoomLayouts.Parity.Keys) if (!leaves.ContainsKey(k)) extra.Add(k);
+            check(extra.Count == 0, $"布局规则无多余键(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(", ", extra) : "")})");
+            check(mismatches == 0, $"balance.json → RoomLayouts.cs 逐键一致({matched} 个数值键)");
+
+            // 名单(字符串数组)单独比:JSON 的 byKind vs C# 的模板清单
+            int listBad = 0;
+            var byKind = MiniJson.Opt(layouts, "byKind");
+            if (byKind == null) { check(false, "layouts.byKind 存在"); return; }
+            foreach (var kv in byKind)
+            {
+                var jsonList = MiniJson.Arr(kv.Value);
+                var csList = RoomLayouts.Kind(kv.Key);
+                if (jsonList.Count != csList.Length)
+                {
+                    listBad++;
+                    check(false, $"{kv.Key} 模板数不符(JSON={jsonList.Count} vs C#={csList.Length})");
+                    continue;
+                }
+                for (int i = 0; i < csList.Length; i++)
+                {
+                    if (!Equals(jsonList[i], csList[i]))
+                    {
+                        listBad++;
+                        check(false, $"{kv.Key}[{i}] 不符(JSON={jsonList[i]} vs C#={csList[i]})");
+                    }
+                }
+            }
+            check(listBad == 0, "布局模板名单逐项一致(战斗/精英/Boss/静谧)");
+
+            // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
+            near(Balance.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");
+            near(Balance.RockBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(MiniJson.Opt(doc, "props"), "rock")), "bodyRadius", 0), Tol, "岩石体型");
         }
 
         private static Core.EnemyKind? KindOf(string jsonKey)
