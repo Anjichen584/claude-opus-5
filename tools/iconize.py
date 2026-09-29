@@ -37,8 +37,12 @@ ICON_TARGETS = {
     "icon_item_boots": 24, "icon_item_ring": 24, "icon_item_amulet": 24,
     "icon_st_kill": 22, "icon_st_dps": 22, "icon_st_taken": 22,
     "icon_st_chest": 22, "icon_st_stardust": 22, "icon_st_time": 22,
-    "icon_skill_blade": 30, "icon_skill_ranger": 30, "icon_skill_arcanist": 30,
-    "icon_skill_warden": 30, "icon_skill_utility": 30, "icon_skill_ult": 30,
+    # 第五批之二:每技能专属图标(Q/R 各职业 8 个;E 位暂用 dash 原型,下批补)
+    # 命名规则统一为 icon_<名字>,与技能 JSON 的 icon 字段一一对应(gfx/skillIcons 测试守卫)
+    "icon_cleave": 30, "icon_starfall": 30,
+    "icon_fan": 30, "icon_arrowstorm": 30,
+    "icon_seeker": 30, "icon_tempest": 30,
+    "icon_quake": 30, "icon_roar": 30,
 }
 
 

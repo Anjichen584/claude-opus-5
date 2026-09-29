@@ -4,7 +4,7 @@
     {
       "id": "arcanist_q_seeker",
       "slot": "Q",
-      "icon": "shot",
+      "icon": "seeker",
       "name": "追星术",
       "cooldown": 5.0,
       "phases": [
@@ -39,7 +39,7 @@
     {
       "id": "arcanist_r_tempest",
       "slot": "R",
-      "icon": "ult",
+      "icon": "tempest",
       "name": "元素风暴",
       "cooldown": 1.5,
       "minRage": 40,

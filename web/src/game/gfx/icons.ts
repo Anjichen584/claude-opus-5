@@ -24,6 +24,8 @@ export const STAT_ICON = {
   dps: 'icon_st_dps',
   taken: 'icon_st_taken',
   chest: 'icon_st_chest',
+  stardust: 'icon_st_stardust',
+  time: 'icon_st_time',
 } as const;
 
 export type StatIconKey = keyof typeof STAT_ICON;

@@ -4,7 +4,7 @@
     {
       "id": "blade_q_cleave",
       "slot": "Q",
-      "icon": "slash",
+      "icon": "cleave",
       "name": "裂空斩",
       "cooldown": 4.0,
       "phases": [
@@ -44,7 +44,7 @@
     {
       "id": "blade_r_starfall",
       "slot": "R",
-      "icon": "ult",
+      "icon": "starfall",
       "name": "星陨·万剑归宗",
       "cooldown": 1.5,
       "minRage": 40,

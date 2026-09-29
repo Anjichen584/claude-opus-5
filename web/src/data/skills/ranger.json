@@ -4,7 +4,7 @@
     {
       "id": "ranger_q_fan",
       "slot": "Q",
-      "icon": "shot",
+      "icon": "fan",
       "name": "瞬影三连",
       "cooldown": 4.0,
       "phases": [
@@ -42,7 +42,7 @@
     {
       "id": "ranger_r_storm",
       "slot": "R",
-      "icon": "ult",
+      "icon": "arrowstorm",
       "name": "星陨箭雨",
       "cooldown": 1.5,
       "minRage": 40,

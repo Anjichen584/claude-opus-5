@@ -89,17 +89,15 @@ export class MenuUI {
       [STAT_ICON.kill, `击杀  ${rs.kills}`],
       [STAT_ICON.taken, `受击  ${rs.hitsTaken} 次${rs.hitsTaken === 0 ? '(无伤!)' : ''}`],
       [STAT_ICON.dps, `最高单次伤害  ${Math.round(rs.maxHit)}`],
-      [STAT_ICON.chest, `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}   用时  ${fmtTime(rs.timeS)}`],
+      [STAT_ICON.chest, `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}`],
+      [STAT_ICON.time, `用时  ${fmtTime(rs.timeS)}`],
+      [STAT_ICON.stardust, `星尘收入  ✦${rs.stardustGained}(已存入钱包)`],
     ];
     const rowW = 360;
     const rx = w / 2 - rowW / 2;
     rows.forEach(([icon, text], i) => {
       drawIconRow(ctx, icon, rx, h * 0.42 + i * 28, 22, text, UI.text, '15px monospace');
     });
-    ctx.textAlign = 'center';
-    ctx.fillStyle = UI.dim;
-    ctx.font = '14px monospace';
-    ctx.fillText(`星尘收入  ✦${rs.stardustGained}(已存入钱包)`, w / 2, h * 0.42 + rows.length * 28 + 8);
     ctx.textAlign = 'center';
 
     ctx.fillStyle = UI.dim;

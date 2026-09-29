@@ -89,6 +89,24 @@ isolated on a flat solid magenta (#FF00FF) background, 16-bit retro RPG item ico
 
 > 待生成(下一批):`icon_st_stardust`(琥珀四芒星)、`icon_st_time`(黄铜怀表)、技能图标 ×6。
 
+### 统计图标补全 ×2 + 每技能专属图标 ×8(2026-09-29,第五批之二)
+- **icon_st_stardust**: single amber-gold four-pointed star crystal shard, warm white glowing core, tiny sparkles at the points
+- **icon_st_time**: small round brass pocket watch, dark indigo clock face, pale short hour and minute hands, tiny winding crown, short chain loop(要求 `no numerals`)
+- **icon_cleave**(剑士 Q 裂空斩): three crescent slash arcs stacked diagonally, bright cyan-white wind blades with pale steel cores
+- **icon_starfall**(剑士 R 万剑归宗): four swords falling from above at an angle, golden star trails, small impact star at the bottom
+- **icon_fan**(猎手 Q 瞬影三连): three arrows fanning out from a single point, green fletching, faint cyan wind arcs
+- **icon_arrowstorm**(猎手 R 星陨箭雨): small dark cloud with six arrows raining straight down, green fletching, amber streaks
+- **icon_seeker**(秘术师 Q 追星术): violet glowing orb with a curved comet trail bending toward a small target star
+- **icon_tempest**(秘术师 R 元素风暴): swirling vortex of four colored strands — orange flame, pale ice blue, yellow lightning, green poison curling inward
+- **icon_quake**(守卫 Q 岩震击): heavy war hammer striking the ground, concentric beige shockwave ring, three angular stone chunks
+- **icon_roar**(守卫 R 大地怒吼): wide roaring shockwave of concentric bronze-amber rings over cracked brown earth
+
+> **命名规则**:技能 JSON 的 `icon` 字段直接对应 `public/sprites/icon_<名字>.png`(`iconOf()` 拼 `icon_` 前缀),
+> 所以文件名不加 `skill_` 之类的中缀 —— 少一层映射就少一处漂移。缺图时 HUD 会静默降级为无图标,
+> 由 `skills/__tests__/skillIcons.test.ts` 守卫(登记 + 文件在位 + Q/R 必须专属)。
+>
+> 待生成(下一批):**E 位专属图标 ×4**(潮涌步/疾风回旋/星幕闪现/壁垒冲锋,现用 `icon_dash` 原型)、技能特效贴图第一批。
+
 ### 怪物第二帧(2026-09-29,12 只)
 全部用「第一帧成品放大图 + same creature as the reference, but in a mid-walk / wing-down /
 bouncing frame」句式生成;`snowpuff_f2` 第一版是细线稿被管线误吃,重绘为**实心白球**并强调

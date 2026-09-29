@@ -84,4 +84,8 @@ export const SPRITE_NAMES = [
   'icon_item_weapon', 'icon_item_helmet', 'icon_item_chest',
   'icon_item_boots', 'icon_item_ring', 'icon_item_amulet',
   'icon_st_kill', 'icon_st_dps', 'icon_st_taken', 'icon_st_chest',
+  // 第五批之二:统计图标补全 + 每技能专属技能图标
+  'icon_st_stardust', 'icon_st_time',
+  'icon_cleave', 'icon_starfall', 'icon_fan', 'icon_arrowstorm',
+  'icon_seeker', 'icon_tempest', 'icon_quake', 'icon_roar',
 ] as const;

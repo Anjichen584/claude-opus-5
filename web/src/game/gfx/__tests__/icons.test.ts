@@ -43,7 +43,7 @@ describe('物品图标', () => {
 
 describe('状态图标', () => {
   it('键名稳定(结算页/HUD 依赖这些键)', () => {
-    expect(Object.keys(STAT_ICON).sort()).toEqual(['chest', 'dps', 'kill', 'taken']);
+    expect(Object.keys(STAT_ICON).sort()).toEqual(['chest', 'dps', 'kill', 'stardust', 'taken', 'time']);
   });
 
   it('每个状态图标都登记且有文件,高度 ≤ 24', () => {
