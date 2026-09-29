@@ -91,11 +91,12 @@ export class RunManager {
 
     switch (kind) {
       case 'battle':
-        this.pendingWaves = R.wavesPerRoom;
+        // 周常铁律「铁闸」:每房多一波
+        this.pendingWaves = R.wavesPerRoom + runMods.extraWaves;
         this.waveTimer = 0.8;
         break;
       case 'elite':
-        this.pendingWaves = 1;
+        this.pendingWaves = 1 + runMods.extraWaves;
         this.waveTimer = 0.8;
         break;
       case 'treasure': {
@@ -195,7 +196,11 @@ export class RunManager {
     // 布局:按房间类型抽模板 → 模板摆位 → 过一遍摆放规则(出入口/交互净空/可穿行)
     const ctxKind: LayoutCtxKind =
       kind === 'boss' ? 'boss' : kind === 'elite' ? 'elite' : kind === 'battle' ? 'battle' : 'calm';
-    this.layout = buildLayout(pickLayout(ctxKind, this.rng), {
+    // 周常铁律「地脉」:战斗房地形被定死(精英房也让一步,免得两种规则打架)
+    const forced = runMods.forcedLayout !== null && (kind === 'battle' || kind === 'elite')
+      ? runMods.forcedLayout
+      : pickLayout(ctxKind, this.rng);
+    this.layout = buildLayout(forced, {
       rng: this.rng,
       widthM: balance.arena.widthM,
       heightM: balance.arena.heightM,
@@ -257,14 +262,20 @@ export class RunManager {
     return 'playing';
   }
 
+  /** 精英房位置(周常铁律「先手」会把它提前) */
+  get eliteIndex(): number {
+    return Math.min(R.count - 1, Math.max(1, R.eliteIndex + runMods.eliteShift));
+  }
+
   /** 下一站类型:固定序列 + 选路点(第一个选路点给宝藏,第二个给商店) */
   private nextKinds(): RoomKind[] {
     const next = this.depth + 1;
     if (next >= R.count) return ['boss'];
-    if (next === R.eliteIndex) return ['elite'];
+    if (next === this.eliteIndex) return ['elite'];
     const choiceIdx = (R.choiceAt as number[]).indexOf(next);
     if (choiceIdx === 0) return ['treasure', 'event']; // 稳定收益 vs 三选一赌局
-    if (choiceIdx >= 1) return ['battle', 'shop'];
+    // 周常铁律「闭市」:商店关门,选路只剩硬打
+    if (choiceIdx >= 1) return runMods.shopClosed ? ['battle', 'battle'] : ['battle', 'shop'];
     return ['battle'];
   }
 

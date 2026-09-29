@@ -18,7 +18,8 @@ export function recompute(world: World, pe: Entity): void {
   const eq = world.mustGet(pe, Equipment);
 
   // 祭坛永久成长(局外,+3%/级)× 职业乘区 × 局内事件加成
-  const altar = meta.data.altar;
+  // 周常铁律「封坛」:本局祭坛成长失效(把局外强度清零,老玩家新玩家同一口径)
+  const altar = runMods.altarOff ? { hp: 0, atk: 0, luck: 0 } : meta.data.altar;
   const pl = world.mustGet(pe, Player);
   const kls = balance.classes[pl.klass];
   let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl) * kls.atkMult * (1 + pl.runBuffAtk) * runMods.eff.playerAtk;

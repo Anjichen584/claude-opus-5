@@ -150,6 +150,139 @@ namespace StarfallKnights.Tests
             Check(RoomLayouts.Parity.Count == 16, $"layouts 段镜像 16 个数值键(实际 {RoomLayouts.Parity.Count})");
         }
 
+        // ---------------- 挑战(每日词条池 + 周常铁律) ----------------
+        private static void TestChallenges()
+        {
+            Suite("挑战系统(每日词条池 / 周常铁律 / 与 web 同抽签)");
+
+            Check(Challenges.DailyPool.Length == 10, $"每日词条池 10 条(实际 {Challenges.DailyPool.Length})");
+            Check(Challenges.WeeklyRules.Length == 8, $"周常铁律 8 条(实际 {Challenges.WeeklyRules.Length})");
+            Check(Challenges.DailyCount == 3 && Challenges.WeeklyDailyPicks == 2, "每日抽 3 条 / 周常抽 2 条词条");
+
+            // id 唯一 + 池间不撞车
+            var ids = new HashSet<string>();
+            bool dup = false, crossover = false;
+            foreach (var m in Challenges.DailyPool) if (!ids.Add(m.Id)) dup = true;
+            foreach (var r in Challenges.WeeklyRules) { if (!ids.Add(r.Id)) crossover = true; }
+            Check(!dup, "每日词条 id 唯一");
+            Check(!crossover, "铁律 id 与每日池不撞车(否则抽签剔除规则会失效)");
+
+            // 铁律守恒:每条都既有代价也有好处(与 web 单测同一套判定)
+            int noCost = 0, noBenefit = 0, inert = 0;
+            foreach (var r in Challenges.WeeklyRules)
+            {
+                if (!Challenges.HasCost(r)) noCost++;
+                if (!Challenges.HasBenefit(r)) noBenefit++;
+                if (!Challenges.Touches(r)) inert++;
+            }
+            Check(noCost == 0, $"每条铁律都有代价(没有代价的:{noCost} 条)");
+            Check(noBenefit == 0, $"每条铁律都有好处(没有好处的:{noBenefit} 条)");
+            Check(inert == 0, $"没有空转铁律(既不改结构也不改数值:{inert} 条)");
+
+            int structural = 0;
+            foreach (var r in Challenges.WeeklyRules)
+                if (r.ExtraWaves > 0 || r.ShopClosed || r.AltarOff || r.EliteShift != 0 || r.ForcedLayouts.Length > 0) structural++;
+            Check(structural >= 4, $"至少一半铁律改的是结构(实际 {structural} 条)");
+
+            // 结构字段的合法范围(运行时不留负数/垃圾地形名)
+            int rangeBad = 0;
+            foreach (var r in Challenges.WeeklyRules)
+            {
+                if (r.ExtraWaves < 0 || r.ExtraWaves > 2) rangeBad++;
+                if (Math.Abs(r.EliteShift) > 3) rangeBad++;
+                foreach (var id in r.ForcedLayouts) if (!RoomLayouts.IsKnown(id)) rangeBad++;
+            }
+            Check(rangeBad == 0, "结构字段全在合法范围(波数/偏移/地形白名单)");
+            Check(Challenges.KnownLayouts(new[] { "narrow", "volcano", "ring" }).Count == 2, "未知地形名会被过滤掉");
+
+            // ---- 抽签链路:golden 向量(由 web 端 weeklyChallenge 跑出,两端必须一致)----
+            var golden = new (string Key, uint Seed, string Rule, string Mods, string Layout)[]
+            {
+                ("2026-W01", 308697997u, "glasscannon", "glasscannon,horde,frenzy", null),
+                ("2026-W03", 1066323077u, "leyline", "leyline,juggernaut,frenzy", "ring"),
+                ("2026-W15", 879564148u, "leyline", "leyline,greed,juggernaut", "shore"),
+                ("2026-W20", 3006287507u, "earlyelite", "earlyelite,fieldmedic,frenzy", null),
+                ("2026-W40", 3692430313u, "closedmarket", "closedmarket,frail,swift", null),
+                ("2026-W53", 1902221119u, "bulwark", "bulwark,juggernaut,frenzy", null),
+                ("2027-W05", 1694985633u, "earlyelite", "earlyelite,horde,longnight", null),
+            };
+            int goldenBad = 0;
+            foreach (var g in golden)
+            {
+                var pick = Challenges.WeeklyPick(g.Key);
+                var mods = string.Join(",", Array.ConvertAll(pick.Mods, m => m.Id));
+                bool ok = pick.Seed == g.Seed && pick.Rule.Id == g.Rule && mods == g.Mods
+                          && (pick.Structure.ForcedLayout ?? null) == g.Layout;
+                if (!ok)
+                {
+                    goldenBad++;
+                    Check(false, $"{g.Key} 抽签与 web 不一致(seed={pick.Seed} 铁律={pick.Rule.Id} 词条={mods} 地形={pick.Structure.ForcedLayout ?? "-"})");
+                }
+            }
+            Check(goldenBad == 0, $"7 个周键的抽签与 web 逐项一致(同 seed → 同规则)");
+
+            // 同周可复现 / 结构翻译正确
+            var a1 = Challenges.WeeklyPick("2026-W40");
+            var a2 = Challenges.WeeklyPick("2026-W40");
+            Check(a1.Rule.Id == a2.Rule.Id && a1.Seed == a2.Seed, "同周抽签可复现");
+            Check(a1.Mods.Length == 1 + Challenges.WeeklyDailyPicks, $"周常共 {1 + Challenges.WeeklyDailyPicks} 条规则(铁律 + 词条)");
+            Check(a1.Mods[0].Id == a1.Rule.Id, "第一条永远是铁律");
+            var modIds = new HashSet<string>();
+            bool modDup = false;
+            foreach (var m in a1.Mods) if (!modIds.Add(m.Id)) modDup = true;
+            Check(!modDup, "铁律与词条不重复");
+
+            var st = a1.Structure;
+            Check(st.ExtraWaves == Math.Max(0, a1.Rule.ExtraWaves) && st.ShopClosed == a1.Rule.ShopClosed
+                  && st.AltarOff == a1.Rule.AltarOff && st.EliteShift == a1.Rule.EliteShift,
+                "结构字段由铁律翻译而来");
+            var leyline = a1.Rule.Id == "leyline" ? a1.Rule : Array.Find(Challenges.WeeklyRules, r => r.Id == "leyline");
+            Check(leyline.ForcedLayouts.Length > 0 && Array.IndexOf(leyline.ForcedLayouts, "narrow") >= 0 && Array.IndexOf(leyline.ForcedLayouts, "shore") >= 0,
+                "地脉铁律自带地形候选(窄道/环形/浅滩)");
+
+            // 一周之内每天都算同一周;跨周必换键
+            var mon = new DateTime(2026, 9, 28);
+            bool sameWeek = true, nextWeekDiff = true;
+            for (int i = 0; i < 7; i++) if (Challenges.WeekKey(mon.AddDays(i)) != Challenges.WeekKey(mon)) sameWeek = false;
+            if (Challenges.WeekKey(mon.AddDays(7)) == Challenges.WeekKey(mon)) nextWeekDiff = false;
+            Check(sameWeek, "同一周七天共用一个周键");
+            Check(nextWeekDiff, "跨周换键");
+            Check(Challenges.WeekKey(new DateTime(2025, 12, 29)) == "2026-W01", $"跨年周归属(2025-12-29 → {Challenges.WeekKey(new DateTime(2025, 12, 29))})");
+            Check(Challenges.WeekKey(new DateTime(2026, 1, 1)) == "2026-W01", "2026-01-01(周四)属于 2026-W01");
+
+            // 52 周里每条铁律都要露面(分布不能坏)
+            var seen = new Dictionary<string, int>();
+            for (int w = 1; w <= 52; w++)
+            {
+                var id = Challenges.WeeklyPick($"2026-W{w:D2}").Rule.Id;
+                seen[id] = seen.TryGetValue(id, out var n) ? n + 1 : 1;
+            }
+            int never = 0, lopsided = 0;
+            foreach (var r in Challenges.WeeklyRules)
+            {
+                if (!seen.ContainsKey(r.Id)) never++;
+                else if (seen[r.Id] > 20) lopsided++;
+            }
+            Check(never == 0, $"一年 52 周里每条铁律都抽到过(一次没抽到的:{never} 条)");
+            Check(lopsided == 0, $"没有某条铁律霸屏(>20 次的:{lopsided} 条)");
+
+            // 乘区合并:乘区相乘、加区相加,空集 = 中性
+            var neutral = Challenges.Merge(new Challenges.DailyMod[0]);
+            Check(Math.Abs(neutral.Hp - 1f) < 1e-6f && Math.Abs(neutral.Cdr) < 1e-6f && Math.Abs(neutral.Potion) < 1e-6f,
+                "空词条 = 中性(普通局与挑战局共用一条代码路径)");
+            var horde = Array.Find(Challenges.DailyPool, m => m.Id == "horde");
+            var fieldmedic = Array.Find(Challenges.DailyPool, m => m.Id == "fieldmedic");
+            var merged = Challenges.Merge(new[] { horde, fieldmedic });
+            Near(merged.Hp, 0.75f * 1.2f, 1e-4f, "生命乘区相乘(兽潮 × 战地医师)");
+            Near(merged.Atk, 1.3f, 1e-4f, "攻击乘区只受兽潮影响");
+            Near(merged.Potion, 2f, 1e-4f, "药剂增减走加法");
+            Check(Math.Abs(merged.Drop - 1f) < 1e-4f, "没人动掉落就是中性");
+
+            // 每日键:0 补位
+            Check(Challenges.DailyKey(new DateTime(2026, 9, 5)) == "2026-09-05", "每日键补零到两位数");
+            Check(Challenges.KeySeed("2026-W40") != Challenges.KeySeed("2026-W41"), "相邻周 seed 不相关(雪崩没省)");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -174,6 +307,7 @@ namespace StarfallKnights.Tests
             TestBossAI();
             TestClassSkillSet();
             TestRoomLayouts();
+            TestChallenges();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));

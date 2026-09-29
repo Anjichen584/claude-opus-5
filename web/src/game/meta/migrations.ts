@@ -38,16 +38,19 @@ export interface SaveData {
   craftQueued: boolean;
   /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
   daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
+  /** 周常挑战最佳(键 = ISO 周,如 2026-W40;跨周自动作废) */
+  weekly: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存"见过没有+次数" */
   codex: CodexData;
   settings: Settings;
-  /** 累计统计。加字段(noHitClears/dailyClears/crafts)走逐层兜底,不升存档版本 */
+  /** 累计统计。加字段(noHitClears/dailyClears/.../weeklyClears)走逐层兜底,不升存档版本 */
   stats: {
     runs: number; clears: number; totalKills: number; bestTimeS: number;
     /** 无伤通关次数 */
     noHitClears: number;
     /** 通关每日挑战次数(跨天不清零) */
     dailyClears: number;
+    weeklyClears: number;
     /** 星辉铸台铸造次数 */
     crafts: number;
   };
@@ -77,13 +80,14 @@ export function defaultSave(): SaveData {
     blueprintShards: 0,
     craftQueued: false,
     daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
+    weekly: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     codex: emptyCodex(),
     settings: {
       musicVol: 0.8, sfxVol: 0.35, uiScale: 1,
       screenShake: 1, hitstop: 1,
       binds: { ...DEFAULT_BINDS },
     },
-    stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0, noHitClears: 0, dailyClears: 0, crafts: 0 },
+    stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0, noHitClears: 0, dailyClears: 0, weeklyClears: 0, crafts: 0 },
     achievements: { unlocked: {} },
   };
 }
@@ -127,6 +131,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     altar: { ...d.altar, ...(parsed.altar ?? {}) },
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
     daily: { ...d.daily, ...(parsed.daily ?? {}) },
+    weekly: { ...d.weekly, ...(parsed.weekly ?? {}) },
     codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
     achievements: sanitizeAchievements((parsed as Partial<SaveData>).achievements),
     settings: {
@@ -141,12 +146,15 @@ export function migrateSave(raw: unknown): MigrateResult {
   data.pity = Math.max(0, Math.floor(num(data.pity)));
   data.blueprintShards = Math.max(0, Math.floor(num(data.blueprintShards)));
   data.craftQueued = data.craftQueued === true;
-  data.daily = {
-    key: typeof data.daily.key === 'string' ? data.daily.key : '',
-    cleared: data.daily.cleared === true,
-    bestTimeS: Math.max(0, num(data.daily.bestTimeS)),
-    bestKills: Math.max(0, Math.floor(num(data.daily.bestKills))),
-  };
+  const cleanRecord = (r: { key: unknown; cleared: unknown; bestTimeS: unknown; bestKills: unknown }):
+    { key: string; cleared: boolean; bestTimeS: number; bestKills: number } => ({
+    key: typeof r.key === 'string' ? r.key : '',
+    cleared: r.cleared === true,
+    bestTimeS: Math.max(0, num(r.bestTimeS)),
+    bestKills: Math.max(0, Math.floor(num(r.bestKills))),
+  });
+  data.daily = cleanRecord(data.daily);
+  data.weekly = cleanRecord(data.weekly);
   data.altar = {
     hp: Math.max(0, Math.floor(num(data.altar.hp))),
     atk: Math.max(0, Math.floor(num(data.altar.atk))),
@@ -159,6 +167,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     bestTimeS: Math.max(0, num(data.stats.bestTimeS)),
     noHitClears: Math.max(0, Math.floor(num(data.stats.noHitClears))),
     dailyClears: Math.max(0, Math.floor(num(data.stats.dailyClears))),
+    weeklyClears: Math.max(0, Math.floor(num(data.stats.weeklyClears))),
     crafts: Math.max(0, Math.floor(num(data.stats.crafts))),
   };
   const s = data.settings;

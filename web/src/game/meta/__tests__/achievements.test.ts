@@ -15,6 +15,7 @@ function perfectSave(): SaveData {
   d.stats.bestTimeS = 120;
   d.stats.noHitClears = 3;
   d.stats.dailyClears = 4;
+  d.stats.weeklyClears = 2;
   d.stats.crafts = 2;
   d.stardust = 5000;
   d.altar = { hp: 6, atk: 6, luck: 6 };

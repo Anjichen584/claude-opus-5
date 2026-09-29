@@ -31,6 +31,7 @@
 | `Loot/Items.cs` | `game/loot/Items.ts` | 稀有度权重+幸运+保底(200 次必橙)、词条工厂 |
 | `Data/Balance.cs` | `data/balance.json`(节选) | 核心常量镜像 + `PxPerM`(=web 的 M=48)⚠ 双端修改需同步 |
 | `Data/Bestiary.cs` | `data/balance.json`(全量) | **自动生成**:21 种敌人属性行 + 三章配置 + 304 个行为参数常量(`python3 tools/gen_bestiary.py`) |
+| `Meta/Challenges.cs` | `game/meta/Daily.ts` + `Weekly.ts` | 挑战镜像:每日 10 条词条池 + 周常 8 条**铁律**(结构性:多一波怪/商店关门/祭坛失效/精英提前/地形定死)+ ISO 周键 + 与 web 同构的抽签链路(FNV-1a→雪崩→mulberry32,含 golden 向量);数据走 `Parity` 与 challenges.json 的 178 键逐项比对 |
 | `Combat/Telegraphs.cs` | `TelegraphStrike` / Boss 预警 | 预警区域:亮圈 → 到点结算 → 可残留元素地带 |
 | `Dungeon/CreatureAI.cs` | `EnemySystem/CritterSystem/EliteSystem/TundraSystem/DesertSystem` | 18 种杂兵 AI:炮台/风筝/滚撞/旋壳/俯冲/钻地/抛毒沼/瞬跳/精灵逃跑 |
 | `Dungeon/RoomLayouts.cs` | `game/dungeon/RoomLayouts.ts` | 房间布局模板镜像:9 种模板清单 + 抽模板权重(战斗房加权、精英房不出散布、Boss/静谧房固定)+ 摆放常量(出入口净空/散件间距/通道净宽/墙砖间距);数值走 `Parity`,与 balance.json 的 layouts 段 16 键逐项比对 |
@@ -39,7 +40,7 @@
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 258 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
+bash unity/Tests/run.sh      # 293 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。

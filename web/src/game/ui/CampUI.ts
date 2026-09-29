@@ -3,6 +3,8 @@ import balance from '@data/balance.json';
 import { UI } from '@game/constants';
 import { altarCost } from '@game/dungeon/Scaling';
 import { dailyChallenge, dailyKey, type DailyChallenge } from '@game/meta/Daily';
+import { weeklyChallenge, weeklyKey, weeklyLabel, type WeeklyChallenge } from '@game/meta/Weekly';
+import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
@@ -36,19 +38,24 @@ export class CampUI {
   /** 图鉴页签(怪物 / 符文)与选中项 */
   codexTab: 'enemy' | 'rune' = 'enemy';
   codexPick: string | null = null;
+  /** 混沌祭坛页签:今日(每日挑战)/ 本周(周常挑战) */
+  dailyTab: 'today' | 'week' = 'today';
 
   private rects: Array<{ rect: Rect; act: string }> = [];
 
   constructor(private readonly input: Input) {}
 
   open(p: CampPanel): void {
-    // 挂在营地久玩跨零点时,重新取当天词条(否则玩家会拿着昨天的规则开跑)
-    if (p === 'daily') this.daily = dailyChallenge(dailyKey(new Date()));
+    // 挂在营地久玩跨零点(或跨周)时重新取规则,否则玩家会拿着过期规则开跑
+    if (p === 'daily') {
+      this.daily = dailyChallenge(dailyKey(new Date()));
+      this.weekly = weeklyChallenge(weeklyKey(new Date()));
+    }
     this.panel = p;
   }
 
   /** 面板打开时每帧调用。返回 'start'(出发)| 'classChanged' | null;消费输入。 */
-  update(): 'start' | 'startDaily' | 'classChanged' | null {
+  update(): 'start' | 'startDaily' | 'startWeekly' | 'classChanged' | null {
     if (this.panel === 'none') return null;
     if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyF') || this.input.wasPressed('PadB')) {
       this.panel = 'none';
@@ -58,9 +65,13 @@ export class CampUI {
       this.panel = 'none';
       return 'start';
     }
+    // 混沌祭坛:Tab 切「今日 / 本周」,Enter 打当前页签
+    if (this.panel === 'daily' && this.input.wasPressed('Tab')) {
+      this.dailyTab = this.dailyTab === 'today' ? 'week' : 'today';
+    }
     if (this.panel === 'daily' && (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart'))) {
       this.panel = 'none';
-      return 'startDaily';
+      return this.dailyTab === 'week' ? 'startWeekly' : 'startDaily';
     }
     if (!this.input.mousePressed) return null;
     const mx = this.input.mouseX;
@@ -77,6 +88,12 @@ export class CampUI {
         this.panel = 'none';
         return 'startDaily';
       }
+      if (r.act === 'goWeekly') {
+        this.panel = 'none';
+        return 'startWeekly';
+      }
+      if (r.act === 'tabToday') this.dailyTab = 'today';
+      if (r.act === 'tabWeek') this.dailyTab = 'week';
       if (r.act.startsWith('ch')) {
         const ch = Number(r.act.slice(2)) as 1 | 2 | 3;
         const cfg = balance.chapters[String(ch) as '1' | '2' | '3'];
@@ -332,11 +349,40 @@ export class CampUI {
 
   /** 当日挑战信息(营地渲染与面板共用) */
   daily: DailyChallenge = dailyChallenge(dailyKey(new Date()));
+  /** 本周挑战信息 */
+  weekly: WeeklyChallenge = weeklyChallenge(weeklyKey(new Date()));
 
-  // ---- 每日挑战(混沌祭坛) ----
+  // ---- 混沌祭坛:今日 / 本周 ----
   private renderDaily(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    if (this.dailyTab === 'week') return this.renderWeekly(ctx, w, h);
+    this.renderDailyToday(ctx, w, h);
+  }
+
+  /** 页签条(今日 / 本周),两页共用 */
+  private renderChallengeTabs(ctx: CanvasRenderingContext2D, w: number, py: number): void {
+    const tabs: Array<{ act: string; key: 'today' | 'week'; label: string }> = [
+      { act: 'tabToday', key: 'today', label: '🗓 今日挑战' },
+      { act: 'tabWeek', key: 'week', label: '🏅 本周挑战' },
+    ];
+    tabs.forEach((t, i) => {
+      const rw = 132;
+      const r: Rect = { x: w / 2 - rw - 4 + i * (rw + 8), y: py, w: rw, h: 26 };
+      const on = this.dailyTab === t.key;
+      ctx.fillStyle = on ? '#2a3147' : '#1a1f30';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = on ? UI.gold : '#3a4154';
+      ctx.lineWidth = on ? 2 : 1.5;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = on ? UI.gold : UI.dim;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(t.label, r.x + r.w / 2, r.y + 17);
+      this.rects.push({ rect: r, act: t.act });
+    });
+  }
+
+  private renderDailyToday(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const pw = 620;
-    const ph = 380;
+    const ph = 400;
     const px = w / 2 - pw / 2;
     const py = h / 2 - ph / 2;
     panelBox(ctx, px, py, pw, ph);
@@ -346,17 +392,18 @@ export class CampUI {
 
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🗓 每日挑战 · 混沌祭坛', w / 2, py + 34);
+    ctx.fillText('🗓 混沌祭坛', w / 2, py + 30);
+    this.renderChallengeTabs(ctx, w, py + 42);
     ctx.font = '12px monospace';
     ctx.fillStyle = UI.text;
-    ctx.fillText(`${this.daily.key} · 每日 0 点刷新 · 全服同种子`, w / 2, py + 56);
+    ctx.fillText(`${this.daily.key} · 每日 0 点刷新 · 全服同种子 · 章节固定第一章`, w / 2, py + 88);
 
     // 今日词条(3 条)
     const ch = this.daily.mods;
     const cw = (pw - 48 - 16) / 3;
     ch.forEach((m, i) => {
       const rx = px + 24 + i * (cw + 8);
-      const ry = py + 76;
+      const ry = py + 100;
       ctx.fillStyle = '#1a1f30';
       ctx.fillRect(rx, ry, cw, 108);
       ctx.strokeStyle = '#3a4154';
@@ -384,11 +431,11 @@ export class CampUI {
         d.cleared
           ? `✅ 今日已通关 · 最佳 ${t}:${sec} · 击杀 ${d.bestKills}`
           : `今日最佳 ${t}:${sec} · 击杀 ${d.bestKills}(尚未通关)`,
-        w / 2, py + 216,
+        w / 2, py + 240,
       );
     } else {
       ctx.fillStyle = UI.dim;
-      ctx.fillText('今日尚未挑战 —— 章节固定第一章,词条全服一致', w / 2, py + 216);
+      ctx.fillText('今日尚未挑战 —— 章节固定第一章,词条全服一致', w / 2, py + 240);
     }
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 84, w: 220, h: 46 };
@@ -404,7 +451,92 @@ export class CampUI {
 
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('[Enter] 开始 · [Esc/F] 关闭 · 词条只在本局生效,不影响普通远征', w / 2, py + ph - 16);
+    ctx.fillText('[Tab] 切今日/本周 · [Enter] 开始 · [Esc/F] 关闭 · 词条只在本局生效', w / 2, py + ph - 16);
+  }
+
+  /** 本周页:1 条铁律(结构性)+ 2 条抽取的每日词条 + 结构摘要 + 记录 */
+  private renderWeekly(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pw = 620;
+    const ph = 400;
+    const px = w / 2 - pw / 2;
+    const py = h / 2 - ph / 2;
+    panelBox(ctx, px, py, pw, ph);
+
+    const rec = meta.data.weekly;
+    const done = rec.key === this.weekly.key && rec.cleared;
+    const st = this.weekly.structure;
+
+    ctx.fillStyle = '#8fd4c8';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('🏅 周常挑战 · 混沌祭坛', w / 2, py + 30);
+    this.renderChallengeTabs(ctx, w, py + 42);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = UI.text;
+    ctx.fillText(`${this.weekly.key}(${weeklyLabel(this.weekly.key)})· 周一刷新 · 本周内成绩可比`, w / 2, py + 88);
+
+    // 三张卡:第 0 张是铁律,其余是本周从每日池抽到的词条
+    const cw = (pw - 48 - 16) / 3;
+    this.weekly.mods.forEach((m, i) => {
+      const isRule = i === 0;
+      const rx = px + 24 + i * (cw + 8);
+      const ry = py + 100;
+      ctx.fillStyle = isRule ? '#2a2438' : '#1a1f30';
+      ctx.fillRect(rx, ry, cw, 108);
+      ctx.strokeStyle = isRule ? '#8fd4c8' : '#3a4154';
+      ctx.lineWidth = isRule ? 2 : 1.5;
+      ctx.strokeRect(rx, ry, cw, 108);
+      ctx.fillStyle = isRule ? '#8fd4c8' : UI.gold;
+      ctx.font = 'bold 15px monospace';
+      ctx.fillText(m.name, rx + cw / 2, ry + 30);
+      ctx.fillStyle = UI.dim;
+      ctx.font = '10px monospace';
+      ctx.fillText(isRule ? '本周铁律' : '周词条', rx + cw / 2, ry + 16);
+      ctx.fillStyle = UI.text;
+      ctx.font = '11px monospace';
+      m.desc.split('、').forEach((line, li) => ctx.fillText(line, rx + cw / 2, ry + 58 + li * 16));
+    });
+
+    // 结构摘要(把铁律"改了什么"翻译成人话)
+    const bits: string[] = [];
+    if (st.extraWaves > 0) bits.push(`每房 +${st.extraWaves} 波`);
+    if (st.shopClosed) bits.push('商店关门');
+    if (st.altarOff) bits.push('祭坛成长失效');
+    if (st.eliteShift !== 0) bits.push(`精英房${st.eliteShift < 0 ? '提前' : '推后'} ${Math.abs(st.eliteShift)} 间`);
+    if (st.forcedLayout !== null) bits.push(`地形定死「${LAYOUT_LABELS[st.forcedLayout]}」`);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = bits.length > 0 ? '#8fd4c8' : UI.dim;
+    ctx.fillText(bits.length > 0 ? `本周结构:${bits.join(' · ')}` : '本周结构:无(纯词条)', w / 2, py + 232);
+
+    ctx.font = '12px monospace';
+    if (rec.key === this.weekly.key && (rec.cleared || rec.bestTimeS > 0)) {
+      const t = Math.floor(rec.bestTimeS / 60);
+      const sec = Math.floor(rec.bestTimeS % 60).toString().padStart(2, '0');
+      ctx.fillStyle = rec.cleared ? UI.gold : UI.dim;
+      ctx.fillText(
+        rec.cleared
+          ? `✅ 本周已通关 · 最佳 ${t}:${sec} · 击杀 ${rec.bestKills}`
+          : `本周最佳 ${t}:${sec} · 击杀 ${rec.bestKills}(尚未通关)`,
+        w / 2, py + 254,
+      );
+    } else {
+      ctx.fillStyle = UI.dim;
+      ctx.fillText('本周尚未挑战 —— 铁律一周一换,打完记一笔', w / 2, py + 254);
+    }
+
+    const go: Rect = { x: w / 2 - 110, y: py + ph - 84, w: 220, h: 46 };
+    ctx.fillStyle = '#243a3a';
+    ctx.fillRect(go.x, go.y, go.w, go.h);
+    ctx.strokeStyle = '#8fd4c8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(go.x, go.y, go.w, go.h);
+    ctx.fillStyle = '#8fd4c8';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(done ? '⚔ 再刷一次周常' : '⚔ 开始周常挑战', w / 2, go.y + 30);
+    this.rects.push({ rect: go, act: 'goWeekly' });
+
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText('[Tab] 切今日/本周 · [Enter] 开始 · [Esc/F] 关闭', w / 2, py + ph - 16);
   }
 
   // ---- 出征 ----

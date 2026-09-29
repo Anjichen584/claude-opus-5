@@ -4,6 +4,7 @@ using System.IO;
 using StarfallKnights.Combat;
 using StarfallKnights.Data;
 using StarfallKnights.Dungeon;
+using StarfallKnights.Meta;
 using StarfallKnights.Skills;
 
 namespace StarfallKnights.Tests
@@ -30,6 +31,7 @@ namespace StarfallKnights.Tests
             CheckRunes(check, near, root);
             CheckBestiary(check, near, root);
             CheckLayouts(check, near, root);
+            CheckChallenges(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -182,6 +184,115 @@ namespace StarfallKnights.Tests
             // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
             near(Balance.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");
             near(Balance.RockBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(MiniJson.Opt(doc, "props"), "rock")), "bodyRadius", 0), Tol, "岩石体型");
+        }
+
+        /// <summary>挑战 parity:challenges.json(daily.mods / weekly.rules)vs Meta/Challenges.cs。</summary>
+        private static void CheckChallenges(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/challenges.json");
+            if (!File.Exists(path)) { check(false, "存在 challenges.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var daily = MiniJson.Opt(doc, "daily");
+            var weekly = MiniJson.Opt(doc, "weekly");
+            if (daily == null || weekly == null) { check(false, "challenges.json 有 daily / weekly 段"); return; }
+
+            // 数值键:缺省在两边都代表中性(1 / 0),所以逐键比对前先补中性
+            var expected = new Dictionary<string, double>();
+            void Neutral(string p)
+            {
+                expected[p + "hp"] = 1; expected[p + "atk"] = 1; expected[p + "drop"] = 1; expected[p + "cdr"] = 0;
+                expected[p + "playerAtk"] = 1; expected[p + "playerHp"] = 1; expected[p + "potion"] = 0;
+                expected[p + "cycle"] = 1;
+            }
+            var dailyMods = MiniJson.OptArr(daily, "mods");
+            for (int i = 0; i < dailyMods.Count; i++) Neutral($"daily.mods.{i}.");
+            var weeklyRules = MiniJson.OptArr(weekly, "rules");
+            for (int i = 0; i < weeklyRules.Count; i++)
+            {
+                Neutral($"weekly.rules.{i}.");
+                // 结构字段在 JSON 里可省略(C# 侧有默认值),缺省 = 0/false:
+                // 两端都按"缺省即中性"读,所以这里也铺上默认值再被显式键覆盖
+                expected[$"weekly.rules.{i}.extraWaves"] = 0;
+                expected[$"weekly.rules.{i}.shopClosed"] = 0;
+                expected[$"weekly.rules.{i}.altarOff"] = 0;
+                expected[$"weekly.rules.{i}.eliteShift"] = 0;
+            }
+            // 中性值先铺满,再用 JSON 里的显式键覆盖
+            expected["daily.count"] = MiniJson.Num(daily, "count");
+            expected["weekly.dailyMods"] = MiniJson.Num(weekly, "dailyMods");
+            for (int i = 0; i < dailyMods.Count; i++)
+            {
+                var m = MiniJson.Obj(dailyMods[i]);
+                foreach (var kv in m) if (kv.Key != "id" && kv.Key != "name" && kv.Key != "desc") expected[$"daily.mods.{i}.{kv.Key}"] = MiniJson.Num(m, kv.Key);
+            }
+            for (int i = 0; i < weeklyRules.Count; i++)
+            {
+                var r = MiniJson.Obj(weeklyRules[i]);
+                foreach (var kv in r)
+                {
+                    if (kv.Key == "id" || kv.Key == "name" || kv.Key == "desc" || kv.Key == "forcedLayouts") continue;
+                    expected[$"weekly.rules.{i}.{kv.Key}"] = kv.Value is bool b2 ? (b2 ? 1 : 0) : MiniJson.Num(r, kv.Key);
+                }
+            }
+
+            int mismatches = 0, matched = 0;
+            foreach (var kv in expected)
+            {
+                if (!Challenges.Parity.TryGetValue(kv.Key, out float csVal))
+                {
+                    mismatches++;
+                    check(false, $"挑战数值缺失:{kv.Key}(JSON={kv.Value})");
+                    continue;
+                }
+                matched++;
+                if (Math.Abs(csVal - kv.Value) > Tol)
+                {
+                    mismatches++;
+                    check(false, $"挑战数值不一致:{kv.Key}(JSON={kv.Value} vs C#={csVal})");
+                }
+            }
+            var extra = new List<string>();
+            foreach (var k in Challenges.Parity.Keys) if (!expected.ContainsKey(k)) extra.Add(k);
+            check(extra.Count == 0, $"挑战数值无多余键(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(", ", extra) : "")})");
+            check(mismatches == 0, $"challenges.json → Challenges.cs 逐键一致({matched} 个数值键)");
+
+            // 名单与顺序:id 数组必须逐项一致(C# 的 Parity 按索引对键,顺序错了也会被抓到)
+            int idBad = 0;
+            if (dailyMods.Count != Challenges.DailyPool.Length) { idBad++; check(false, $"每日词条数不符(JSON={dailyMods.Count} vs C#={Challenges.DailyPool.Length})"); }
+            else
+            {
+                for (int i = 0; i < dailyMods.Count; i++)
+                {
+                    string jsonId = MiniJson.Str(MiniJson.Obj(dailyMods[i]), "id");
+                    if (jsonId != Challenges.DailyPool[i].Id) { idBad++; check(false, $"每日词条 [{i}] 顺序不符(JSON={jsonId} vs C#={Challenges.DailyPool[i].Id})"); }
+                }
+            }
+            if (weeklyRules.Count != Challenges.WeeklyRules.Length) { idBad++; check(false, $"周常铁律数不符(JSON={weeklyRules.Count} vs C#={Challenges.WeeklyRules.Length})"); }
+            else
+            {
+                for (int i = 0; i < weeklyRules.Count; i++)
+                {
+                    string jsonId = MiniJson.Str(MiniJson.Obj(weeklyRules[i]), "id");
+                    if (jsonId != Challenges.WeeklyRules[i].Id) { idBad++; check(false, $"周常铁律 [{i}] 顺序不符(JSON={jsonId} vs C#={Challenges.WeeklyRules[i].Id})"); }
+                }
+            }
+            check(idBad == 0, "词条/铁律名单顺序两端一致");
+
+            // 地形候选:JSON 的 forcedLayouts 与 C# 的清单逐项一致
+            int layoutBad = 0;
+            for (int i = 0; i < weeklyRules.Count && i < Challenges.WeeklyRules.Length; i++)
+            {
+                var r = MiniJson.Obj(weeklyRules[i]);
+                var jsonLayouts = MiniJson.OptArr(r, "forcedLayouts");
+                var csLayouts = Challenges.WeeklyRules[i].ForcedLayouts;
+                int jsonCount = jsonLayouts?.Count ?? 0;
+                if (jsonCount != csLayouts.Length) { layoutBad++; check(false, $"{Challenges.WeeklyRules[i].Id} 地形候选数不符(JSON={jsonCount} vs C#={csLayouts.Length})"); continue; }
+                for (int j = 0; j < jsonCount; j++)
+                {
+                    if (!Equals(jsonLayouts[j], csLayouts[j])) { layoutBad++; check(false, $"{Challenges.WeeklyRules[i].Id} 地形候选 [{j}] 不符(JSON={jsonLayouts[j]} vs C#={csLayouts[j]})"); }
+                }
+            }
+            check(layoutBad == 0, "周常地形候选清单一致");
         }
 
         private static Core.EnemyKind? KindOf(string jsonKey)

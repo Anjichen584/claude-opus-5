@@ -86,8 +86,8 @@ type GameState = 'menu' | 'camp' | 'run' | 'results';
  * 系统更新顺序即契约(docs/02-ARCHITECTURE.md §4)。
  */
 export class GameScene {
-  /** 本局是否为每日挑战(结算时写记录) */
-  private dailyRun = false;
+  /** 本局挑战模式(结算时写记录;'off' = 普通远征) */
+  private runMode: 'off' | 'daily' | 'weekly' = 'off';
   private state: GameState = 'menu';
   private paused = false;
   private muted = false;
@@ -148,11 +148,12 @@ export class GameScene {
 
   // ---------- run 生命周期 ----------
 
-  private startRun(daily = false): void {
+  private startRun(mode: 'off' | 'daily' | 'weekly' = 'off'): void {
     this.paused = false;
-    this.dailyRun = daily;
+    this.runMode = mode;
     const klass = this.campUI.selectedClass;
-    const chapter: 1 | 2 | 3 = daily ? 1 : this.campUI.selectedChapter;
+    // 挑战局章节固定第一章(全服同种子可比,周常也一样)
+    const chapter: 1 | 2 | 3 = mode === 'off' ? this.campUI.selectedChapter : 1;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
     this.skills = new SkillSystem(this.input, klass, this.renderer);
@@ -229,9 +230,10 @@ export class GameScene {
     meta.data.stats.runs++;
     meta.save();
     if (runMods.active) {
+      const tag = runMods.mode === 'weekly' ? '🏅 周常挑战' : '🗓 每日挑战';
       this.world.emit(new ToastEvent(
-        `🗓 每日挑战 ${runMods.label}:${runMods.mods.map((m) => m.name).join(' · ')}`,
-        '#e8c07a',
+        `${tag} ${runMods.label}:${runMods.mods.map((m) => m.name).join(' · ')}`,
+        runMods.mode === 'weekly' ? '#8fd4c8' : '#e8c07a',
       ));
     }
     this.run.startRoom(w, 'battle', this.playerE);
@@ -377,9 +379,16 @@ export class GameScene {
     if (act === 'startDaily') {
       // 当日词条只在本局生效;章节固定第一章(全服同种子可比)
       this.campUI.selectedChapter = 1;
-      this.dailyRun = true;
       runMods.set(this.campUI.daily.key, this.campUI.daily.mods);
-      this.startRun(true);
+      this.startRun('daily');
+      this.input.endFrame();
+      return;
+    }
+    if (act === 'startWeekly') {
+      // 周常:每日词条之上再叠本周铁律(结构性:多一波怪/商店关门/祭坛失效…)
+      this.campUI.selectedChapter = 1;
+      runMods.setWeekly(this.campUI.weekly.key, this.campUI.weekly);
+      this.startRun('weekly');
       this.input.endFrame();
       return;
     }
@@ -486,8 +495,8 @@ export class GameScene {
     ctx.font = '11px monospace';
     ctx.fillText(
       this.input.touchActive
-        ? '木桩试招 · 走近建筑点 F 钮 · 🌀出征 · 🗓每日挑战'
-        : '木桩试招(怒气满可放R) · 走近建筑按 [F] · 🌀出征 · 🗓每日挑战 · [Esc]设置',
+        ? '木桩试招 · 走近建筑点 F 钮 · 🌀出征 · 🗓每日/🏅周常挑战'
+        : '木桩试招(怒气满可放R) · 走近建筑按 [F] · 🌀出征 · 🗓每日/🏅周常挑战 · [Esc]设置',
       width / 2, height - 12,
     );
     ctx.restore();
@@ -540,21 +549,26 @@ export class GameScene {
         meta.data.stats.bestTimeS = clock.runTime;
       }
     }
-    // 每日挑战记录(按当天键存;跨天自动作废,只保留当日最佳)
-    if (this.dailyRun && runMods.active) {
-      const d = meta.data.daily;
-      const sameDay = d.key === runMods.key;
-      if (!sameDay) {
-        meta.data.daily = { key: runMods.key, cleared: victory, bestTimeS: victory ? clock.runTime : 0, bestKills: this.feedback.kills };
+    // 挑战记录:每日按当天键、周常按当周键(过期自动作废,只保留当期最佳)
+    if (this.runMode !== 'off' && runMods.active) {
+      const rec = this.runMode === 'weekly' ? meta.data.weekly : meta.data.daily;
+      const sameKey = rec.key === runMods.key;
+      const fresh = { key: runMods.key, cleared: victory, bestTimeS: victory ? clock.runTime : 0, bestKills: this.feedback.kills };
+      if (!sameKey) {
+        if (this.runMode === 'weekly') meta.data.weekly = fresh;
+        else meta.data.daily = fresh;
       } else {
-        if (victory) d.cleared = true;
-        if (victory && (d.bestTimeS === 0 || clock.runTime < d.bestTimeS)) d.bestTimeS = clock.runTime;
-        d.bestKills = Math.max(d.bestKills, this.feedback.kills);
+        if (victory) rec.cleared = true;
+        if (victory && (rec.bestTimeS === 0 || clock.runTime < rec.bestTimeS)) rec.bestTimeS = clock.runTime;
+        rec.bestKills = Math.max(rec.bestKills, this.feedback.kills);
       }
-      if (victory) meta.data.stats.dailyClears++; // 每日挑战通关(跨天累计)
+      if (victory) {
+        if (this.runMode === 'weekly') meta.data.stats.weeklyClears++;
+        else meta.data.stats.dailyClears++;
+      }
       meta.save();
     }
-    this.dailyRun = false;
+    this.runMode = 'off';
     // 结算时统一判定成就(首次通关/极速/无伤/击杀里程碑/每日挑战等)
     this.awardAchievements();
     meta.save();
@@ -1607,9 +1621,10 @@ export class GameScene {
     const night = clock.isNight();
     ctx.fillText(`${night ? '🌙' : '☀'} ${roomLabel} · ${Math.ceil(clock.untilSwitch())}s`, width / 2, 31);
 
-    // 每日挑战角标:日期 + 三条词条名(玩家随时能确认本局规则)
+    // 挑战角标:日期/周数 + 三条规则名(玩家随时能确认本局规则)
     if (runMods.active) {
-      const label = `🗓 ${runMods.label} · ${runMods.mods.map((m) => m.name).join(' / ')}`;
+      const icon = runMods.mode === 'weekly' ? '🏅' : '🗓';
+      const label = `${icon} ${runMods.label} · ${runMods.mods.map((m) => m.name).join(' / ')}`;
       ctx.font = 'bold 11px monospace';
       const tw = ctx.measureText(label).width + 20;
       if (!drawPanel9(ctx, width / 2 - tw / 2, 44, tw, 22)) {

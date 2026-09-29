@@ -66,6 +66,7 @@ export const ACHIEVEMENTS: AchvDef[] = [
 
   // ---- 局外 ----
   { id: 'daily_clear', name: '混沌征服者', desc: '通关一次每日挑战', icon: '🗓', cat: '局外', progress: (d) => prog(d.stats.dailyClears, 1) },
+  { id: 'weekly_clear', name: '铁律破译者', desc: '通关一次周常挑战', icon: '🏅', cat: '局外', progress: (d) => prog(d.stats.weeklyClears, 1) },
   { id: 'altar5', name: '星陨祭坛·小成', desc: '任一祭坛分支升到 5 级', icon: '⭐', cat: '局外', progress: (d) => prog(altarBest(d), 5) },
   { id: 'altar15', name: '星陨祭坛·大成', desc: '三系祭坛合计 15 级', icon: '✨', cat: '局外', progress: (d) => prog(altarLevels(d), 15) },
   { id: 'craft1', name: '铸星者', desc: '在星辉铸台铸造 1 次开局橙装', icon: '📜', cat: '局外', progress: (d) => prog(d.stats.crafts, 1) },

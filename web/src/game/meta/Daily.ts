@@ -1,4 +1,5 @@
 import { Rng } from '@engine/core/Rng';
+import challenges from '@data/challenges.json';
 
 /**
  * 每日挑战(docs/01-GDD.md §9 长线目标):
@@ -19,22 +20,14 @@ export interface RunMod {
   /** 昼夜周期时长乘区(0.6 = 入夜更快) */ cycle?: number;
 }
 
-/** 词条池:每条都是"有得有失",避免出现纯白给或纯恶心的一天 */
-export const MOD_POOL: readonly RunMod[] = [
-  { id: 'horde', name: '兽潮', desc: '敌人生命 -25%、攻击 +30%', hp: 0.75, atk: 1.3 },
-  { id: 'juggernaut', name: '铁壁', desc: '敌人生命 +45%、星尘装备掉落 ×1.3', hp: 1.45, drop: 1.3 },
-  { id: 'frenzy', name: '狂怒', desc: '敌人攻击 +30%、技能冷却 -15%', atk: 1.3, cdr: 0.15 },
-  { id: 'greed', name: '贪星', desc: '掉落 ×1.6、敌人攻击 +15%', drop: 1.6, atk: 1.15 },
-  { id: 'swift', name: '迅影', desc: '技能冷却 -25%、敌人生命 +15%', cdr: 0.25, hp: 1.15 },
-  { id: 'frail', name: '薄甲', desc: '生命上限 -25%、掉落 ×1.35', playerHp: 0.75, drop: 1.35 },
-  { id: 'mighty', name: '巨力', desc: '攻击 +30%、敌人生命 +25%', playerAtk: 1.3, hp: 1.25 },
-  { id: 'longnight', name: '长夜', desc: '昼夜加速 ×0.6、敌人攻击 +15%、掉落 ×1.25', cycle: 0.6, atk: 1.15, drop: 1.25 },
-  { id: 'thrifty', name: '节制', desc: '初始药剂 -1、攻击 +25%', potion: -1, playerAtk: 1.25 },
-  { id: 'fieldmedic', name: '战地医师', desc: '初始药剂 +2、敌人生命 +20%', potion: 2, hp: 1.2 },
-];
+/**
+ * 词条池:数据在 `src/data/challenges.json`(双端 parity 会逐键比对 C# 镜像)。
+ * 铁律:每条都必须"有得有失",否则会出现白给的一天或没人玩的一天 —— 由单测守卫。
+ */
+export const MOD_POOL: readonly RunMod[] = challenges.daily.mods as readonly RunMod[];
 
 /** 每天抽几条 */
-export const DAILY_MOD_COUNT = 3;
+export const DAILY_MOD_COUNT = challenges.daily.count;
 
 /** 本地日期键 YYYY-MM-DD(玩家在哪个时区就按哪个时区算) */
 export function dailyKey(d: Date): string {
@@ -50,7 +43,7 @@ export function dailyKey(d: Date): string {
  * mulberry32 的第一个随机数会跟着相关,实测连续三天都抽到同一张词条。
  * 混洗常数取自 MurmurHash3 的 fmix32。
  */
-export function dailySeed(key: string): number {
+export function keySeed(key: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) {
     h ^= key.charCodeAt(i);
@@ -62,6 +55,11 @@ export function dailySeed(key: string): number {
   h = Math.imul(h, 0x846ca68b) >>> 0;
   h ^= h >>> 16;
   return h >>> 0 || 1;
+}
+
+/** 每日键的 seed(与周常共用同一套散列,见 keySeed) */
+export function dailySeed(key: string): number {
+  return keySeed(key);
 }
 
 export interface DailyChallenge {
