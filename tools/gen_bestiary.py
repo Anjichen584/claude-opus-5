@@ -92,6 +92,9 @@ def main() -> int:
     walk('Touch', b['touch'], json_path='touch', name_prefix='')
     # 角色动作表(帧数/帧率/起伏幅度);loop 是布尔 → 生成器跳过,由 ParityTests.CheckAnim 比对
     walk('Anim', b['anim'], json_path='anim', name_prefix='')
+    # 玩家基准数值(player 段):此前是 Data/Balance.cs 里**手抄**的常量,已经漂了
+    # (json hp 120/atk 14/速度 4.2,常量却是 100/12/4.6)。退役手抄,改生成 + parity。
+    walk('Player', b['player'], json_path='player', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -110,7 +113,8 @@ def main() -> int:
     n_json = (sum(1 for _ in leaves(enemies)) + sum(1 for _ in leaves(chapters))
               + sum(1 for _ in leaves(b['arena'])) + sum(1 for _ in leaves(b['tutorial']))
               + sum(1 for _ in leaves(b['touch']))
-              + sum(1 for _ in leaves(b['anim'])))
+              + sum(1 for _ in leaves(b['anim']))
+              + sum(1 for _ in leaves(b['player'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 
@@ -203,6 +207,31 @@ def main() -> int:
     out_marker = "\n    }}\n}}\n"
 
 
+    # ---- 玩家基准(player 段):单独一个类 —— 它不是"图鉴条目",但同样必须 codegen ----
+    player_consts = [(n, v, k) for n, v, k in consts if k.startswith('player.')]
+    consts = [(n, v, k) for n, v, k in consts if not k.startswith('player.')]
+    parity = [(k, n) for k, n in parity if not k.startswith('player.')]
+    player_lines = '\n'.join(
+        f'        /// <summary>{key}</summary>\n        public const float {n} = {v};'
+        for n, v, key in player_consts)
+    player_parity = '\n'.join(f'            {{ "{k}", {n} }},' for k, n in
+                               [(k, n) for n, v, k in player_consts])
+    player_block = f'''
+    /// <summary>
+    /// 玩家基准数值(player 段)—— 与 <see cref="Bestiary"/> 同样由 balance.json 生成。
+    /// 为什么单独一类:它是"玩家"而不是"敌人图鉴";为什么也必须生成:手抄的旧常量已经漂了
+    /// (hp 100/atk 12/速度 4.6 vs 真实 120/14/4.2),而 parity 是唯一能自动发现的机制。
+    /// </summary>
+    public static class BestiaryPlayer
+    {{
+{player_lines}
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {{
+{player_parity}
+        }};
+    }}
+'''
     out = f'''using System.Collections.Generic;
 using StarfallKnights.Core;
 
@@ -267,11 +296,10 @@ namespace StarfallKnights.Data
         }};
     }}
 {cls_block}
-}}
-'''
+{player_block}}}'''
     DST.write_text(out)
     print(f'✅ 生成 {DST.relative_to(ROOT)}:{len(consts)} 个数值常量 / {len(rows)} 行图鉴 / {len(parity)} 个 parity 键 '
-          f'+ 职业普攻档案 {len(cls_consts)} 键')
+          f'+ 职业普攻档案 {len(cls_consts)} 键 + 玩家基准 {len(player_consts)} 键')
     return 0
 
 

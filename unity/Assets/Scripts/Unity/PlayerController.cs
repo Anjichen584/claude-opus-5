@@ -32,11 +32,11 @@ namespace StarfallKnights.UnityLayer
 
         private void Awake()
         {
-            Actor.Unit.HpMax = Balance.PlayerHp;
-            Actor.Unit.Hp = Balance.PlayerHp;
-            Actor.Unit.Atk = Balance.PlayerAtk;
-            Actor.Unit.CritRate = Balance.PlayerCritRate;
-            Actor.Unit.CritDmg = Balance.PlayerCritDmg;
+            Actor.Unit.HpMax = BestiaryPlayer.PlayerHp;
+            Actor.Unit.Hp = BestiaryPlayer.PlayerHp;
+            Actor.Unit.Atk = BestiaryPlayer.PlayerAtk;
+            Actor.Unit.CritRate = BestiaryPlayer.PlayerCritRate;
+            Actor.Unit.CritDmg = BestiaryPlayer.PlayerCritDmg;
             Actor.Unit.IsPlayerTeam = true;
             Skills.Class = Hero;
             Skills.Cdr = Cdr;
@@ -68,7 +68,7 @@ namespace StarfallKnights.UnityLayer
             }
             if (Input.GetKeyDown(KeyCode.Space) && _dashCd <= 0)
             {
-                StartDash(Balance.DashDistM, Balance.DashDurS, 1.6f);
+                StartDash(BestiaryPlayer.PlayerDashDistance, BestiaryPlayer.PlayerDashDuration, 1.6f);
                 return;
             }
 
@@ -99,7 +99,7 @@ namespace StarfallKnights.UnityLayer
             // 移动(指数趋近)
             var ax = MoveAxis();
             float slow = _attackT > 0 ? 0.35f : 1f;
-            var target = ax * Balance.PlayerMoveSpeed * slow;
+            var target = ax * BestiaryPlayer.PlayerMoveSpeed * slow;
             float k = 1f - Mathf.Exp(-dt / 0.06f);
             _vel += (target - _vel) * k;
             Actor.Pos += _vel * dt;

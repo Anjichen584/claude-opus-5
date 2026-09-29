@@ -185,57 +185,74 @@ describe('走路起伏(bobPx)', () => {
 });
 
 /**
- * 美术资产守卫:**数据驱动**,照着 `balance.anim` 的帧数逐个查 ——
- * 新做一套序列(或把帧数从 3 改成 4)会自动进检查,不会因为"忘了加测试"而漏掉。
+ * 美术资产守卫:**数据驱动**,照着管线自己报的度量清单(`_anim_metrics.json`,由
+ * `tools/process_frames.py` 每次处理/`--reindex` 时写出)逐套查。
  *
- * 两条不变量都来自 `tools/process_frames.py` 的硬口径,破了肉眼要盯着看才发现:
- * - **各帧画布一致**:不一致 = 播放时身体忽大忽小(双帧时代踩过);
- * - **帧被登记进 `SPRITE_NAMES`**:漏登记 → 运行时 `sprites.get()` 拿不到 → 静默回退待机,
- *   表现是"这套动画根本没上",但控制台一声不响。
+ * 为什么要清单而不是自己量:想断言的不变量是"**锚点帧的身体高度 = 目标高度**"——
+ * 身体是连通域(要把剑/披风剔出去),在测试里干这事得解码 PNG 数像素,杀鸡用牛刀;
+ * 而且这条口径是**管线自己定的**,由管线报数最不容易漂。
+ *
+ * 三条不变量都对应真实踩过的坑:
+ * - **锚点帧身体高度**:选错锚点 → 整套动作都偏大偏小(单帧看着都正常,切动作就"变一个人");
+ * - **各帧画布一致**:不一致 → 播放时身体忽大忽小(双帧时代的老坑);
+ * - **登记进 `SPRITE_NAMES`**:漏登记 → 运行时拿不到图 → 静默回退待机(表现是"这套动画没上")。
+ * 另外还要对得上 `balance.anim` 的帧数:数据说 4 帧、只有 3 张图必须红。
  */
-describe('动作序列资产(数据驱动)', () => {
-  const PNG_SIZE = (f: string): string => {
-    // PNG 头:宽高在 IHDR 里(第 16..24 字节)。不引 PNG 解码库,直接读头 —— 只在测试里读,够用。
-    const buf = readFileSync(f);
-    return `${buf.readUInt32BE(16)}x${buf.readUInt32BE(20)}`;
+describe('动作序列资产(度量清单驱动)', () => {
+  const MANIFEST = resolve(DIR, '_anim_metrics.json');
+  const readManifest = (): Record<string, {
+    frames: number; targetH: number; anchor: number;
+    canvas: [number, number]; anchorBody: [number, number]; bodies: Array<[number, number]>;
+  }> => JSON.parse(readFileSync(MANIFEST, 'utf8'));
+
+  const ACTION_OF_SUFFIX: Record<string, AnimAction> = {
+    walk: 'walk', atk: 'atk', dash: 'dash', hurt: 'hurt', die: 'die', cast: 'cast', idle: 'idle',
   };
 
-  it('已入库的序列:帧数齐全、画布一致、登记表里有名字', () => {
-    // 已出图的序列(其余动作等美术批次,balance.anim 的帧数是"目标帧数")
-    const shipped: Array<[string, AnimAction, number]> = [
-      ['knight', 'walk', 4],
-      ['knight', 'atk', 3],
-      ['knight', 'dash', 3],
-      ['knight', 'hurt', 2],
-    ];
-    for (const [base, action, frames] of shipped) {
-      const sizes = new Set<string>();
-      for (let i = 1; i <= frames; i++) {
-        const name = frameName(base, action, i);
-        const f = resolve(DIR, `${name}.png`);
-        expect(existsSync(f), `缺少 ${name}.png(跑 tools/process_frames.py ${base}_${action})`).toBe(true);
-        sizes.add(PNG_SIZE(f));
-        expect(SPRITE_NAMES, `${name} 没登记进 SPRITE_NAMES(运行时会静默回退待机)`).toContain(name);
+  /** PNG 头里的宽高(不引解码库:只在测试里读头,够用) */
+  const pngSize = (f: string): [number, number] => {
+    const buf = readFileSync(f);
+    return [buf.readUInt32BE(16), buf.readUInt32BE(20)];
+  };
+
+  it('度量清单存在且覆盖剑士的全部 6 套动作', () => {
+    expect(existsSync(MANIFEST), '缺少 _anim_metrics.json(跑 tools/process_frames.py --reindex)').toBe(true);
+    const m = readManifest();
+    for (const action of ['walk', 'atk', 'dash', 'hurt', 'die', 'cast']) {
+      expect(m[`knight_${action}`], `清单缺 knight_${action}`).toBeTruthy();
+    }
+  });
+
+  it('每套:帧数与 balance.anim 一致、锚点帧身体高度 = 目标高度、各帧画布一致', () => {
+    const m = readManifest();
+    const idleH = pngSize(resolve(DIR, 'knight.png'))[1];
+    for (const [seq, info] of Object.entries(m)) {
+      const suffix = seq.slice(seq.lastIndexOf('_') + 1);
+      const action = ACTION_OF_SUFFIX[suffix];
+      expect(action, `清单里的 ${seq} 认不出动作后缀`).toBeTruthy();
+      expect(info.frames, `${seq} 帧数与 balance.anim.${suffix}.frames 不一致`).toBe(ANIM[action].frames);
+      // 锚点帧身体高度 = 目标高度(±1px 是最近邻缩放的取整误差)
+      expect(Math.abs(info.anchorBody[1] - info.targetH), `${seq} 锚点帧身体 ${info.anchorBody[1]}px ≠ 目标 ${info.targetH}px`).toBeLessThanOrEqual(1);
+      // 目标高度还要与既有单帧精灵同高,否则切动作时"人变大变小"
+      expect(Math.abs(info.targetH - idleH), `${seq} 目标高 ${info.targetH} 与 knight.png ${idleH} 差太多`).toBeLessThanOrEqual(2);
+      // 清单说画布一致 → 实际文件也要一致(清单是管线的自述,得跟产物对得上)
+      for (let i = 1; i <= info.frames; i++) {
+        const f = resolve(DIR, `${seq}_${i}.png`);
+        expect(existsSync(f), `缺少 ${seq}_${i}.png`).toBe(true);
+        expect(pngSize(f), `${seq}_${i} 画布与清单不符`).toEqual(info.canvas);
+        expect(SPRITE_NAMES, `${seq}_${i} 没登记进 SPRITE_NAMES(运行时会静默回退待机)`).toContain(`${seq}_${i}`);
       }
-      expect(sizes.size, `${base}_${action} 各帧画布不一致:${[...sizes].join(', ')}`).toBe(1);
     }
   });
 
-  it('balance.anim 里已出图的动作,帧数与文件数一致(改了数据没补图会红)', () => {
-    for (const [base, action, frames] of [['knight', 'walk', ANIM.walk.frames], ['knight', 'atk', ANIM.atk.frames]] as Array<[string, AnimAction, number]>) {
-      expect(frames, `${base}_${action}: balance.anim 说 ${frames} 帧`).toBe(Number(ANIM[action].frames));
-    }
-    expect(ANIM.walk.frames).toBe(4);
-    expect(ANIM.atk.frames).toBe(3);
-    expect(ANIM.dash.frames).toBe(3);
-    expect(ANIM.hurt.frames).toBe(2);
-  });
-
-  it('序列帧的尺寸与单帧精灵同量级(差太多说明缩放锚点选错了)', () => {
-    const idle = PNG_SIZE(resolve(DIR, 'knight.png')).split('x').map(Number)[1];
-    for (const name of ['knight_walk_1', 'knight_atk_1', 'knight_dash_1', 'knight_hurt_1']) {
-      const h = PNG_SIZE(resolve(DIR, `${name}.png`)).split('x').map(Number)[1];
-      expect(h - idle, `${name} 与 knight 高度相差 ${h - idle}px,缩放锚点大概是选错了`).toBeLessThanOrEqual(12);
+  it('已入库序列的帧名能被 spriteFor 取到(登记 + 数据 + 文件三方对齐)', () => {
+    const m = readManifest();
+    for (const seq of Object.keys(m)) {
+      const base = seq.slice(0, seq.lastIndexOf('_'));
+      const suffix = seq.slice(seq.lastIndexOf('_') + 1);
+      const action = ACTION_OF_SUFFIX[suffix];
+      const names = frameList(base, action, (n) => existsSync(resolve(DIR, `${n}.png`)));
+      expect(names.length, `${seq} 的 frameList 只取到 ${names.length} 帧`).toBe(ANIM[action].frames);
     }
   });
 });

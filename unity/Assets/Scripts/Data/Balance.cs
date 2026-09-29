@@ -15,18 +15,14 @@ namespace StarfallKnights.Data
         public const float BrittleVulnPct = 0.2f;// 脆蚀易伤 +20%
         public const float NumbStunS = 0.8f;     // 麻痹眩晕
 
-        // ---- 玩家(player,狂澜剑士基准)----
-        public const int PlayerHp = 100;
-        public const int PlayerAtk = 12;
-        public const float PlayerMoveSpeed = 4.6f; // m/s
-        public const float PlayerCritRate = 0.05f;
-        public const float PlayerCritDmg = 1.5f;
-        public const float DashDurS = 0.22f;
-        public const float DashDistM = 2.8f;
+        // ---- 玩家基准数值(player 段)**已移出本文件** ----
+        // 以前这里是手抄的 PlayerHp/PlayerAtk/PlayerMoveSpeed/DashDurS/... —— 手抄必错,而且真漂了
+        // (hp 100/atk 12/速度 4.6 vs balance.json 的 120/14/4.2,parity 当时没覆盖 player 段)。
+        // 现在全部由 tools/gen_bestiary.py 生成到 BestiaryPlayer(逐键 parity 比对),本文件只放
+        // 那些**不属于 balance.json 的**东西:公式常量、昼夜周期、坐标换算等。
         public const float CdrCap = 0.4f; // 冷却缩减上限 40%
 
-        // ---- 体型(镜像 balance.json 的 player/ props/,房间摆放规则用)----
-        public const float PlayerBodyRadius = 0.32f;
+        // ---- 体型(props 段由生成器搬;岩石体型是房间摆放规则用的推导常量)----
         public const float RockBodyRadius = 0.4f;
 
         // ---- 坐标(镜像 web/src/game/constants.ts M)----

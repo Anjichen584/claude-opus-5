@@ -1787,6 +1787,8 @@ export class GameScene {
               const base = KLASS_SPRITE[p.klass];
               const shotKlass = basicSpec(p.klass, balance).kind === 'shot';
               const action = actionOf({
+                // 死亡:倒地那 1.5s(respawn.delay)播死亡序列,复活后自然回待机
+                dead: p.respawnT > 0,
                 dashing: p.dashT > 0,
                 attacking: attacking && !shotKlass,
                 casting: attacking && shotKlass,
@@ -1798,6 +1800,7 @@ export class GameScene {
                 dashT: p.dashT > 0 ? p.dashDur - p.dashT : undefined,
                 attackT: p.attackT > 0 ? p.attackDur - p.attackT : undefined,
                 hurtT: h.flash > 0 ? balance.feel.flashSec - h.flash : undefined,
+                dieT: p.respawnT > 0 ? balance.player.respawn.delay - p.respawnT : undefined,
               });
               const spriteName = spriteFor(base, action, animClock, (n) => sprites.get(n) !== null);
               const bob = bobPx(clock.runTime, action === 'walk');

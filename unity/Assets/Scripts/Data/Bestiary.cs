@@ -814,6 +814,62 @@ namespace StarfallKnights.Data
         public const float AnimDieFps = 8f;
         /// <summary>anim.bobAmplitudePx</summary>
         public const float AnimBobAmplitudePx = 1f;
+        /// <summary>player.hp</summary>
+        public const float PlayerHp = 120f;
+        /// <summary>player.atk</summary>
+        public const float PlayerAtk = 14f;
+        /// <summary>player.def</summary>
+        public const float PlayerDef = 6f;
+        /// <summary>player.moveSpeed</summary>
+        public const float PlayerMoveSpeed = 4.2f;
+        /// <summary>player.critRate</summary>
+        public const float PlayerCritRate = 0.05f;
+        /// <summary>player.critDmg</summary>
+        public const float PlayerCritDmg = 1.5f;
+        /// <summary>player.accelTime</summary>
+        public const float PlayerAccelTime = 0.08f;
+        /// <summary>player.decelTime</summary>
+        public const float PlayerDecelTime = 0.05f;
+        /// <summary>player.bodyRadius</summary>
+        public const float PlayerBodyRadius = 0.32f;
+        /// <summary>player.dash.duration</summary>
+        public const float PlayerDashDuration = 0.22f;
+        /// <summary>player.dash.distance</summary>
+        public const float PlayerDashDistance = 2.8f;
+        /// <summary>player.dash.iframes</summary>
+        public const float PlayerDashIframes = 0.35f;
+        /// <summary>player.dash.cooldown</summary>
+        public const float PlayerDashCooldown = 1.2f;
+        /// <summary>player.combo.mults.0</summary>
+        public const float PlayerComboMults0 = 1f;
+        /// <summary>player.combo.mults.1</summary>
+        public const float PlayerComboMults1 = 1f;
+        /// <summary>player.combo.mults.2</summary>
+        public const float PlayerComboMults2 = 1.6f;
+        /// <summary>player.combo.window</summary>
+        public const float PlayerComboWindow = 0.6f;
+        /// <summary>player.combo.attackTime.0</summary>
+        public const float PlayerComboAttackTime0 = 0.2f;
+        /// <summary>player.combo.attackTime.1</summary>
+        public const float PlayerComboAttackTime1 = 0.2f;
+        /// <summary>player.combo.attackTime.2</summary>
+        public const float PlayerComboAttackTime2 = 0.28f;
+        /// <summary>player.combo.range</summary>
+        public const float PlayerComboRange = 2.2f;
+        /// <summary>player.combo.arcDeg</summary>
+        public const float PlayerComboArcDeg = 110f;
+        /// <summary>player.combo.knockback3</summary>
+        public const float PlayerComboKnockback3 = 6f;
+        /// <summary>player.combo.moveSlow</summary>
+        public const float PlayerComboMoveSlow = 0.35f;
+        /// <summary>player.regen.delay</summary>
+        public const float PlayerRegenDelay = 4f;
+        /// <summary>player.regen.ratePct</summary>
+        public const float PlayerRegenRatePct = 0.06f;
+        /// <summary>player.respawn.delay</summary>
+        public const float PlayerRespawnDelay = 1.5f;
+        /// <summary>player.respawn.invuln</summary>
+        public const float PlayerRespawnInvuln = 2f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1187,6 +1243,34 @@ namespace StarfallKnights.Data
             { "anim.die.frames", AnimDieFrames },
             { "anim.die.fps", AnimDieFps },
             { "anim.bobAmplitudePx", AnimBobAmplitudePx },
+            { "player.hp", PlayerHp },
+            { "player.atk", PlayerAtk },
+            { "player.def", PlayerDef },
+            { "player.moveSpeed", PlayerMoveSpeed },
+            { "player.critRate", PlayerCritRate },
+            { "player.critDmg", PlayerCritDmg },
+            { "player.accelTime", PlayerAccelTime },
+            { "player.decelTime", PlayerDecelTime },
+            { "player.bodyRadius", PlayerBodyRadius },
+            { "player.dash.duration", PlayerDashDuration },
+            { "player.dash.distance", PlayerDashDistance },
+            { "player.dash.iframes", PlayerDashIframes },
+            { "player.dash.cooldown", PlayerDashCooldown },
+            { "player.combo.mults.0", PlayerComboMults0 },
+            { "player.combo.mults.1", PlayerComboMults1 },
+            { "player.combo.mults.2", PlayerComboMults2 },
+            { "player.combo.window", PlayerComboWindow },
+            { "player.combo.attackTime.0", PlayerComboAttackTime0 },
+            { "player.combo.attackTime.1", PlayerComboAttackTime1 },
+            { "player.combo.attackTime.2", PlayerComboAttackTime2 },
+            { "player.combo.range", PlayerComboRange },
+            { "player.combo.arcDeg", PlayerComboArcDeg },
+            { "player.combo.knockback3", PlayerComboKnockback3 },
+            { "player.combo.moveSlow", PlayerComboMoveSlow },
+            { "player.regen.delay", PlayerRegenDelay },
+            { "player.regen.ratePct", PlayerRegenRatePct },
+            { "player.respawn.delay", PlayerRespawnDelay },
+            { "player.respawn.invuln", PlayerRespawnInvuln },
         };
     }
 
@@ -1350,4 +1434,101 @@ namespace StarfallKnights.Data
         };
     }
 
+
+    /// <summary>
+    /// 玩家基准数值(player 段)—— 与 <see cref="Bestiary"/> 同样由 balance.json 生成。
+    /// 为什么单独一类:它是"玩家"而不是"敌人图鉴";为什么也必须生成:手抄的旧常量已经漂了
+    /// (hp 100/atk 12/速度 4.6 vs 真实 120/14/4.2),而 parity 是唯一能自动发现的机制。
+    /// </summary>
+    public static class BestiaryPlayer
+    {
+        /// <summary>player.hp</summary>
+        public const float PlayerHp = 120f;
+        /// <summary>player.atk</summary>
+        public const float PlayerAtk = 14f;
+        /// <summary>player.def</summary>
+        public const float PlayerDef = 6f;
+        /// <summary>player.moveSpeed</summary>
+        public const float PlayerMoveSpeed = 4.2f;
+        /// <summary>player.critRate</summary>
+        public const float PlayerCritRate = 0.05f;
+        /// <summary>player.critDmg</summary>
+        public const float PlayerCritDmg = 1.5f;
+        /// <summary>player.accelTime</summary>
+        public const float PlayerAccelTime = 0.08f;
+        /// <summary>player.decelTime</summary>
+        public const float PlayerDecelTime = 0.05f;
+        /// <summary>player.bodyRadius</summary>
+        public const float PlayerBodyRadius = 0.32f;
+        /// <summary>player.dash.duration</summary>
+        public const float PlayerDashDuration = 0.22f;
+        /// <summary>player.dash.distance</summary>
+        public const float PlayerDashDistance = 2.8f;
+        /// <summary>player.dash.iframes</summary>
+        public const float PlayerDashIframes = 0.35f;
+        /// <summary>player.dash.cooldown</summary>
+        public const float PlayerDashCooldown = 1.2f;
+        /// <summary>player.combo.mults.0</summary>
+        public const float PlayerComboMults0 = 1f;
+        /// <summary>player.combo.mults.1</summary>
+        public const float PlayerComboMults1 = 1f;
+        /// <summary>player.combo.mults.2</summary>
+        public const float PlayerComboMults2 = 1.6f;
+        /// <summary>player.combo.window</summary>
+        public const float PlayerComboWindow = 0.6f;
+        /// <summary>player.combo.attackTime.0</summary>
+        public const float PlayerComboAttackTime0 = 0.2f;
+        /// <summary>player.combo.attackTime.1</summary>
+        public const float PlayerComboAttackTime1 = 0.2f;
+        /// <summary>player.combo.attackTime.2</summary>
+        public const float PlayerComboAttackTime2 = 0.28f;
+        /// <summary>player.combo.range</summary>
+        public const float PlayerComboRange = 2.2f;
+        /// <summary>player.combo.arcDeg</summary>
+        public const float PlayerComboArcDeg = 110f;
+        /// <summary>player.combo.knockback3</summary>
+        public const float PlayerComboKnockback3 = 6f;
+        /// <summary>player.combo.moveSlow</summary>
+        public const float PlayerComboMoveSlow = 0.35f;
+        /// <summary>player.regen.delay</summary>
+        public const float PlayerRegenDelay = 4f;
+        /// <summary>player.regen.ratePct</summary>
+        public const float PlayerRegenRatePct = 0.06f;
+        /// <summary>player.respawn.delay</summary>
+        public const float PlayerRespawnDelay = 1.5f;
+        /// <summary>player.respawn.invuln</summary>
+        public const float PlayerRespawnInvuln = 2f;
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {
+            { "player.hp", PlayerHp },
+            { "player.atk", PlayerAtk },
+            { "player.def", PlayerDef },
+            { "player.moveSpeed", PlayerMoveSpeed },
+            { "player.critRate", PlayerCritRate },
+            { "player.critDmg", PlayerCritDmg },
+            { "player.accelTime", PlayerAccelTime },
+            { "player.decelTime", PlayerDecelTime },
+            { "player.bodyRadius", PlayerBodyRadius },
+            { "player.dash.duration", PlayerDashDuration },
+            { "player.dash.distance", PlayerDashDistance },
+            { "player.dash.iframes", PlayerDashIframes },
+            { "player.dash.cooldown", PlayerDashCooldown },
+            { "player.combo.mults.0", PlayerComboMults0 },
+            { "player.combo.mults.1", PlayerComboMults1 },
+            { "player.combo.mults.2", PlayerComboMults2 },
+            { "player.combo.window", PlayerComboWindow },
+            { "player.combo.attackTime.0", PlayerComboAttackTime0 },
+            { "player.combo.attackTime.1", PlayerComboAttackTime1 },
+            { "player.combo.attackTime.2", PlayerComboAttackTime2 },
+            { "player.combo.range", PlayerComboRange },
+            { "player.combo.arcDeg", PlayerComboArcDeg },
+            { "player.combo.knockback3", PlayerComboKnockback3 },
+            { "player.combo.moveSlow", PlayerComboMoveSlow },
+            { "player.regen.delay", PlayerRegenDelay },
+            { "player.regen.ratePct", PlayerRegenRatePct },
+            { "player.respawn.delay", PlayerRespawnDelay },
+            { "player.respawn.invuln", PlayerRespawnInvuln },
+        };
+    }
 }

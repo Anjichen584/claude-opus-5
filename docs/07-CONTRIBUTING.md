@@ -81,6 +81,13 @@ bash unity/Tests/run.sh           # parity 会逐键双向比对,漏生成/改�
 - **parity 只能证明"两边的数一样",证明不了"代码真的用了这个数"**:常量搬过去了、代码里却写死,
   parity 照样全绿。所以新段的检查里要顺手断言**代码读的就是常量**(`AimRules.DefaultRangeM == balance.touch.aimRangeM`),
   这样"改 balance 不影响手感"会被抓住。
+- **凡是 C# 要用到的 balance 数值,一律 codegen + parity —— 手抄一定会漂**(2026-09-29 抓到的实例):
+  `player` 段(hp/攻击/移速/翻滚/连招/再生/复活)以前是 `Data/Balance.cs` 里手抄的常量,早已漂成
+  hp 100 / atk 12 / 速度 4.6(json 是 120 / 14 / 4.2);而 parity 是**按段** walk 的,player 段当时是盲区,
+  能被发现纯属偶然(想给死亡动画接线、去找 `respawn.delay` 才注意到压根没有)。现在 `player` → `BestiaryPlayer`
+  (逐键 parity + 多余键检查)。**新增 balance 段时先问一句"Unity 要不要用",要就先加 codegen 再写代码。**
+- **金标数字(测试里写死的期望值)变了要显式改,并且写清新旧值**:atk 修正后"砍树 7 刀 → 6 刀、拆岩 10 → 9 刀",
+  这类数字是**数据决策的显式开关** —— 测试红的时候要先判断"哪边才是真相",而不是把数字顺手改掉。
 
 ### 4.1 随机数必须播种(踩过的坑)
 

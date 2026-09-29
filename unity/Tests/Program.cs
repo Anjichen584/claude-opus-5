@@ -154,17 +154,17 @@ namespace StarfallKnights.Tests
             Check(string.Join(",", seqA) == string.Join(",", seqB), "同种子抽样序列完全一致");
 
             // 摆放规则之间的数值关系(不是拍脑袋写的,是被这条断言锁住的)
-            float playerDia = 2f * (Balance.RockBodyRadius + Balance.PlayerBodyRadius);
+            float playerDia = 2f * (Balance.RockBodyRadius + BestiaryPlayer.PlayerBodyRadius);
             Check(RoomLayouts.MinGapM > playerDia, $"散件间距 {RoomLayouts.MinGapM}m 容得下玩家穿过(需 >{playerDia:0.##}m)");
             Check(RoomLayouts.WallSpacingM < playerDia, $"墙砖间距 {RoomLayouts.WallSpacingM}m 小于玩家直径 → 墙是砌死的");
-            Check(RoomLayouts.MinCorridorM > 2f * Balance.PlayerBodyRadius, "窄道通道净宽容得下玩家");
+            Check(RoomLayouts.MinCorridorM > 2f * BestiaryPlayer.PlayerBodyRadius, "窄道通道净宽容得下玩家");
             Check(RoomLayouts.EntryClearXM > 2.5f && RoomLayouts.ExitClearXM > 2.5f, "出入口净空盖住玩家落点/传送门");
             Check(RoomLayouts.MaxLooseSolids < RoomLayouts.MaxProps && RoomLayouts.MaxProps >= RoomLayouts.MaxWallProps,
                 "物件上限自洽(散件 < 总数,Boss 场留白不超上限)");
             Check(RoomLayouts.Parity.Count == 40, $"layouts 段镜像 40 个数值键(实际 {RoomLayouts.Parity.Count})");
-            Check(RoomLayouts.DoorM > 2f * (Balance.RockBodyRadius + Balance.PlayerBodyRadius)
+            Check(RoomLayouts.DoorM > 2f * (Balance.RockBodyRadius + BestiaryPlayer.PlayerBodyRadius)
                   || RoomLayouts.DoorM > 1.44f, "门洞净宽能过玩家");
-            Check(RoomLayouts.CenterFreeM > Balance.PlayerBodyRadius * 2f, "中央净空容得下走位");
+            Check(RoomLayouts.CenterFreeM > BestiaryPlayer.PlayerBodyRadius * 2f, "中央净空容得下走位");
             Check(RoomLayouts.RuinsWallSpacingM > RoomLayouts.DoorM, "废墟柱距 > 门洞(不然后墙无缺口)");
         }
 
@@ -356,11 +356,13 @@ namespace StarfallKnights.Tests
             Check(!TerrainRules.DamageProp(ref bush, 999f) && !bush.Broken, "灌木打不烂");
 
             // 手感数字:基准攻击 12 → 砍树 7 刀、拆岩 10 刀;大招级 60 → 2 刀开洞
-            Check(TerrainRules.HitsToBreak("tree", Balance.PlayerAtk) == 7, $"砍树 7 刀(实际 {TerrainRules.HitsToBreak("tree", Balance.PlayerAtk)})");
-            Check(TerrainRules.HitsToBreak("rock", Balance.PlayerAtk) == 10, $"拆岩 10 刀(实际 {TerrainRules.HitsToBreak("rock", Balance.PlayerAtk)})");
+            // 期望刀数 = **金标**:玩家攻击力/障碍耐久一变就要显式来改这里(那是数据决策,不该悄悄漂)
+            // 注:atk 从手抄的 12 修正为 balance 的 14 之后,树 7→6 刀、岩 10→9 刀
+            Check(TerrainRules.HitsToBreak("tree", BestiaryPlayer.PlayerAtk) == 6, $"砍树 6 刀(实际 {TerrainRules.HitsToBreak("tree", BestiaryPlayer.PlayerAtk)})");
+            Check(TerrainRules.HitsToBreak("rock", BestiaryPlayer.PlayerAtk) == 9, $"拆岩 9 刀(实际 {TerrainRules.HitsToBreak("rock", BestiaryPlayer.PlayerAtk)})");
             Check(TerrainRules.HitsToBreak("rock", 60f) == 2, "技能级伤害两下开洞(拆墙是可选项而不是苦工)");
-            Check(TerrainRules.HitsToBreak("bush", Balance.PlayerAtk) == 0 && TerrainRules.HitsToBreak("tree", 0f) == 0, "打不烂 / 0 伤害 → 0 刀");
-            Check(TerrainRules.WallOpenSwings(Balance.PlayerAtk) == 10, "窄道墙上开个口子 = 10 刀");
+            Check(TerrainRules.HitsToBreak("bush", BestiaryPlayer.PlayerAtk) == 0 && TerrainRules.HitsToBreak("tree", 0f) == 0, "打不烂 / 0 伤害 → 0 刀");
+            Check(TerrainRules.WallOpenSwings(BestiaryPlayer.PlayerAtk) == 9, "窄道墙上开个口子 = 9 刀");
         }
 
         // ---------------- 像素数字字体 ----------------

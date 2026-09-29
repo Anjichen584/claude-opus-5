@@ -177,6 +177,9 @@ namespace StarfallKnights.Tests
             // 角色动作表(帧数/帧率/起伏幅度)
             var anim = MiniJson.Opt(doc, "anim");
             if (anim != null) Walk(anim, "anim");
+            // 玩家基准(player 段)—— 此前是手抄常量且已漂,现在进 parity
+            var player = MiniJson.Opt(doc, "player");
+            if (player != null) Walk(player, "player");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -197,6 +200,11 @@ namespace StarfallKnights.Tests
             var extra = new List<string>();
             foreach (var k in Bestiary.Parity.Keys) if (!leaves.ContainsKey(k)) extra.Add(k);
             check(extra.Count == 0, $"图鉴无多余键(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(", ", extra) : "")})");
+            // 玩家基准同理:JSON 里删了字段而 C# 常量还在,就是僵尸常量(没人会发现它已经不该存在)
+            var extraPlayer = new List<string>();
+            foreach (var k in BestiaryPlayer.Parity.Keys) if (!leaves.ContainsKey(k)) extraPlayer.Add(k);
+            check(extraPlayer.Count == 0,
+                $"玩家基准无多余键(多出 {extraPlayer.Count} 个{(extraPlayer.Count > 0 ? ": " + string.Join(", ", extraPlayer) : "")})");
             check(mismatches == 0, $"balance.json → Bestiary.cs 逐键一致({matched} 个数值键)");
 
             // 图鉴行本身:每种敌人的 血/攻/防/速/体型 都对得上
@@ -321,7 +329,7 @@ namespace StarfallKnights.Tests
             check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(6 个键)");
 
             // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
-            near(Balance.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");
+            near(BestiaryPlayer.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");
             near(Balance.RockBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(MiniJson.Opt(doc, "props"), "rock")), "bodyRadius", 0), Tol, "岩石体型");
         }
 

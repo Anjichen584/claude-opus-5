@@ -60,9 +60,19 @@ SEQUENCES: dict[str, Seq] = {
     "knight_dash": Seq(frames=3, target_h=46, anchor=3),
     # 受击 2 帧:锚点取踉跄帧
     "knight_hurt": Seq(frames=2, target_h=46, anchor=2),
+    # 死亡 4 帧:锚点取第 1 帧(受创但还站着 —— 整套里最接近站立姿态的)
+    "knight_die": Seq(frames=4, target_h=46, anchor=1),
+    # 施法 3 帧:锚点取收招帧(剑回到肩上、身体站直)
+    "knight_cast": Seq(frames=3, target_h=46, anchor=3),
 }
 
 PAD = 2  # 画布四周留白
+
+# 度量清单:管线**自己报**每套序列的锚点帧身体尺寸与画布尺寸。
+# 为什么要落盘成文件:测试想断言的"锚点帧身体高度 = 目标高度"必须由管线提供 ——
+# 让测试去解码 PNG 数连通域是杀鸡用牛刀,而"各帧画布一致 / 锚点选错"这两条
+# 又是肉眼很难发现的坑(锚点选错 → 整套动作都偏大偏小,单帧看着都正常)。
+METRICS = ROOT / "web" / "public" / "sprites" / "_anim_metrics.json"
 
 
 def body_component(img: Image.Image):
@@ -82,6 +92,9 @@ def load_frames(seq: str, n: int) -> list[Image.Image] | None:
             return None
         frames.append(process_art.key_out(Image.open(f)))
     return frames
+
+
+metrics: dict[str, dict] = {}
 
 
 def process_sequence(seq: str, spec: Seq) -> bool:
@@ -132,18 +145,84 @@ def process_sequence(seq: str, spec: Seq) -> bool:
     outs = [Image.open(OUT / f"{seq}_{i}.png") for i in range(1, n + 1)]
     sizes = {im.size for im in outs}
     assert len(sizes) == 1, f"{seq}: 各帧画布不一致 {sizes} —— 底锚绘制会跳"
+    anchor_body = scaled_bodies[spec.anchor - 1]
+    metrics[seq] = {
+        "frames": n,
+        "targetH": target_h,
+        "anchor": spec.anchor,
+        "canvas": [cw, ch],
+        "anchorBody": [anchor_body[2] - anchor_body[0], anchor_body[3] - anchor_body[1]],
+        "bodies": [[b[2] - b[0], b[3] - b[1]] for b in scaled_bodies],
+    }
+    return True
+
+
+def reindex(seq: str, spec: Seq) -> bool:
+    """源图已清(体积政策:art_src 不进仓库)时,直接量**已入库的成品帧**重建度量。
+
+    量的是同一件事(身体连通域),只是对象从"处理中的图"换成"最终产物" ——
+    清单因此永远是完整的,测试不会因为"这轮没重跑管线"而失去覆盖。
+    """
+    n = spec.frames
+    frames = []
+    for i in range(1, n + 1):
+        f = OUT / f"{seq}_{i}.png"
+        if not f.exists():
+            print(f"{seq}: 成品缺 {f.name},跳过")
+            return False
+        frames.append(Image.open(f).convert("RGBA"))
+    bodies = [body_component(f) for f in frames]
+    if any(b is None for b in bodies):
+        print(f"{seq}: 有成品帧找不到主体,跳过")
+        return False
+    if not 1 <= spec.anchor <= n:
+        print(f"{seq}: anchor={spec.anchor} 越界")
+        return False
+    canvas = frames[0].size
+    if any(f.size != canvas for f in frames):
+        print(f"{seq}: 各帧画布不一致,跳过")
+        return False
+    a = bodies[spec.anchor - 1]
+    metrics[seq] = {
+        "frames": n,
+        "targetH": spec.target_h,
+        "anchor": spec.anchor,
+        "canvas": [canvas[0], canvas[1]],
+        "anchorBody": [a[2] - a[0], a[3] - a[1]],
+        "bodies": [[b[2] - b[0], b[3] - b[1]] for b in bodies],
+    }
+    print(f"{seq}: 已入库 {n} 帧 @ {canvas[0]}x{canvas[1]}(锚点帧身体 {a[2] - a[0]}x{a[3] - a[1]})")
     return True
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    only = sys.argv[1] if len(sys.argv) > 1 else None
+    args = [a for a in sys.argv[1:]]
+    only = None
+    index_only = False
+    for a in args:
+        if a == "--reindex":
+            index_only = True
+        else:
+            only = a
     done = 0
     for base, spec in SEQUENCES.items():
         if only and not base.startswith(only):
             continue
-        if process_sequence(base, spec):
+        ok = reindex(base, spec) if index_only else process_sequence(base, spec)
+        if ok:
             done += 1
+    # 度量清单(供测试断言:锚点帧身体高度 = 目标高度;画布一致;帧数)
+    if metrics:
+        existing = {}
+        if METRICS.exists():
+            import json
+            existing = json.loads(METRICS.read_text(encoding="utf-8"))
+        existing.update(metrics)
+        import json
+        METRICS.write_text(json.dumps(existing, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                           encoding="utf-8")
+        print(f"📐 度量清单 {METRICS.name}:{', '.join(metrics)}")
     print(f"✅ 处理 {done} 套序列")
 
 

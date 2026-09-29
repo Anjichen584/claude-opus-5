@@ -1,0 +1,168 @@
+{
+  "knight_atk": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        41,
+        47
+      ],
+      [
+        45,
+        46
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      50,
+      55
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        39,
+        57
+      ],
+      [
+        53,
+        53
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      60,
+      63
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      47
+    ],
+    "bodies": [
+      [
+        45,
+        41
+      ],
+      [
+        38,
+        34
+      ],
+      [
+        45,
+        47
+      ]
+    ],
+    "canvas": [
+      50,
+      56
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_die": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        41,
+        43
+      ],
+      [
+        44,
+        27
+      ],
+      [
+        45,
+        24
+      ]
+    ],
+    "canvas": [
+      50,
+      53
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "knight_hurt": {
+    "anchor": 2,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        46,
+        46
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      50,
+      56
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
+  "knight_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      44,
+      47
+    ],
+    "bodies": [
+      [
+        44,
+        47
+      ],
+      [
+        47,
+        48
+      ],
+      [
+        44,
+        47
+      ],
+      [
+        44,
+        47
+      ]
+    ],
+    "canvas": [
+      50,
+      55
+    ],
+    "frames": 4,
+    "targetH": 46
+  }
+}
