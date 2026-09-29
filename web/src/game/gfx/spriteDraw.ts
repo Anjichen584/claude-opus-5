@@ -75,6 +75,9 @@ export const SPRITE_NAMES = [
   'knight_hurt_1', 'knight_hurt_2',
   'knight_die_1', 'knight_die_2', 'knight_die_3', 'knight_die_4',
   'knight_cast_1', 'knight_cast_2', 'knight_cast_3',
+  // 猎手(轮 28):走路 4 + 拉弓(cast)3;翻滚第 3 帧随下批到
+  'ranger_walk_1', 'ranger_walk_2', 'ranger_walk_3', 'ranger_walk_4',
+  'ranger_cast_1', 'ranger_cast_2', 'ranger_cast_3',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',

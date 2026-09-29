@@ -51,6 +51,43 @@ export interface AnimClocks {
 }
 
 /**
+ * "剩余时间 → 已进行时间"(动作时钟的唯一换算口径)。
+ * 计时器给的是**剩余**(`dashT/attackT/...` 都是倒数),动画要的是**已进行**;
+ * 剩余 ≤ 0 表示"这个动作没在进行" → 返回 undefined,由 clockFor 归 0。
+ */
+export function elapsed(remaining: number | undefined, total: number | undefined): number | undefined {
+  if (remaining === undefined || total === undefined) return undefined;
+  if (remaining <= 0) return undefined;
+  return total - remaining;
+}
+
+/** 各动作的计时器输入(字段名与组件一致,便于调用点一眼对上) */
+export interface ClockInputs {
+  dashT?: number; dashDur?: number;
+  attackT?: number; attackDur?: number;
+  hurtT?: number; hurtDur?: number;
+  respawnT?: number; respawnDur?: number;
+}
+
+/**
+ * 组件字段 → 动作时钟。
+ * 抽成纯函数的原因:**漏传一个字段的后果是"某个动作永远停在第一帧"** ——
+ * 这类 bug 在画面上看就是"拉弓僵住",很容易被当成美术问题去查(本轮真踩了:漏传 cast)。
+ * 现在漏字段会被单测抓住。
+ *
+ * 注:远程职业的普攻就是 `cast`(见 GameScene 的动作判定),所以 cast 用**普攻的计时器**。
+ */
+export function clocksOf(c: ClockInputs): AnimClocks {
+  return {
+    dashT: elapsed(c.dashT, c.dashDur),
+    attackT: elapsed(c.attackT, c.attackDur),
+    castT: elapsed(c.attackT, c.attackDur),
+    hurtT: elapsed(c.hurtT, c.hurtDur),
+    dieT: elapsed(c.respawnT, c.respawnDur),
+  };
+}
+
+/**
  * 本帧该用哪个时钟喂 `spriteFor`。
  * - 循环动作(待机/走路)用全局时间:切换时机与动作起点无关,取模后自然不会漂;
  * - 一次性动作用各自的已进行时间,并**夹在 [0, 总时长]** 内(动作结束后计时器可能被清零或为负)。

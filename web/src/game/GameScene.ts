@@ -64,7 +64,7 @@ import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
-import { actionOf, bobPx, clockFor, spriteFor } from '@game/gfx/anim';
+import { actionOf, bobPx, clockFor, clocksOf, spriteFor } from '@game/gfx/anim';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -1796,12 +1796,12 @@ export class GameScene {
                 moving: p.moving,
               });
               // 计时器给的是"剩余",动作时钟要的是"已进行"(见 anim.ts clockFor)
-              const animClock = clockFor(action, clock.runTime, {
-                dashT: p.dashT > 0 ? p.dashDur - p.dashT : undefined,
-                attackT: p.attackT > 0 ? p.attackDur - p.attackT : undefined,
-                hurtT: h.flash > 0 ? balance.feel.flashSec - h.flash : undefined,
-                dieT: p.respawnT > 0 ? balance.player.respawn.delay - p.respawnT : undefined,
-              });
+              const animClock = clockFor(action, clock.runTime, clocksOf({
+                dashT: p.dashT, dashDur: p.dashDur,
+                attackT: p.attackT, attackDur: p.attackDur,
+                hurtT: h.flash, hurtDur: balance.feel.flashSec,
+                respawnT: p.respawnT, respawnDur: balance.player.respawn.delay,
+              }));
               const spriteName = spriteFor(base, action, animClock, (n) => sprites.get(n) !== null);
               const bob = bobPx(clock.runTime, action === 'walk');
               const ok = drawSprite(ctx, spriteName, ix, iy + bob, {

@@ -64,6 +64,10 @@ SEQUENCES: dict[str, Seq] = {
     "knight_die": Seq(frames=4, target_h=46, anchor=1),
     # 施法 3 帧:锚点取收招帧(剑回到肩上、身体站直)
     "knight_cast": Seq(frames=3, target_h=46, anchor=3),
+    # ---- 猎手(远程职业:普攻在代码里走 cast 动作 —— 拉弓与挥剑本来就是两套姿态)----
+    "ranger_walk": Seq(frames=4, target_h=46, anchor=1),
+    "ranger_cast": Seq(frames=3, target_h=46, anchor=3),   # 锚点:收弓站直那帧
+    "ranger_dash": Seq(frames=3, target_h=46, anchor=3),   # 锚点:起身帧(第 3 帧下轮补)
 }
 
 PAD = 2  # 画布四周留白

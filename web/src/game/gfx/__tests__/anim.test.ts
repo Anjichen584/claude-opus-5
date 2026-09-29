@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import balance from '@data/balance.json';
 import {
-  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, frameIndex, frameList, frameName, spriteFor,
-  type AnimAction,
+  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, clocksOf, elapsed, frameIndex, frameList,
+  frameName, spriteFor, type AnimAction,
 } from '@game/gfx/anim';
 import { SPRITE_NAMES } from '@game/gfx/spriteDraw';
 
@@ -129,6 +129,54 @@ describe('精灵选择(spriteFor · 回退链)', () => {
   });
 });
 
+describe('动作时钟换算(elapsed / clocksOf)', () => {
+  it('剩余 → 已进行:动作没在进行(≤0 或缺字段)一律 undefined', () => {
+    expect(elapsed(0.1, 0.3)).toBeCloseTo(0.2, 6);
+    expect(elapsed(0, 0.3)).toBeUndefined();
+    expect(elapsed(-0.5, 0.3)).toBeUndefined();
+    expect(elapsed(undefined, 0.3)).toBeUndefined();
+    expect(elapsed(0.1, undefined)).toBeUndefined();
+  });
+
+  it('五个动作的计时器都从组件字段映射出来(**漏一个 = 那个动作永远停在第一帧**)', () => {
+    const c = clocksOf({
+      dashT: 0.05, dashDur: 0.22,
+      attackT: 0.1, attackDur: 0.2,
+      hurtT: 0.02, hurtDur: 0.1,
+      respawnT: 0.3, respawnDur: 1.5,
+    });
+    expect(c.dashT).toBeCloseTo(0.17, 6);
+    expect(c.attackT).toBeCloseTo(0.1, 6);
+    expect(c.castT, '远程普攻就是 cast —— 必须和普攻共用计时器').toBeCloseTo(0.1, 6);
+    expect(c.hurtT).toBeCloseTo(0.08, 6);
+    expect(c.dieT).toBeCloseTo(1.2, 6);
+  });
+
+  it('不动(全为 0)时所有时钟都是 undefined,clockFor 归 0 = 第一帧', () => {
+    const c = clocksOf({ dashT: 0, dashDur: 0.22, attackT: 0, attackDur: 0.2 });
+    expect(c.dashT).toBeUndefined();
+    expect(clockFor('dash', 12, c)).toBe(0);
+    expect(clockFor('cast', 12, c)).toBe(0);
+  });
+
+  it('拉弓的时间轴:起手 → 放箭 → 保持收招(而不是永远第 1 帧 —— 本轮真踩过)', () => {
+    const has = loaded(['ranger_cast_1', 'ranger_cast_2', 'ranger_cast_3']);
+    // cast 序列 3 帧 @12fps = 0.25s,而普攻总时长 0.5s:后半段**保持最后一帧**(一次性动作不循环)
+    const castOf = (elapsedS: number): string => {
+      const dur = 0.5;
+      const c = clocksOf({ attackT: dur - elapsedS, attackDur: dur });
+      return spriteFor('ranger', 'cast', clockFor('cast', 99, c), has);
+    };
+    expect(castOf(0), '起手').toBe('ranger_cast_1');
+    // 0.09s 明确落在第 2 帧内(1/12 = 0.0833…,卡在边界上浮点会 floor 到第 1 帧)
+    expect(castOf(0.09), '第 2 帧:放箭').toBe('ranger_cast_2');
+    expect(castOf(0.2), '序列放完 → 保持收招').toBe('ranger_cast_3');
+    expect(castOf(0.49), '动作还没结束 → 仍停在收招').toBe('ranger_cast_3');
+    // 计时器归 0 = **这个动作结束了**(判定层会把状态切回待机/走路),所以帧回到第 1 帧是对的
+    expect(castOf(0.5), '动作结束(计时器归 0)→ 时钟归 0').toBe('ranger_cast_1');
+  });
+});
+
 describe('动作时钟(clockFor)', () => {
   const span = (a: AnimAction): number => ANIM[a].frames / ANIM[a].fps;
 
@@ -225,7 +273,11 @@ describe('动作序列资产(度量清单驱动)', () => {
 
   it('每套:帧数与 balance.anim 一致、锚点帧身体高度 = 目标高度、各帧画布一致', () => {
     const m = readManifest();
-    const idleH = pngSize(resolve(DIR, 'knight.png'))[1];
+    // 目标高度按**自己那个职业的站立单帧**判:切动作时是同一个人,不该变大变小
+    const idleHOf = (seq: string): number => {
+      const base = seq.slice(0, seq.lastIndexOf('_'));
+      return pngSize(resolve(DIR, `${base}.png`))[1];
+    };
     for (const [seq, info] of Object.entries(m)) {
       const suffix = seq.slice(seq.lastIndexOf('_') + 1);
       const action = ACTION_OF_SUFFIX[suffix];
@@ -233,8 +285,9 @@ describe('动作序列资产(度量清单驱动)', () => {
       expect(info.frames, `${seq} 帧数与 balance.anim.${suffix}.frames 不一致`).toBe(ANIM[action].frames);
       // 锚点帧身体高度 = 目标高度(±1px 是最近邻缩放的取整误差)
       expect(Math.abs(info.anchorBody[1] - info.targetH), `${seq} 锚点帧身体 ${info.anchorBody[1]}px ≠ 目标 ${info.targetH}px`).toBeLessThanOrEqual(1);
-      // 目标高度还要与既有单帧精灵同高,否则切动作时"人变大变小"
-      expect(Math.abs(info.targetH - idleH), `${seq} 目标高 ${info.targetH} 与 knight.png ${idleH} 差太多`).toBeLessThanOrEqual(2);
+      // 目标高度还要与**该职业**的站立单帧同高,否则切动作时"人变大变小"
+      const idleH = idleHOf(seq);
+      expect(Math.abs(info.targetH - idleH), `${seq} 目标高 ${info.targetH} 与 ${seq.slice(0, seq.lastIndexOf('_'))}.png ${idleH} 差太多`).toBeLessThanOrEqual(2);
       // 清单说画布一致 → 实际文件也要一致(清单是管线的自述,得跟产物对得上)
       for (let i = 1; i <= info.frames; i++) {
         const f = resolve(DIR, `${seq}_${i}.png`);

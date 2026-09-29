@@ -164,5 +164,63 @@
     ],
     "frames": 4,
     "targetH": 46
+  },
+  "ranger_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      38,
+      46
+    ],
+    "bodies": [
+      [
+        40,
+        46
+      ],
+      [
+        37,
+        46
+      ],
+      [
+        38,
+        46
+      ]
+    ],
+    "canvas": [
+      44,
+      55
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "ranger_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        37,
+        46
+      ],
+      [
+        37,
+        45
+      ],
+      [
+        37,
+        47
+      ]
+    ],
+    "canvas": [
+      42,
+      56
+    ],
+    "frames": 4,
+    "targetH": 46
   }
 }
