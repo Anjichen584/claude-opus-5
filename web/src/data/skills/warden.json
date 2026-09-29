@@ -20,7 +20,7 @@
     {
       "id": "warden_e_charge",
       "slot": "E",
-      "icon": "dash",
+      "icon": "bulwark",
       "name": "壁垒冲锋",
       "cooldown": 8.0,
       "phases": [

@@ -107,6 +107,24 @@ isolated on a flat solid magenta (#FF00FF) background, 16-bit retro RPG item ico
 >
 > 待生成(下一批):**E 位专属图标 ×4**(潮涌步/疾风回旋/星幕闪现/壁垒冲锋,现用 `icon_dash` 原型)、技能特效贴图第一批。
 
+### E 位专属图标 ×4 + 技能特效贴图 ×6(2026-09-29,第五批之三)
+- **icon_tidestep**(剑士 E 潮涌步): water-surge dash trail, three crescent wave arcs of bright cyan-blue water with white foam tips
+- **icon_gale**(猎手 E 疾风回旋): spinning gale ring of pale green wind blades, five curved blades around a small arrow, **no outer frame**
+- **icon_blink**(秘术师 E 星幕闪现): violet magic blink, upright teardrop silhouette dissolving into rising star sparkles + arcane glyph ring
+- **icon_bulwark**(守卫 E 壁垒冲锋): charging tower shield at an angle, bronze rim with beige stone face, two white speed streaks
+
+特效贴图(统一风格锚点,但**结尾换成 VFX asset 句式**):
+- **fx_swordfall**(剑士 R 星陨): a single vertical energy sword falling straight down, golden star trail streaking above, white spark burst at the tip — **竖向长条**,管线按高度缩放(150)
+- **fx_vortex**(秘术师 R 元素风暴): elemental vortex seen slightly from above, four curling strands (orange fire / pale ice / yellow lightning / green poison) spiraling inward around a bright void
+- **fx_shockwave**(守卫 Q 冲锋终点 / R 怒吼): flat expanding shockwave ring from above, three concentric bronze-amber rings, empty translucent center — **扁平**,按宽度缩放(168)
+- **fx_crack**(守卫 Q 岩震击): ground impact crack decal from above, radial spiderweb of jagged fissures glowing amber from inside
+- **fx_arrowrain**(猎手 R 星陨箭雨): downward arrow-rain impact marker, glowing green-gold targeting ring with four arrow tips stabbing in
+- **fx_dash_trail**(冲刺残影): horizontal dash motion trail, three stretched cyan-white afterimage streaks tapering right
+
+> **管线新增两条**:① 宽幅特效按**宽度**缩放(`tools/process_art.py` 的 `FX_WIDE`)——
+> 按高度缩放的扁平冲击环会得到离谱的宽度;② 特效与技能的对应关系集中在 `web/src/game/gfx/skillFx.ts`,
+> 由 `gfx/__tests__/skillFx.test.ts` 守卫(登记 + 文件在位 + 尺寸形态 + 回退链 + 四职业 R 必须专属)。
+
 ### 怪物第二帧(2026-09-29,12 只)
 全部用「第一帧成品放大图 + same creature as the reference, but in a mid-walk / wing-down /
 bouncing frame」句式生成;`snowpuff_f2` 第一版是细线稿被管线误吃,重绘为**实心白球**并强调

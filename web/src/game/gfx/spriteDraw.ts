@@ -88,4 +88,7 @@ export const SPRITE_NAMES = [
   'icon_st_stardust', 'icon_st_time',
   'icon_cleave', 'icon_starfall', 'icon_fan', 'icon_arrowstorm',
   'icon_seeker', 'icon_tempest', 'icon_quake', 'icon_roar',
+  // 第五批之三:E 位专属图标 + 技能专属特效贴图
+  'icon_tidestep', 'icon_gale', 'icon_blink', 'icon_bulwark',
+  'fx_swordfall', 'fx_vortex', 'fx_shockwave', 'fx_crack', 'fx_arrowrain', 'fx_dash_trail',
 ] as const;

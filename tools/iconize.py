@@ -43,6 +43,8 @@ ICON_TARGETS = {
     "icon_fan": 30, "icon_arrowstorm": 30,
     "icon_seeker": 30, "icon_tempest": 30,
     "icon_quake": 30, "icon_roar": 30,
+    # 第五批之三:E 位专属图标 ×4(潮涌步/疾风回旋/星幕闪现/壁垒冲锋)+ 技能特效贴图走 process_art
+    "icon_tidestep": 30, "icon_gale": 30, "icon_blink": 30, "icon_bulwark": 30,
 }
 
 

@@ -22,7 +22,7 @@
     {
       "id": "ranger_e_nova",
       "slot": "E",
-      "icon": "dash",
+      "icon": "gale",
       "name": "疾风回旋",
       "cooldown": 6.0,
       "phases": [

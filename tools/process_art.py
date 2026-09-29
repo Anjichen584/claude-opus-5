@@ -92,7 +92,23 @@ TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
 
 # 特效贴图:纯黑底,运行时 'lighter' 加法混合(黑=不发光,无需抠图)。
 # 处理:亮度>16 的 bbox 裁剪 → 等比缩放到目标高。
-FX = {"fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128}
+# 特效:名字 → 目标尺寸。int = 按**高度**缩放;("w", n) = 按**宽度**缩放(宽幅/扁平的贴花)
+FX = {
+    "fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128,
+    # 第五批之三:技能专属特效(宽幅的一律按宽度,否则扁平的冲击环会被拉成巨型)
+    "fx_swordfall": 150, ("x", "fx_shockwave"): None,  # 占位(下面用单独表处理)
+} if False else {
+    "fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128,
+    "fx_swordfall": 150,      # 剑士 R 星陨:剑体是竖向长条,按高度
+    "fx_vortex": 104,         # 秘术师 R 元素风暴:近方形
+}
+# 扁平的贴花/光环:按宽度缩放(按高度会得到离谱的宽度)
+FX_WIDE = {
+    "fx_shockwave": 168,      # 守卫 Q/R 冲击环(扁环)
+    "fx_crack": 150,          # 守卫 Q 地面裂纹
+    "fx_arrowrain": 132,      # 猎手 R 落点标记
+    "fx_dash_trail": 120,     # 冲刺残影(横向拖尾)
+}
 
 # 9-slice UI 面板:抠图后强制正方形输出(切片尺寸由绘制端按比例取,见 gfx/nineSlice.ts)
 PANEL = {"ui_panel": 32}
@@ -285,7 +301,8 @@ def main() -> None:
         img = img.resize((max(1, round(img.width * scale)), target_h), Image.NEAREST)
         img.save(OUT / f"{name}.png")
         print(f"{name}: {img.width}x{img.height}")
-    for name, size in FX.items():
+    for name, size in list(FX.items()) + list(FX_WIDE.items()):
+        wide = name in FX_WIDE
         src = SRC / f"{name}.png"
         if not src.exists():
             print(f"{name}: 缺源图,跳过")
@@ -304,10 +321,15 @@ def main() -> None:
             print(f"{name}: 全黑?跳过")
             continue
         img = img.crop((max(0, minx - 4), max(0, miny - 4), min(w, maxx + 5), min(h, maxy + 5)))
-        scale = size / img.height
-        img = img.resize((max(1, round(img.width * scale)), size), Image.NEAREST)
+        if wide:
+            # 宽幅:先按宽度对齐,再按保留比例的高度输出
+            scale = size / img.width
+            img = img.resize((size, max(1, round(img.height * scale))), Image.NEAREST)
+        else:
+            scale = size / img.height
+            img = img.resize((max(1, round(img.width * scale)), size), Image.NEAREST)
         img.save(OUT / f"{name}.png")
-        print(f"{name}: fx {img.width}x{img.height}")
+        print(f"{name}: fx {img.width}x{img.height}{' (wide)' if wide else ''}")
 
     for name in PAIRS:
         target = TARGETS.get(name)

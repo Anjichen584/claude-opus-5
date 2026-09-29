@@ -17,8 +17,8 @@ interface Floater { x: number; y: number; vy: number; t: number; life: number; t
 interface Particle { x: number; y: number; vx: number; vy: number; t: number; life: number; color: string; size: number }
 interface Slash { x: number; y: number; angle: number; stage: number; t: number; dur: number; rangePx: number; arcRad: number }
 interface Ghost { x: number; y: number; face: number; t: number; life: number }
-interface Beam { x: number; y: number; color: string; t: number; life: number }
-interface Ring { x: number; y: number; radius: number; color: string; t: number; life: number }
+interface Beam { x: number; y: number; color: string; t: number; life: number; sprite: string | null }
+interface Ring { x: number; y: number; radius: number; color: string; t: number; life: number; sprite: string | null }
 
 /**
  * 打击感中枢:消费战斗事件 → 顿帧/屏震/飘字/粒子/弧光/残影/红晕/音效。
@@ -145,7 +145,7 @@ export class FeedbackSystem implements System {
     }
 
     for (const b of world.read(BeamFxEvent)) {
-      this.beams.push({ x: b.x, y: b.y, color: b.color, t: 0, life: 0.28 });
+      this.beams.push({ x: b.x, y: b.y, color: b.color, t: 0, life: 0.28, sprite: b.sprite });
       sfx.play('beam');
       this.shake(1.5, 0.05);
       for (let i = 0; i < 6; i++) {
@@ -159,7 +159,7 @@ export class FeedbackSystem implements System {
     }
 
     for (const r of world.read(RingFxEvent)) {
-      this.rings.push({ x: r.x, y: r.y, radius: r.radiusPx, color: r.color, t: 0, life: 0.35 });
+      this.rings.push({ x: r.x, y: r.y, radius: r.radiusPx, color: r.color, t: 0, life: 0.35, sprite: r.sprite });
     }
 
     for (const s of world.read(SfxEvent)) sfx.play(s.kind);
@@ -280,9 +280,15 @@ export class FeedbackSystem implements System {
       }
     }
     for (const g of this.ghosts) {
-      const a = (1 - g.t / g.life) * 0.35;
+      const a = 1 - g.t / g.life;
+      // 正式拖尾贴图优先(沿冲刺方向旋转);未加载回退程序化椭圆残影
+      if (FeedbackSystem.fx(ctx, 'fx_dash_trail', g.x, g.y - 16, {
+        alpha: a * 0.8, rot: g.face, scaleW: 0.85, scaleH: 0.85,
+      })) {
+        continue;
+      }
       ctx.save();
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = a * 0.35;
       ctx.fillStyle = '#8fb7ff';
       ctx.beginPath();
       ctx.ellipse(g.x, g.y - 18, 12, 18, 0, 0, Math.PI * 2);
@@ -293,6 +299,19 @@ export class FeedbackSystem implements System {
     for (const b of this.beams) {
       const p = b.t / b.life;
       const a = 1 - p;
+      // 专属贴图(星陨的星剑):直接按高度铺,顶部再随进度抬起一点
+      if (b.sprite && FeedbackSystem.fx(ctx, b.sprite, b.x, b.y - 40 * (1 - p * 0.35), {
+        alpha: a, scaleW: 0.85 + p * 0.15, scaleH: 0.8 + p * 0.2,
+      })) {
+        ctx.save();
+        ctx.globalAlpha = a * 0.45;
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y, 18 * (1 - p * 0.3), 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        continue;
+      }
       if (FeedbackSystem.fx(ctx, 'fx_beam', b.x, b.y - 62 * (1 - p * 0.3), {
         alpha: a, scaleW: 0.9 - p * 0.3, scaleH: 1 - p * 0.35,
       })) {
@@ -326,6 +345,18 @@ export class FeedbackSystem implements System {
     for (const r of this.rings) {
       const p = r.t / r.life;
       const grow = r.radius * (0.3 + 0.7 * p) * 2;
+      // 专属贴图(冲击环/漩涡/裂纹/箭雨落点):按"目标直径 / 贴图宽"等比缩放到实际半径
+      if (r.sprite) {
+        const img = sprites.get(r.sprite);
+        if (img && FeedbackSystem.fx(ctx, r.sprite, r.x, r.y - 6, {
+          alpha: (1 - p) * 0.95,
+          scaleW: grow / img.width,
+          scaleH: grow / Math.max(img.width, 1),
+          rot: r.sprite === 'fx_vortex' ? p * 1.2 : 0,
+        })) {
+          continue;
+        }
+      }
       if (FeedbackSystem.fx(ctx, 'fx_ring', r.x, r.y - 8, {
         alpha: (1 - p) * 0.9, scaleW: grow / 93, scaleH: (grow / 93) * 0.55, rot: p * 0.6,
       })) {

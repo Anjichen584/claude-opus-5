@@ -23,7 +23,7 @@
     {
       "id": "arcanist_e_blink",
       "slot": "E",
-      "icon": "dash",
+      "icon": "blink",
       "name": "星幕闪现",
       "cooldown": 6.0,
       "phases": [

@@ -547,12 +547,20 @@ export class ReactionEvent {
 
 /** 天降剑/落雷类柱状特效 */
 export class BeamFxEvent {
-  constructor(public x: number, public y: number, public color: string) {}
+  constructor(
+    public x: number, public y: number, public color: string,
+    /** 专属贴图(如 fx_swordfall);null = 用通用光柱 */
+    public sprite: string | null = null,
+  ) {}
 }
 
 /** 扩散环特效(爆炸/残影引爆) */
 export class RingFxEvent {
-  constructor(public x: number, public y: number, public radiusPx: number, public color: string) {}
+  constructor(
+    public x: number, public y: number, public radiusPx: number, public color: string,
+    /** 专属贴图(如 fx_shockwave/fx_vortex/fx_crack/fx_arrowrain);null = 用通用扩散环 */
+    public sprite: string | null = null,
+  ) {}
 }
 
 /** 程序化音效请求 */

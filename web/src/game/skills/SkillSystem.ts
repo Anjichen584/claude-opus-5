@@ -14,6 +14,7 @@ import {
 import { elementColor } from '@game/combat/Elements';
 import { dealDamage } from '@game/combat/DamagePipeline';
 import { bindOf } from '@game/meta/Bindings';
+import { spriteOfSkill } from '@game/gfx/skillFx';
 
 export interface RuneDef {
   id: string;
@@ -285,7 +286,8 @@ export class SkillSystem implements System {
             y = ptr.y + Math.sin(a) * r;
           }
           const color = element ? elementColor(element) : '#ffd94f';
-          w.emit(new BeamFxEvent(x, y, color));
+          // 专属贴图查表(gfx/skillFx.ts):未加载时 FeedbackSystem 会逐级回退
+          w.emit(new BeamFxEvent(x, y, color, spriteOfSkill(def.id)));
           for (const e of foes) {
             const ttr = w.mustGet(e, Transform);
             if (Math.hypot(ttr.x - x, ttr.y - y) <= ph.aoeM * M) {
@@ -426,7 +428,7 @@ export class SkillSystem implements System {
           const x = tx + Math.cos(a) * r;
           const y = ty + Math.sin(a) * r;
           const color = element ? elementColor(element) : '#ffd94f';
-          w.emit(new BeamFxEvent(x, y, color));
+          w.emit(new BeamFxEvent(x, y, color, spriteOfSkill(def.id)));
           for (const e of w.query(Health, Transform, Faction)) {
             const f = w.mustGet(e, Faction);
             if (f.team === 'player') continue;
@@ -537,7 +539,7 @@ export class SkillSystem implements System {
     world.add(z, new Transform(tr.x, tr.y));
     // 怒气越满持续越久(+50%)
     world.add(z, new Zone(ph.radiusM * M, ph.lifeS * (1 + ratio * 0.5), ph.tickS, stats.atk, ph.mult, element, 'player', color));
-    world.emit(new RingFxEvent(tr.x, tr.y, ph.radiusM * M, color));
+    world.emit(new RingFxEvent(tr.x, tr.y, ph.radiusM * M, color, spriteOfSkill(def.id)));
   }
 
   // ================== 岩铠守卫 ==================
@@ -583,7 +585,11 @@ export class SkillSystem implements System {
     world.emit(new SfxEvent('skill'));
     const arcRad = (ph.arcDeg * Math.PI) / 180;
     world.emit(new SlashFxEvent(tr.x, tr.y, tr.face, 3, ph.rangeM * M, arcRad));
-    world.emit(new RingFxEvent(tr.x + Math.cos(tr.face) * ph.rangeM * M * 0.6, tr.y + Math.sin(tr.face) * ph.rangeM * M * 0.6, 34, element ? elementColor(element) : '#d9a05f'));
+    world.emit(new RingFxEvent(
+      tr.x + Math.cos(tr.face) * ph.rangeM * M * 0.6,
+      tr.y + Math.sin(tr.face) * ph.rangeM * M * 0.6,
+      34, element ? elementColor(element) : '#d9a05f', spriteOfSkill(def.id),
+    ));
     this.coneHit(world, pe, tr, arcRad, ph.rangeM * M, ph.mult, element, { stunS: ph.stunS });
   }
 
@@ -611,7 +617,7 @@ export class SkillSystem implements System {
         if (!ptr || !stats) return;
         const color = element ? elementColor(element) : '#d9a05f';
         w.emit(new SfxEvent('reaction'));
-        w.emit(new RingFxEvent(ptr.x, ptr.y, ph.rangeM * M, color));
+        w.emit(new RingFxEvent(ptr.x, ptr.y, ph.rangeM * M, color, spriteOfSkill(def.id)));
         this.coneHit(w, pe, ptr, (ph.arcDeg * Math.PI) / 180, ph.rangeM * M, ph.mult, element, { knockbackM: ph.knockbackM });
         if (rune?.groundZone) {
           const gz = rune.groundZone;
@@ -636,7 +642,10 @@ export class SkillSystem implements System {
     const color = element ? elementColor(element) : '#d9a05f';
     for (let i = 0; i < 3; i++) {
       const rr = ph.radiusM * M * ((i + 1) / 3);
-      this.queue.push({ t: i * 0.08, run: (w) => w.emit(new RingFxEvent(tr.x, tr.y, rr, color)) });
+      this.queue.push({
+        t: i * 0.08,
+        run: (w) => w.emit(new RingFxEvent(tr.x, tr.y, rr, color, spriteOfSkill(def.id))),
+      });
     }
     // 全周 = 用 2π 锥形
     this.coneHit(world, pe, tr, Math.PI * 2.01, ph.radiusM * M, ph.mult, element,

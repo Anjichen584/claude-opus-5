@@ -22,7 +22,7 @@
     {
       "id": "blade_e_tidestep",
       "slot": "E",
-      "icon": "dash",
+      "icon": "tidestep",
       "name": "潮涌步",
       "cooldown": 6.0,
       "phases": [
