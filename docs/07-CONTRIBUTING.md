@@ -61,3 +61,39 @@ AI 选现有行为树模板或在 `game/ai/behaviors/` 新写节点 →
    这三条是本工程最容易腐化的地方。
 3. 保持垂直切片纪律: GDD §12 "不做的事"没有讨论前不要做。
 4. 每个 Phase 完成后除了推代码,把 05-ROADMAP 的里程碑表也勾掉。
+
+---
+
+## 收尾纪律(沙箱环境必读)
+
+构建沙箱的工作区快照上限约 **128 MB**,超过会**静默丢文件**(本会话丢过 `.git`、`node_modules`
+和 80 MB 美术源图共三次)。因此每次写完一小块就执行:
+
+```bash
+tools/sync.sh "提交信息"     # 提交 → 推送 → 清沙箱,一条命令搞定
+```
+
+脚本做三件事:
+
+1. `git add -A` + 提交(无改动则跳过);
+2. 推送 `origin/main`(部署密钥走 `~/.ssh/github_deploy`,由 `~/.ssh/config` 指给 github.com);
+3. 清理临时文件(外层目录的预览 PNG、`web/dist`、`/tmp/refs`),并打印工作区体积,
+   超过 60 MB 告警。
+
+### 铁律
+
+- **大文件不进仓库**:AI 源图放 `web/art_src/`(已 gitignore)、临时拼图写到仓库外且用完即删;
+- **只留一份仓库副本**:曾同时留 `repo_tmp` + `repo_sync` 两份(~112 MB)直接顶爆快照;
+- **提交前先看体积**:`du -sh --exclude=node_modules .`;
+- **每次改动都要推送**:环境随时可能被重建,只有 GitHub 上的东西是安全的。
+
+### 环境被重建后的恢复步骤
+
+```bash
+# 1. 放回部署密钥(内容见项目文档/交接说明,切勿提交进仓库)
+install -m 600 /path/to/deploy_key ~/.ssh/github_deploy
+# 2. 浅克隆:历史留在远端,本地只留一份,省体积
+git clone --depth 1 git@github.com:Anjichen584/claude-opus-5.git repo && cd repo/web
+# 3. 装依赖(node_modules 不进快照,每次都要装)
+npm install && npm test
+```
