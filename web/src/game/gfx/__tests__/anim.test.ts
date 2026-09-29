@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import balance from '@data/balance.json';
 import {
-  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, clocksOf, elapsed, frameIndex, frameList,
-  frameName, spriteFor, type AnimAction,
+  ANIM, ACTION_PRIORITY, actionOf, bobPx, clockFor, clocksOf, cycleSec, elapsed, frameIndex,
+  frameList, frameName, spriteFor, twoFrame, twoFrameFlip, type AnimAction,
 } from '@game/gfx/anim';
 import { SPRITE_NAMES } from '@game/gfx/spriteDraw';
 
@@ -229,6 +229,55 @@ describe('走路起伏(bobPx)', () => {
   it('幅度要小(大于 2px 的起伏会让像素画看起来在飘)', () => {
     expect(A.bobAmplitudePx).toBeGreaterThan(0);
     expect(A.bobAmplitudePx).toBeLessThan(2);
+  });
+});
+
+describe('杂兵两帧资产(twoFrame)—— 走路节奏只有一个来源', () => {
+  const hasF2 = loaded(['windbee', 'windbee_f2']);
+
+  it('缺 `_f2` → 退回站立单帧(降级而非消失)', () => {
+    expect(twoFrame('windbee', 0.3, loaded(['windbee']))).toBe('windbee');
+    expect(twoFrame('shroomling', 0.3, loaded([]))).toBe('shroomling');
+  });
+
+  it('不动/被定身时不翻帧(原地抖腿看着像卡了)', () => {
+    for (let t = 0; t < 1; t += 0.05) {
+      expect(twoFrame('windbee', t, hasF2, false)).toBe('windbee');
+      expect(twoFrameFlip(t, false)).toBe(false);
+    }
+  });
+
+  it('**交替节奏推导自 balance.anim.walk**(不是手写的 8 次/秒)', () => {
+    // 改帧率时玩家与杂兵必须一起变:两帧资产每**半圈**翻一次,等于"每两个走路帧翻一次"
+    const expectGap = cycleSec('walk') / 2;
+    expect(expectGap, '两帧步长 = 走路一圈的一半').toBeCloseTo(2 / ANIM.walk.fps, 6);
+    const flips: number[] = [];
+    let prev = twoFrameFlip(0);
+    for (let t = 0.001; t < 1; t += 0.001) {
+      const now = twoFrameFlip(t);
+      if (now !== prev) flips.push(t);
+      prev = now;
+    }
+    // 1 秒内翻 1/步长 次(首帧不计,所以是 次数-1 个间隔)
+    expect(flips.length, '1 秒内的翻转次数与步长对得上').toBe(Math.round(1 / expectGap) - 1);
+    for (let i = 1; i < flips.length; i++) {
+      expect(flips[i] - flips[i - 1], '翻转间隔恒定 = 半圈').toBeCloseTo(expectGap, 2);
+    }
+    // 硬编码 8 次/秒会得到 0.125s 的间隔 —— 比正确值快一倍,这条会红
+    expect(flips[0]).toBeCloseTo(expectGap, 2);
+  });
+
+  it('两帧走路真的在两帧之间切(降级路径不是死代码)', () => {
+    const names = new Set<string>();
+    for (let t = 0; t < 0.6; t += 0.01) names.add(twoFrame('windbee', t, hasF2));
+    expect([...names].sort()).toEqual(['windbee', 'windbee_f2']);
+  });
+
+  it('场景层不再有第二套走路节奏(硬编码 `floor(t*8)%2` 会与玩家漂开)', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/game/GameScene.ts'), 'utf8');
+    expect(/floor\(\s*clock\.runTime\s*\*\s*8\s*\)/.test(src), 'GameScene 里还有硬编码的 8fps 翻帧')
+      .toBe(false);
+    expect(src, 'frame2 应该委托给 anim.ts 的 twoFrame').toMatch(/twoFrame\(/);
   });
 });
 

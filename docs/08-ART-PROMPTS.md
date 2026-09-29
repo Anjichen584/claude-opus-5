@@ -222,3 +222,33 @@ no anti-aliasing, no motion blur, no shadow, no text`)。**战斗动作的一致
 > 表现是「拉弓永远停在第 1 帧」,肉眼看起来像美术/贴图问题,很容易往错的方向查。
 > 修法不是补一行参数了事,而是把「组件字段 → 动作时钟」抽成纯函数 `clocksOf`(`gfx/anim.ts`)并补单测:
 > 以后漏字段会被测试抓住,而不是靠人盯着画面猜。
+
+### 动画序列 · 批次 28 待出:**猎手翻滚第 3 帧 / 受击 / 死亡**(2026-09-29 排好队,额度一到就出)
+
+出图额度按用户轮计(单轮 10 张),批 28 上半已打满,所以这一批**先把提示词与姿势表定死**,下轮直接生成。
+
+参考图:主参考 `public/sprites/ranger.png`(8× 放大,身份/配色/尺寸),姿势参考用**同一职业的已有帧**
+(不要拿剑士的帧当姿势参考 —— 模型会把铠甲一起带过来):
+
+| 序列 | 帧 | 姿势 | 参考图 |
+|---|---|---|---|
+| `ranger_dash` | 3 | 起身落脚,站直、双脚落地、弓收回身侧(**本套缩放锚点帧**) | `ranger_cast_3.png`(站直收弓) |
+| `ranger_hurt` | 1 | 仰头闭眼、双臂张开、弓横在身前(**锚点帧**) | `ranger_walk_1.png`(身体近乎直立) |
+| | 2 | 踉跄后仰,一只脚后撤,头发/斗篷甩起 | `ranger_walk_3.png` |
+| `ranger_die` | 1 | 受创仰头、双臂垂落、弓从手里松脱开始下落(**锚点帧**) | `ranger.png` |
+| | 2 | 跪倒,躯干前倾头低垂,弓落在身旁地上 | `ranger_hurt_2.png` |
+| | 3 | 侧倒,身体接近水平,一臂前伸 | — |
+| | 4 | 躺平不动,姿态完全落定 | — |
+
+**四条写进提示词的硬约束**(全是踩过的坑,逐条对应):
+
+1. `SAME SIZE as the reference — she must fill the frame`(画小是锚点定比例下最隐蔽的失败,整套都会跟着小);
+2. **弓的位置写死**:站立/受击 `bow held in her left hand at her side`,倒地 `the bow lies flat ON THE GROUND in front of her, not floating above her body`;
+3. **绿斗篷不许变紫/变蓝**,银发 + 绿叶发夹是身份锚点;
+4. `isolated on a flat solid magenta (#FF00FF) background, no shadow, no text`(公共尾串)。
+
+```bash
+# 生成后:登记进 tools/process_frames.py 的 SEQUENCES(ranger_hurt: frames=2, anchor=1;
+# ranger_die: frames=4, anchor=1;ranger_dash 已是 frames=3, anchor=3)→ 跑管线 → 补 SPRITE_NAMES → npm test
+python3 tools/process_frames.py ranger
+```

@@ -1778,6 +1778,46 @@ namespace StarfallKnights.Tests
             Check(MathF.Abs(AnimRules.BobPx(0.2f, true)) <= Bestiary.AnimBobAmplitudePx + 1e-4f, "走路起伏不超幅度");
             float stepsPerS = Bestiary.AnimWalkFps / Bestiary.AnimWalkFrames;
             Near(AnimRules.BobPx(0f, true), AnimRules.BobPx(1f / stepsPerS, true), 1e-4f, "起伏周期 = 一步");
+
+            // ---- 动作时钟(剩余 → 已进行;web 侧 clocksOf / clockFor 的镜像)----
+            // 这条映射是 web 侧真踩过的坑:漏一个字段 = 那个动作永远停在第 1 帧(拉弓僵住,像美术坏了)
+            Near(AnimRules.Elapsed(0.1f, 0.3f) ?? -1f, 0.2f, 1e-5f, "剩余 0.1 / 总 0.3 → 已进行 0.2");
+            Check(AnimRules.Elapsed(0f, 0.3f) == null, "剩余 ≤ 0 = 动作没在进行 → null");
+            Check(AnimRules.Elapsed(-0.5f, 0.3f) == null, "负剩余也 → null");
+            Check(AnimRules.Elapsed(null, 0.3f) == null && AnimRules.Elapsed(0.1f, null) == null, "缺字段 → null");
+
+            var clk = AnimRules.ClocksOf(0.05f, 0.22f, 0.1f, 0.2f, 0.02f, 0.1f, 0.3f, 1.5f);
+            Near(clk.DashT ?? -1f, 0.17f, 1e-5f, "翻滚时钟");
+            Near(clk.AttackT ?? -1f, 0.1f, 1e-5f, "普攻时钟");
+            Near(clk.CastT ?? -1f, clk.AttackT ?? -2f, 1e-5f, "远程普攻就是 cast —— 与普攻共用计时器");
+            Near(clk.HurtT ?? -1f, 0.08f, 1e-5f, "受击时钟");
+            Near(clk.DieT ?? -1f, 1.2f, 1e-5f, "死亡时钟(走复活倒计时)");
+
+            var idleClk = AnimRules.ClocksOf(0f, 0.22f, 0f, 0.2f, null, null, null, null);
+            Check(idleClk.DashT == null && idleClk.AttackT == null, "全为 0 → 全 null(不产生 NaN)");
+            Check(AnimRules.ClockFor(AnimAction.Dash, 12f, idleClk) == 0f, "动作没在进行 → 时钟归 0 = 第 1 帧");
+
+            // clockFor:循环动作吃全局时间;一次性动作吃自己的时钟并夹在 [0, 总时长]
+            Check(AnimRules.ClockFor(AnimAction.Walk, 12.34f, clk) == 12.34f, "循环动作吃全局时间");
+            Near(AnimRules.ClockFor(AnimAction.Dash, 99f, clk), 0.17f, 1e-5f, "一次性动作不吃全局时间");
+            Near(AnimRules.ClockFor(AnimAction.Atk, 0f, new AnimRules.AnimClocks { AttackT = 99f }),
+                AnimRules.CycleSec(AnimAction.Atk), 1e-4f, "超出总时长夹住");
+            Check(AnimRules.ClockFor(AnimAction.Atk, 0f, new AnimRules.AnimClocks { AttackT = -3f }) == 0f,
+                "负时钟夹到 0");
+            Check(AnimRules.ClockFor(AnimAction.Cast, 7f, default(AnimRules.AnimClocks)) == 0f,
+                "缺计时器按 0 处理(不产生 NaN)");
+
+            // 两帧资产(杂兵走路):节奏推导自走路规格,不是手写常数
+            Near(AnimRules.CycleSec(AnimAction.Walk), Bestiary.AnimWalkFrames / Bestiary.AnimWalkFps, 1e-5f,
+                "走路一圈 = 帧数 / 帧率");
+            float flipGap = AnimRules.CycleSec(AnimAction.Walk) / 2f;
+            Near(flipGap, 2f / Bestiary.AnimWalkFps, 1e-5f, "两帧步长 = 每两个走路帧翻一次");
+            Check(!AnimRules.TwoFrameFlip(0f), "第 0 帧是站立帧");
+            Check(AnimRules.TwoFrameFlip(flipGap + 0.01f), "过了半圈翻到 f2 帧");
+            Check(!AnimRules.TwoFrameFlip(2f * flipGap + 0.01f), "再过半圈翻回来(循环)");
+            Check(!AnimRules.TwoFrameFlip(flipGap + 0.01f, false), "站着不动不翻帧(原地抖腿像卡了)");
+            Check(AnimRules.TwoFrameName("windbee", 0f, false) == "windbee", "没有 f2 资产 → 退回站立单帧");
+            Check(AnimRules.TwoFrameName("windbee", flipGap + 0.01f, true) == "windbee_f2", "有 f2 资产按节奏翻帧");
         }
 
         private static void TestBossAI()

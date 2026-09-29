@@ -194,3 +194,45 @@ export function bobPx(t: number, moving: boolean): number {
   const stepsPerS = ANIM.walk.fps / ANIM.walk.frames;
   return Math.sin(t * Math.PI * 2 * stepsPerS) * A.bobAmplitudePx;
 }
+
+/** 走路一圈的时长(秒)= 帧数 / 帧率。**唯一的走路节奏来源** —— 别在别处再写一个常数。 */
+export function cycleSec(action: AnimAction = 'walk'): number {
+  const s = ANIM[action];
+  return s.fps > 0 ? s.frames / s.fps : 0;
+}
+
+/**
+ * 两帧资产的命名后缀。杂兵/中Boss 早期只有两张图(`{base}` + `{base}_f2`),
+ * 和玩家/精英的 `{base}_{action}_{i}` 序列**并存**:序列齐全时走序列,
+ * 只有两帧的走这条。两套命名不是历史遗留不清理 —— 图鉴里 22 只怪都是 `_f2`,重命名收益为零、风险不小。
+ */
+export const TWO_FRAME_SUFFIX = '_f2';
+
+/**
+ * 两帧资产这一帧要不要翻到 `_f2`(纯函数)。
+ *
+ * 交替速度**推导**自走路规格:走路一圈 = 4 帧 = 两个步幅,所以两帧资产正好**每半圈翻一次**。
+ * 之前这里在 `GameScene.frame2` 里手写着 `floor(t * 8) % 2`,和 `balance.anim.walk` 是两个独立的数 ——
+ * 改帧率时玩家的走路会变、杂兵不会(而且当时快了一倍:8 次/秒 vs 2 圈/秒)。现在只有一个来源。
+ */
+export function twoFrameFlip(t: number, moving = true): boolean {
+  if (!moving) return false;
+  const cycle = cycleSec('walk');
+  if (cycle <= 0) return false;
+  return frameIndex(t, 2 / cycle, 2, true) === 1;
+}
+
+/**
+ * 杂兵两帧走路这帧该画哪个名字:**没有 `_f2` 资产就退回站立单帧**(降级而非消失)。
+ * `moving=false`(站着不动/被定身)时也退回单帧:原地抖腿看着像卡了。
+ */
+export function twoFrame(
+  base: string,
+  t: number,
+  has: (name: string) => boolean,
+  moving = true,
+): string {
+  const flip = `${base}${TWO_FRAME_SUFFIX}`;
+  if (!has(flip)) return base;
+  return twoFrameFlip(t, moving) ? flip : base;
+}

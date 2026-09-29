@@ -102,5 +102,105 @@ namespace StarfallKnights.Core
             if (moving) return AnimAction.Walk;
             return AnimAction.Idle;
         }
+
+        /// <summary>走路一圈的时长(秒)= 帧数 / 帧率。**唯一的走路节奏来源**,别在别处再写一个常数。</summary>
+        public static float CycleSec(AnimAction a = AnimAction.Walk)
+        {
+            float fps = Fps(a);
+            return fps > 0f ? Frames(a) / fps : 0f;
+        }
+
+        /// <summary>
+        /// "剩余时间 → 已进行时间"(动作时钟的唯一换算口径;web 侧 <c>elapsed()</c> 的镜像)。
+        /// 计时器给的是**剩余**(dash/attack/... 都是倒数),动画要的是**已进行**;
+        /// 剩余 ≤ 0 表示"这个动作没在进行" → 返回 null,由 <see cref="ClockFor"/> 归 0。
+        /// </summary>
+        public static float? Elapsed(float? remaining, float? total)
+        {
+            if (remaining == null || total == null) return null;
+            if (remaining.Value <= 0f) return null;
+            return total.Value - remaining.Value;
+        }
+
+        /// <summary>各动作的动作时钟(字段为"已进行"秒数;null = 这个动作没在进行)。</summary>
+        public struct AnimClocks
+        {
+            public float? DashT, AttackT, CastT, HurtT, DieT;
+        }
+
+        /// <summary>
+        /// 组件计时器 → 动作时钟(web 侧 <c>clocksOf()</c> 的镜像)。
+        ///
+        /// 为什么这条比看起来重要:**漏映射一个字段的后果是"那个动作永远停在第一帧"** ——
+        /// web 侧真踩过(漏传 castT → 拉弓僵住,肉眼看着像美术坏了)。
+        /// 注:远程职业的普攻就是 Cast(近战挥砍与拉弓是两套姿态),所以 Cast 共用**普攻**的计时器。
+        /// </summary>
+        public static AnimClocks ClocksOf(
+            float? dashT, float? dashDur,
+            float? attackT, float? attackDur,
+            float? hurtT, float? hurtDur,
+            float? respawnT, float? respawnDur)
+        {
+            return new AnimClocks
+            {
+                DashT = Elapsed(dashT, dashDur),
+                AttackT = Elapsed(attackT, attackDur),
+                CastT = Elapsed(attackT, attackDur),
+                HurtT = Elapsed(hurtT, hurtDur),
+                DieT = Elapsed(respawnT, respawnDur),
+            };
+        }
+
+        /// <summary>
+        /// 本帧该用哪个时钟喂 <see cref="FrameIndex"/>。
+        /// - 循环动作(待机/走路)用全局时间:切帧时机与动作起点无关,取模后自然不会漂;
+        /// - 一次性动作吃各自的"已进行"时间,并**夹在 [0, 总时长]** 内(动作结束后计时器可能被清零或为负)。
+        /// </summary>
+        public static float ClockFor(AnimAction a, float globalT, AnimClocks c)
+        {
+            float span = CycleSec(a);
+            float Clamp(float? t)
+            {
+                float v = t ?? 0f;
+                return MathF.Max(0f, MathF.Min(span, v));
+            }
+            return a switch
+            {
+                AnimAction.Dash => Clamp(c.DashT),
+                AnimAction.Atk => Clamp(c.AttackT),
+                AnimAction.Cast => Clamp(c.CastT),
+                AnimAction.Hurt => Clamp(c.HurtT),
+                AnimAction.Die => Clamp(c.DieT),
+                _ => globalT,
+            };
+        }
+
+        /// <summary>
+        /// 两帧资产的命名后缀(杂兵/中Boss 早期只有 `base` + `base_f2` 两张图;
+        /// 与玩家/精英的 `{base}_{action}_{i}` 序列**并存**,序列齐全时走序列)。
+        /// </summary>
+        public const string TwoFrameSuffix = "_f2";
+
+        /// <summary>
+        /// 两帧资产这一帧要不要翻到 `_f2`(web 侧 <c>twoFrameFlip()</c> 的镜像)。
+        /// 交替速度**推导**自走路规格:走路一圈 = 两个步幅,所以两帧资产正好每半圈翻一次。
+        /// 曾经这里在渲染层手写着 `floor(t*8)%2`,和 `balance.anim.walk` 是两个独立的数 ——
+        /// 改帧率时玩家会变、杂兵不会(而且当时快了一倍)。现在两端都只有一个来源。
+        /// </summary>
+        public static bool TwoFrameFlip(float t, bool moving = true)
+        {
+            if (!moving) return false;
+            float cycle = CycleSec(AnimAction.Walk);
+            if (cycle <= 0f) return false;
+            return FrameIndex(t, 2f / cycle, 2, true) == 1;
+        }
+
+        /// <summary>两帧资产这帧的名字(**没有 `_f2` 就退回站立单帧**:降级而非消失)。</summary>
+        public static string TwoFrameName(string baseName, float t, bool hasF2, bool moving = true)
+        {
+            string flip = baseName + TwoFrameSuffix;
+            if (!hasF2) return baseName;
+            return TwoFrameFlip(t, moving) ? flip : baseName;
+        }
     }
 }

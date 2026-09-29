@@ -64,7 +64,7 @@ import { markRuneOwned } from '@game/meta/Codex';
 import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
-import { actionOf, bobPx, clockFor, clocksOf, spriteFor } from '@game/gfx/anim';
+import { actionOf, bobPx, clockFor, clocksOf, spriteFor, twoFrame } from '@game/gfx/anim';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { runMods } from '@game/dungeon/RunMods';
 
@@ -595,14 +595,19 @@ export class GameScene {
 
 
   /** 双帧动画:第二帧存在则 8fps 交替(needMove=仅移动中切帧) */
+  /**
+   * 杂兵两帧走路的帧名(`{base}` / `{base}_f2`)。
+   * 交替节奏在 `anim.ts twoFrame` 里(推导自 `balance.anim.walk`)——
+   * **这里不再自己写 `floor(t*8)%2`**:两份实现会漂成两种心跳(杂兵 vs 玩家)。
+   * 速度阈值判定留在场景层:纯函数不该知道世界查询。
+   */
   private frame2(base: string, e: number, needMove: boolean): string {
-    if (Math.floor(clock.runTime * 8) % 2 !== 1) return base;
-    if (sprites.get(`${base}_f2`) === null) return base;
+    let moving = true;
     if (needMove) {
       const v = this.world.get(e, Velocity);
-      if (!v || Math.hypot(v.vx, v.vy) < 30) return base;
+      moving = !!v && Math.hypot(v.vx, v.vy) >= 30;
     }
-    return `${base}_f2`;
+    return twoFrame(base, clock.runTime, (n) => sprites.get(n) !== null, moving);
   }
 
   /**

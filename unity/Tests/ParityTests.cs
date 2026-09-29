@@ -91,6 +91,28 @@ namespace StarfallKnights.Tests
             }
             check(Math.Abs(MiniJson.Num(a, "bobAmplitudePx", 0) - Bestiary.AnimBobAmplitudePx) < 1e-4f,
                 "anim.bobAmplitudePx 与 C# 一致");
+
+            // 推导量 parity(数值叶子比对覆盖不到的部分):走路一圈 = 帧数/帧率,
+            // 两帧资产的翻帧步长 = 半圈 —— 这两条把"渲染层手写 8 次/秒"那类漂移钉死在数据上。
+            double walkFrames = MiniJson.Num(MiniJson.Opt(a, "walk"), "frames", 0);
+            double walkFps = MiniJson.Num(MiniJson.Opt(a, "walk"), "fps", 0);
+            double cycle = walkFps > 0 ? walkFrames / walkFps : 0;
+            check(Math.Abs(AnimRules.CycleSec(AnimAction.Walk) - cycle) < 1e-4f,
+                $"走路一圈 = frames/fps({cycle:0.####}s vs C# {AnimRules.CycleSec(AnimAction.Walk):0.####}s)");
+            check(Math.Abs(AnimRules.CycleSec(AnimAction.Walk) / 2.0 - cycle / 2.0) < 1e-4f,
+                "两帧资产翻帧步长 = 走路半圈(与 json 推导值一致)");
+            // 动作时钟:一次性动作的动作总时长必须 = frames/fps,否则"序列放完就停住"的时机两端不同
+            foreach (var (key, act) in new[]
+            {
+                ("atk", AnimAction.Atk), ("dash", AnimAction.Dash), ("cast", AnimAction.Cast),
+                ("hurt", AnimAction.Hurt), ("die", AnimAction.Die),
+            })
+            {
+                var row = MiniJson.Opt(a, key);
+                double want = MiniJson.Num(row, "frames", 0) / Math.Max(1e-9, MiniJson.Num(row, "fps", 0));
+                check(Math.Abs(AnimRules.CycleSec(act) - want) < 1e-4f,
+                    $"anim.{key} 动作总时长 = frames/fps({want:0.####}s)");
+            }
         }
 
         /// <summary>
