@@ -15,6 +15,16 @@ LIMIT_MB=60   # 工作区(不含 node_modules/dist)超过这个数就告警
 
 cd "$ROOT"
 
+# ---- 0. 自愈:.git/config 属敏感路径,快照会剥离 —— 环境重建后远程配置必丢 ----
+REMOTE_URL="git@github.com:Anjichen584/claude-opus-5.git"
+if ! git remote get-url origin >/dev/null 2>&1; then
+  git remote add origin "$REMOTE_URL"
+  git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+  git config branch.main.remote origin
+  git config branch.main.merge refs/heads/main
+  echo "🔧 已自愈 origin 远程配置(快照剥离了 .git/config)"
+fi
+
 # 密钥缺失时的友好提示(环境重建会清掉 ~/.ssh)
 if [ ! -f "$HOME/.ssh/github_deploy" ]; then
   echo "⚠️  缺少部署密钥 ~/.ssh/github_deploy —— 请重新放置后再推送(见 docs/07-CONTRIBUTING.md)"
@@ -30,10 +40,10 @@ else
 fi
 
 # ---- 2. 推送(密钥走 ~/.ssh/config)----
-if git push -q origin main 2>/dev/null; then
+if git push origin main >/dev/null 2>/tmp/push_err; then
   echo "🚀 已推送 origin/main"
 else
-  echo "❌ 推送失败 —— 检查密钥/网络后重试:git push origin main"
+  cat /tmp/push_err; echo "❌ 推送失败(原因见上)—— 检查密钥/网络后重试:git push origin main"
   exit 1
 fi
 
