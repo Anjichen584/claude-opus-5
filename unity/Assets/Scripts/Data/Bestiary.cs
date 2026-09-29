@@ -870,6 +870,44 @@ namespace StarfallKnights.Data
         public const float PlayerRespawnDelay = 1.5f;
         /// <summary>player.respawn.invuln</summary>
         public const float PlayerRespawnInvuln = 2f;
+        /// <summary>reactions.markDurS</summary>
+        public const float ReactionsMarkDurS = 4f;
+        /// <summary>reactions.chainDecay</summary>
+        public const float ReactionsChainDecay = 0.8f;
+        /// <summary>reactions.maxDepth</summary>
+        public const float ReactionsMaxDepth = 4f;
+        /// <summary>reactions.steam.radiusM</summary>
+        public const float ReactionsSteamRadiusM = 2f;
+        /// <summary>reactions.steam.mult</summary>
+        public const float ReactionsSteamMult = 1.8f;
+        /// <summary>reactions.overload.mult</summary>
+        public const float ReactionsOverloadMult = 2.2f;
+        /// <summary>reactions.overload.knockM</summary>
+        public const float ReactionsOverloadKnockM = 2f;
+        /// <summary>reactions.miasma.radiusM</summary>
+        public const float ReactionsMiasmaRadiusM = 1.5f;
+        /// <summary>reactions.miasma.lifeS</summary>
+        public const float ReactionsMiasmaLifeS = 3f;
+        /// <summary>reactions.miasma.intervalS</summary>
+        public const float ReactionsMiasmaIntervalS = 0.5f;
+        /// <summary>reactions.miasma.mult</summary>
+        public const float ReactionsMiasmaMult = 0.4f;
+        /// <summary>reactions.chain.targets</summary>
+        public const float ReactionsChainTargets = 4f;
+        /// <summary>reactions.chain.rangeM</summary>
+        public const float ReactionsChainRangeM = 4f;
+        /// <summary>reactions.chain.mult</summary>
+        public const float ReactionsChainMult = 0.8f;
+        /// <summary>reactions.chain.slowPct</summary>
+        public const float ReactionsChainSlowPct = 0.4f;
+        /// <summary>reactions.chain.slowS</summary>
+        public const float ReactionsChainSlowS = 2f;
+        /// <summary>reactions.brittle.vulnS</summary>
+        public const float ReactionsBrittleVulnS = 4f;
+        /// <summary>reactions.brittle.pct</summary>
+        public const float ReactionsBrittlePct = 0.25f;
+        /// <summary>reactions.numb.stunS</summary>
+        public const float ReactionsNumbStunS = 1.2f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -1271,6 +1309,25 @@ namespace StarfallKnights.Data
             { "player.regen.ratePct", PlayerRegenRatePct },
             { "player.respawn.delay", PlayerRespawnDelay },
             { "player.respawn.invuln", PlayerRespawnInvuln },
+            { "reactions.markDurS", ReactionsMarkDurS },
+            { "reactions.chainDecay", ReactionsChainDecay },
+            { "reactions.maxDepth", ReactionsMaxDepth },
+            { "reactions.steam.radiusM", ReactionsSteamRadiusM },
+            { "reactions.steam.mult", ReactionsSteamMult },
+            { "reactions.overload.mult", ReactionsOverloadMult },
+            { "reactions.overload.knockM", ReactionsOverloadKnockM },
+            { "reactions.miasma.radiusM", ReactionsMiasmaRadiusM },
+            { "reactions.miasma.lifeS", ReactionsMiasmaLifeS },
+            { "reactions.miasma.intervalS", ReactionsMiasmaIntervalS },
+            { "reactions.miasma.mult", ReactionsMiasmaMult },
+            { "reactions.chain.targets", ReactionsChainTargets },
+            { "reactions.chain.rangeM", ReactionsChainRangeM },
+            { "reactions.chain.mult", ReactionsChainMult },
+            { "reactions.chain.slowPct", ReactionsChainSlowPct },
+            { "reactions.chain.slowS", ReactionsChainSlowS },
+            { "reactions.brittle.vulnS", ReactionsBrittleVulnS },
+            { "reactions.brittle.pct", ReactionsBrittlePct },
+            { "reactions.numb.stunS", ReactionsNumbStunS },
         };
     }
 
@@ -1431,6 +1488,78 @@ namespace StarfallKnights.Data
             { "classes.warden.combo.window", KlassWardenComboWindow },
             { "classes.warden.combo.lungeM", KlassWardenComboLungeM },
             { "classes.warden.combo.vulnOnHitS", KlassWardenComboVulnOnHitS },
+        };
+    }
+
+
+    /// <summary>
+    /// 元素反应数值(reactions 段)—— 由 balance.json 生成。
+    /// 为什么必须生成:这几个数以前是 `Data/Balance.cs` 里手抄的,**而且全漂了**
+    /// (蒸汽 0.9 vs 1.8、超载 1.6 vs 2.2、脆蚀 +20% vs +25%、麻痹 0.8s vs 1.2s),
+    /// 根因是 `reactions` 段从来没进 parity —— 手抄必错,只有 parity 能自动发现。
+    /// </summary>
+    public static class BestiaryReactions
+    {
+        /// <summary>reactions.markDurS</summary>
+        public const float ReactionsMarkDurS = 4f;
+        /// <summary>reactions.chainDecay</summary>
+        public const float ReactionsChainDecay = 0.8f;
+        /// <summary>reactions.maxDepth</summary>
+        public const float ReactionsMaxDepth = 4f;
+        /// <summary>reactions.steam.radiusM</summary>
+        public const float ReactionsSteamRadiusM = 2f;
+        /// <summary>reactions.steam.mult</summary>
+        public const float ReactionsSteamMult = 1.8f;
+        /// <summary>reactions.overload.mult</summary>
+        public const float ReactionsOverloadMult = 2.2f;
+        /// <summary>reactions.overload.knockM</summary>
+        public const float ReactionsOverloadKnockM = 2f;
+        /// <summary>reactions.miasma.radiusM</summary>
+        public const float ReactionsMiasmaRadiusM = 1.5f;
+        /// <summary>reactions.miasma.lifeS</summary>
+        public const float ReactionsMiasmaLifeS = 3f;
+        /// <summary>reactions.miasma.intervalS</summary>
+        public const float ReactionsMiasmaIntervalS = 0.5f;
+        /// <summary>reactions.miasma.mult</summary>
+        public const float ReactionsMiasmaMult = 0.4f;
+        /// <summary>reactions.chain.targets</summary>
+        public const float ReactionsChainTargets = 4f;
+        /// <summary>reactions.chain.rangeM</summary>
+        public const float ReactionsChainRangeM = 4f;
+        /// <summary>reactions.chain.mult</summary>
+        public const float ReactionsChainMult = 0.8f;
+        /// <summary>reactions.chain.slowPct</summary>
+        public const float ReactionsChainSlowPct = 0.4f;
+        /// <summary>reactions.chain.slowS</summary>
+        public const float ReactionsChainSlowS = 2f;
+        /// <summary>reactions.brittle.vulnS</summary>
+        public const float ReactionsBrittleVulnS = 4f;
+        /// <summary>reactions.brittle.pct</summary>
+        public const float ReactionsBrittlePct = 0.25f;
+        /// <summary>reactions.numb.stunS</summary>
+        public const float ReactionsNumbStunS = 1.2f;
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {
+            { "reactions.markDurS", ReactionsMarkDurS },
+            { "reactions.chainDecay", ReactionsChainDecay },
+            { "reactions.maxDepth", ReactionsMaxDepth },
+            { "reactions.steam.radiusM", ReactionsSteamRadiusM },
+            { "reactions.steam.mult", ReactionsSteamMult },
+            { "reactions.overload.mult", ReactionsOverloadMult },
+            { "reactions.overload.knockM", ReactionsOverloadKnockM },
+            { "reactions.miasma.radiusM", ReactionsMiasmaRadiusM },
+            { "reactions.miasma.lifeS", ReactionsMiasmaLifeS },
+            { "reactions.miasma.intervalS", ReactionsMiasmaIntervalS },
+            { "reactions.miasma.mult", ReactionsMiasmaMult },
+            { "reactions.chain.targets", ReactionsChainTargets },
+            { "reactions.chain.rangeM", ReactionsChainRangeM },
+            { "reactions.chain.mult", ReactionsChainMult },
+            { "reactions.chain.slowPct", ReactionsChainSlowPct },
+            { "reactions.chain.slowS", ReactionsChainSlowS },
+            { "reactions.brittle.vulnS", ReactionsBrittleVulnS },
+            { "reactions.brittle.pct", ReactionsBrittlePct },
+            { "reactions.numb.stunS", ReactionsNumbStunS },
         };
     }
 

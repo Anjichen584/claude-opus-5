@@ -6,14 +6,11 @@ namespace StarfallKnights.Data
     /// </summary>
     public static class Balance
     {
-        // ---- 元素反应(reactions)----
-        public const float MarkDurationS = 4f;   // 印记持续
-        public const float ChainDecay = 0.8f;    // 连锁每层衰减 ×0.8
-        public const int MaxChainDepth = 4;      // 连锁最大深度
-        public const float SteamMult = 0.9f;     // 蒸汽范围倍率
-        public const float OverloadMult = 1.6f;  // 超载单体倍率
-        public const float BrittleVulnPct = 0.2f;// 脆蚀易伤 +20%
-        public const float NumbStunS = 0.8f;     // 麻痹眩晕
+        // ---- 元素反应(reactions 段)**已移出本文件** ----
+        // 这里曾经手抄着 markDur/chainDecay/maxDepth/steam/overload/brittle/numb 七个常量,而它们**全漂了**:
+        // 蒸汽 0.9 vs json 1.8、超载 1.6 vs 2.2、脆蚀 +20% vs +25%、麻痹 0.8s vs 1.2s。
+        // 根因是 `reactions` 段从来没进 parity —— 手抄必错,只有 parity 能自动发现(与 player 段同一次教训)。
+        // 现在全部由 tools/gen_bestiary.py 生成到 BestiaryReactions(逐键 parity + 多余键检查)。
 
         // ---- 玩家基准数值(player 段)**已移出本文件** ----
         // 以前这里是手抄的 PlayerHp/PlayerAtk/PlayerMoveSpeed/DashDurS/... —— 手抄必错,而且真漂了

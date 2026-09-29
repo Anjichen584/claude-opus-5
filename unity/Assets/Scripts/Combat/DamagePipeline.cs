@@ -48,7 +48,7 @@ namespace StarfallKnights.Combat
             float elemBonus = 1f;
 
             // ---- 元素反应:目标带异种印记 → 触发(先找后删,避免枚举期修改) ----
-            if (o.Element.HasValue && o.ChainDepth <= Balance.MaxChainDepth)
+            if (o.Element.HasValue && o.ChainDepth <= BestiaryReactions.ReactionsMaxDepth)
             {
                 Element? consumed = null;
                 Reaction reaction = Reaction.None;
@@ -65,8 +65,8 @@ namespace StarfallKnights.Combat
                     o.Target.Marks.Remove(consumed.Value); // 消耗印记
                     ApplyReaction(reaction, o.Target);
                     OnReaction?.Invoke(new ReactionResult { Kind = reaction, Target = o.Target, ChainDepth = o.ChainDepth });
-                    if (reaction == Reaction.Overload) elemBonus = Balance.OverloadMult;
-                    if (reaction == Reaction.Steam) elemBonus = Balance.SteamMult + 1f; // 蒸汽:本次+范围由宿主扩散
+                    if (reaction == Reaction.Overload) elemBonus = BestiaryReactions.ReactionsOverloadMult;
+                    if (reaction == Reaction.Steam) elemBonus = BestiaryReactions.ReactionsSteamMult + 1f; // 蒸汽:本次+范围由宿主扩散
                 }
             }
 
@@ -74,7 +74,7 @@ namespace StarfallKnights.Combat
             bool crit = o.CanCrit && o.Source != null && CritRng.NextDouble() < o.Source.CritRate;
             float defRed = Formulas.DefenseReduction(o.Target.Def);
             float vuln = o.Target.VulnT > 0 ? o.Target.VulnPct : 0f;
-            float chainMul = (float)Math.Pow(Balance.ChainDecay, o.ChainDepth);
+            float chainMul = (float)Math.Pow(BestiaryReactions.ReactionsChainDecay, o.ChainDepth);
 
             // 方向性弱点(镜像 web DamagePipeline):
             // · 橡木傀儡:从背后命中 cos(hitAngle-face) > 0.35 → ×2(教学绕后)
@@ -95,7 +95,7 @@ namespace StarfallKnights.Combat
 
             // ---- 上新印记 ----
             if (o.Element.HasValue && !o.Target.Dead)
-                o.Target.Marks[o.Element.Value] = Balance.MarkDurationS;
+                o.Target.Marks[o.Element.Value] = BestiaryReactions.ReactionsMarkDurS;
 
             return amount;
         }
@@ -106,10 +106,10 @@ namespace StarfallKnights.Combat
             {
                 case Reaction.Brittle: // 脆蚀:易伤
                     target.VulnT = 3f;
-                    target.VulnPct = Balance.BrittleVulnPct;
+                    target.VulnPct = BestiaryReactions.ReactionsBrittlePct;
                     break;
                 case Reaction.Numb: // 麻痹:眩晕
-                    target.StunT = Math.Max(target.StunT, Balance.NumbStunS);
+                    target.StunT = Math.Max(target.StunT, BestiaryReactions.ReactionsNumbStunS);
                     break;
                 case Reaction.Chain: // 冻链:减速(弹射由宿主 OnReaction 处理)
                     target.SlowT = 2f;

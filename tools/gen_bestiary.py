@@ -95,6 +95,10 @@ def main() -> int:
     # 玩家基准数值(player 段):此前是 Data/Balance.cs 里**手抄**的常量,已经漂了
     # (json hp 120/atk 14/速度 4.2,常量却是 100/12/4.6)。退役手抄,改生成 + parity。
     walk('Player', b['player'], json_path='player', name_prefix='')
+    # 元素反应(reactions 段):同样是 Data/Balance.cs 里**手抄且已漂**的一批 ——
+    # json 权威值 蒸汽 1.8 / 超载 2.2(+击退 2.0)/ 脆蚀 0.25、4s / 麻痹 1.2s,
+    # 而手抄常量是 0.9 / 1.6 / 0.2 / 0.8。reactions 以前**根本没进 parity**,所以没人发现。
+    walk('Reactions', b['reactions'], json_path='reactions', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -114,7 +118,8 @@ def main() -> int:
               + sum(1 for _ in leaves(b['arena'])) + sum(1 for _ in leaves(b['tutorial']))
               + sum(1 for _ in leaves(b['touch']))
               + sum(1 for _ in leaves(b['anim']))
-              + sum(1 for _ in leaves(b['player'])))
+              + sum(1 for _ in leaves(b['player']))
+              + sum(1 for _ in leaves(b['reactions'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 
@@ -207,6 +212,33 @@ def main() -> int:
     out_marker = "\n    }}\n}}\n"
 
 
+    # ---- 元素反应(reactions 段):单独一个类(与 player 同理由:不是图鉴条目,但必须 codegen)----
+    rx_consts = [(n, v, k) for n, v, k in consts if k.startswith('reactions.')]
+    consts = [(n, v, k) for n, v, k in consts if not k.startswith('reactions.')]
+    parity = [(k, n) for k, n in parity if not k.startswith('reactions.')]
+    rx_lines = '\n'.join(
+        f'        /// <summary>{key}</summary>\n        public const float {n} = {v};'
+        for n, v, key in rx_consts)
+    rx_parity = '\n'.join(f'            {{ "{k}", {n} }},' for k, n in
+                          [(k, n) for n, v, k in rx_consts])
+    rx_block = f'''
+    /// <summary>
+    /// 元素反应数值(reactions 段)—— 由 balance.json 生成。
+    /// 为什么必须生成:这几个数以前是 `Data/Balance.cs` 里手抄的,**而且全漂了**
+    /// (蒸汽 0.9 vs 1.8、超载 1.6 vs 2.2、脆蚀 +20% vs +25%、麻痹 0.8s vs 1.2s),
+    /// 根因是 `reactions` 段从来没进 parity —— 手抄必错,只有 parity 能自动发现。
+    /// </summary>
+    public static class BestiaryReactions
+    {{
+{rx_lines}
+
+        public static readonly Dictionary<string, float> Parity = new()
+        {{
+{rx_parity}
+        }};
+    }}
+'''
+
     # ---- 玩家基准(player 段):单独一个类 —— 它不是"图鉴条目",但同样必须 codegen ----
     player_consts = [(n, v, k) for n, v, k in consts if k.startswith('player.')]
     consts = [(n, v, k) for n, v, k in consts if not k.startswith('player.')]
@@ -296,10 +328,11 @@ namespace StarfallKnights.Data
         }};
     }}
 {cls_block}
+{rx_block}
 {player_block}}}'''
     DST.write_text(out)
     print(f'✅ 生成 {DST.relative_to(ROOT)}:{len(consts)} 个数值常量 / {len(rows)} 行图鉴 / {len(parity)} 个 parity 键 '
-          f'+ 职业普攻档案 {len(cls_consts)} 键 + 玩家基准 {len(player_consts)} 键')
+          f'+ 职业普攻档案 {len(cls_consts)} 键 + 玩家基准 {len(player_consts)} 键 + 元素反应 {len(rx_consts)} 键')
     return 0
 
 

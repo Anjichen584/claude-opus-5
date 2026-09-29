@@ -39,6 +39,7 @@ namespace StarfallKnights.Tests
             CheckTutorial(check, near, root);
             CheckTouch(check, root);
             CheckAnim(check, root);
+            CheckReactions(check, root);
         }
 
         /// <summary>
@@ -221,6 +222,9 @@ namespace StarfallKnights.Tests
             // 玩家基准(player 段)—— 此前是手抄常量且已漂,现在进 parity
             var player = MiniJson.Opt(doc, "player");
             if (player != null) Walk(player, "player");
+            // 元素反应(reactions 段)—— 同样:手抄常量漂了一整批才被发现,现在进 parity
+            var reactions = MiniJson.Opt(doc, "reactions");
+            if (reactions != null) Walk(reactions, "reactions");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -238,6 +242,21 @@ namespace StarfallKnights.Tests
                     check(false, $"图鉴数值不一致:{kv.Key}(JSON={kv.Value} vs C#={csVal})");
                 }
             }
+            // 三段各自逐键对一遍(通用循环只覆盖 Bestiary;player/reactions 是独立类,这里显式带上)
+            foreach (var (label, table) in new (string, Dictionary<string, float>)[]
+            {
+                ("玩家基准", BestiaryPlayer.Parity), ("元素反应", BestiaryReactions.Parity),
+            })
+            {
+                int bad = 0;
+                foreach (var kv in table)
+                {
+                    if (!leaves.TryGetValue(kv.Key, out double jsonVal)) continue;
+                    if (Math.Abs(kv.Value - jsonVal) > Tol) bad++;
+                }
+                check(bad == 0, $"{label}逐键与 JSON 一致({table.Count} 键,不一致 {bad})");
+            }
+
             var extra = new List<string>();
             foreach (var k in Bestiary.Parity.Keys) if (!leaves.ContainsKey(k)) extra.Add(k);
             check(extra.Count == 0, $"图鉴无多余键(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(", ", extra) : "")})");
@@ -246,6 +265,11 @@ namespace StarfallKnights.Tests
             foreach (var k in BestiaryPlayer.Parity.Keys) if (!leaves.ContainsKey(k)) extraPlayer.Add(k);
             check(extraPlayer.Count == 0,
                 $"玩家基准无多余键(多出 {extraPlayer.Count} 个{(extraPlayer.Count > 0 ? ": " + string.Join(", ", extraPlayer) : "")})");
+            // 元素反应同理:它是**新接进 parity 的段**(此前完全没覆盖,所以手抄常量漂了没人知道)
+            var extraRx = new List<string>();
+            foreach (var k in BestiaryReactions.Parity.Keys) if (!leaves.ContainsKey(k)) extraRx.Add(k);
+            check(extraRx.Count == 0,
+                $"元素反应无多余键(多出 {extraRx.Count} 个{(extraRx.Count > 0 ? ": " + string.Join(", ", extraRx) : "")})");
             check(mismatches == 0, $"balance.json → Bestiary.cs 逐键一致({matched} 个数值键)");
 
             // 图鉴行本身:每种敌人的 血/攻/防/速/体型 都对得上
@@ -264,6 +288,49 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
             check(rowBad == 0, $"{enemies.Count} 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+        }
+
+        /// <summary>
+        /// 元素反应 parity(2026-09-29 新段)。
+        /// 这段以前**完全不在 parity 里**,于是 `Data/Balance.cs` 的手抄常量静静漂了一整批:
+        /// 蒸汽 0.9 vs 1.8、超载 1.6 vs 2.2、脆蚀 +20% vs +25%、麻痹 0.8s vs 1.2s。
+        /// 这里除了逐键(上面的通用循环已覆盖),再钉两条**行为口径**:超载要带击退值、脆蚀要带易伤百分比。
+        /// </summary>
+        private static void CheckReactions(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var rx = MiniJson.Opt(doc, "reactions");
+            if (rx == null) { check(false, "balance.reactions 存在"); return; }
+
+            var overload = MiniJson.Opt(rx, "overload");
+            var brittle = MiniJson.Opt(rx, "brittle");
+            var numb = MiniJson.Opt(rx, "numb");
+            check(Math.Abs(MiniJson.Num(overload, "mult", 0) - BestiaryReactions.ReactionsOverloadMult) < 1e-4f,
+                $"超载倍率与 C# 一致({MiniJson.Num(overload, "mult", 0)} vs {BestiaryReactions.ReactionsOverloadMult})");
+            check(Math.Abs(MiniJson.Num(brittle, "pct", 0) - BestiaryReactions.ReactionsBrittlePct) < 1e-4f,
+                $"脆蚀易伤 pct 与 C# 一致({MiniJson.Num(brittle, "pct", 0)} vs {BestiaryReactions.ReactionsBrittlePct})");
+            check(Math.Abs(MiniJson.Num(numb, "stunS", 0) - BestiaryReactions.ReactionsNumbStunS) < 1e-4f,
+                $"麻痹时长与 C# 一致({MiniJson.Num(numb, "stunS", 0)} vs {BestiaryReactions.ReactionsNumbStunS})");
+
+            // 行为口径:脆蚀易伤 **必须真的进伤害公式**(否则 pct 改了也不生效)
+            var w = new LogicWorld();
+            var attacker = new Actor { Pos = new System.Numerics.Vector2(0f, 0f) };
+            attacker.Unit.Atk = 100f;
+            attacker.Unit.IsPlayerTeam = true;
+            var victim = new Actor { Pos = new System.Numerics.Vector2(1f, 0f) };
+            victim.Unit.Hp = victim.Unit.HpMax = 1000f;
+            victim.Unit.Def = 0f;
+            victim.Unit.VulnT = 10f;
+            victim.Unit.VulnPct = BestiaryReactions.ReactionsBrittlePct;
+            int dmg = DamagePipeline.Deal(new DealOpts
+            {
+                Source = attacker.Unit, Target = victim.Unit, Mult = 1f, CanCrit = false,
+            });
+            int want = (int)Math.Round(100f * (1f + BestiaryReactions.ReactionsBrittlePct), MidpointRounding.AwayFromZero);
+            check(Math.Abs(dmg - want) <= 1, $"脆蚀易伤进伤害公式({dmg} ≈ {want})");
         }
 
         /// <summary>房间布局 parity:balance.json 的 layouts 段(含 combatWeights)vs Dungeon/RoomLayouts.cs。</summary>

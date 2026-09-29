@@ -329,7 +329,7 @@ namespace StarfallKnights.Tests
             Near(shore.StunOnBolt(true, W / 2f, H * 0.62f), TerrainRules.WaterStunS, 1e-4f, "水中雷击附带麻痹");
             Near(shore.StunOnBolt(true, W / 2f, 1.2f), 0f, 1e-4f, "旱地雷击不麻痹");
             Check(TerrainRules.WaterBoltAmp > 1f && TerrainRules.WaterBoltAmp <= 1.5f, "雷伤加成在合理区间(不至于变成必须浅滩开局)");
-            Check(TerrainRules.WaterStunS > 0f && TerrainRules.WaterStunS < Balance.NumbStunS, "浅滩麻痹短于反应链麻痹");
+            Check(TerrainRules.WaterStunS > 0f && TerrainRules.WaterStunS < BestiaryReactions.ReactionsNumbStunS, "浅滩麻痹短于反应链麻痹");
 
             // 减速对位移的实际影响(与 web PhysicsSystem 同一口径:d = v × mult × dt)
             float v = 240f, dt = 0.1f;
@@ -618,6 +618,8 @@ namespace StarfallKnights.Tests
             TestPixelFont();
             TestLeaderboard();
             TestBasicAttack();
+            TestShotAttack();
+            TestPlayerAnim();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -723,7 +725,7 @@ namespace StarfallKnights.Tests
 
             DamagePipeline.Deal(new DealOpts { Source = p.Unit, Target = e.Unit, Mult = 1f, Element = Element.Fire, CanCrit = false });
             Check(e.Unit.Marks.ContainsKey(Element.Fire), "命中后挂上火印记");
-            Near(e.Unit.Marks[Element.Fire], Balance.MarkDurationS, 1e-3f, "印记持续 4s");
+            Near(e.Unit.Marks[Element.Fire], BestiaryReactions.ReactionsMarkDurS, 1e-3f, "印记持续 4s");
 
             ReactionResult? got = null;
             DamagePipeline.OnReaction = r => got = r;
@@ -740,7 +742,7 @@ namespace StarfallKnights.Tests
             int hit0 = DamagePipeline.Deal(new DealOpts { Source = p2.Unit, Target = d0.Unit, Mult = 1f, CanCrit = false });
             int hit2 = DamagePipeline.Deal(new DealOpts { Source = p2.Unit, Target = d2.Unit, Mult = 1f, CanCrit = false, ChainDepth = 2 });
             Check(hit2 < hit0, $"连锁衰减生效(depth0={hit0} > depth2={hit2})");
-            Near(hit2 / (float)hit0, Balance.ChainDecay * Balance.ChainDecay, 0.02f, "衰减 = 0.8^depth");
+            Near(hit2 / (float)hit0, BestiaryReactions.ReactionsChainDecay * BestiaryReactions.ReactionsChainDecay, 0.02f, "衰减 = 0.8^depth");
 
             // 反应附加效果
             var w3 = new LogicWorld();
@@ -1828,6 +1830,133 @@ namespace StarfallKnights.Tests
             Check(!AnimRules.TwoFrameFlip(flipGap + 0.01f, false), "站着不动不翻帧(原地抖腿像卡了)");
             Check(AnimRules.TwoFrameName("windbee", 0f, false) == "windbee", "没有 f2 资产 → 退回站立单帧");
             Check(AnimRules.TwoFrameName("windbee", flipGap + 0.01f, true) == "windbee_f2", "有 f2 资产按节奏翻帧");
+        }
+
+        /// <summary>
+        /// 远程普攻运行时(ShotRuntime)—— 普攻档案以前只镜了"数值",没镜"打出去"。
+        /// 这一套测的是**行为**:射速节流、每第 4 发强化、穿透能连打两个、溅射按减伤倍率对待第二个目标。
+        /// </summary>
+        private static void TestShotAttack()
+        {
+            Suite("远程普攻运行时(射击节流 / 强化发 / 穿透 / 溅射)");
+
+            // 猎手:第一发打出、冷却内打不出、冷却走完又能打
+            var w = new LogicWorld();
+            var p = MakePlayer(w, new Vector2(0f, 0f), atk: 100f);
+            var spec = BasicAttack.ShotOf(HeroClass.Ranger);
+            var shot = new ShotRuntime();
+            Check(shot.TryFire(w, p.Pos, new Vector2(1f, 0f), spec), "冷却好了就能打");
+            Check(w.Projectiles.Count == 1, "打出一发生成一颗弹丸");
+            Check(!shot.TryFire(w, p.Pos, new Vector2(1f, 0f), spec), "冷却没过打不出第二发(节流)");
+            shot.Tick(spec.RateS + 0.001f);
+            Check(shot.TryFire(w, p.Pos, new Vector2(1f, 0f), spec), "冷却走完能接着打");
+
+            // 弹丸参数:速度/半径/寿命来自档案,枪口有偏移(不在自己身体里出生)
+            var pr = w.Projectiles[0];
+            Near(pr.Vel.Length(), spec.SpeedM, 1e-3f, "弹速 = 档案 speedM");
+            Check(pr.Pos.X > p.Pos.X, "枪口沿瞄准方向偏移(贴脸时不会打在自己身上)");
+
+            // 每第 4 发强化:倍率 ×heavyMult、半径 ×1.6、带穿透
+            var w2 = new LogicWorld();
+            var p2 = MakePlayer(w2, new Vector2(0f, 0f), atk: 100f);
+            var s2 = new ShotRuntime();
+            for (int i = 0; i < 4; i++)
+            {
+                Check(s2.TryFire(w2, p2.Pos, new Vector2(1f, 0f), spec), $"第 {i + 1} 发打出");
+                s2.Tick(spec.RateS + 0.001f);
+            }
+            // 注意 LastStep 是**最近一发**(第 4 发 = 强化),所以"前 3 发普通"要看弹丸自己的倍率
+            Near(w2.Projectiles[0].Mult, spec.Mult, 1e-3f, "第 1 发是普通倍率");
+            Near(w2.Projectiles[2].Mult, spec.Mult, 1e-3f, "第 3 发仍是普通倍率");
+            Check(s2.LastStep.Heavy, "第 4 发是强化发");
+            var heavy = w2.Projectiles[3];
+            Near(heavy.Mult, spec.Mult * spec.HeavyMult, 1e-3f, "第 4 发倍率 = mult × heavyMult");
+            Near(heavy.RadiusM, spec.RadiusM * 1.6f, 1e-3f, "强化发半径 ×1.6");
+            Check(heavy.Pierce > 0, "强化发带穿透");
+            Check(w2.Projectiles[0].Pierce == 0, "普通发不穿透");
+
+            // 穿透:一发强化箭连打两个目标后还在飞(扣 1 次穿透)
+            var w3 = new LogicWorld();
+            var p3 = MakePlayer(w3, new Vector2(0f, 0f), atk: 100f);
+            var near = MakeEnemy(w3, new Vector2(0.5f, 0f), hp: 1000f);
+            var far = MakeEnemy(w3, new Vector2(1.2f, 0f), hp: 1000f);
+            var s3 = new ShotRuntime();
+            for (int i = 0; i < 4; i++) { s3.TryFire(w3, p3.Pos, new Vector2(1f, 0f), spec); s3.Tick(spec.RateS + 0.001f); }
+            var arrow = w3.Projectiles[3];
+            float halfHp = near.Unit.Hp;
+            ProjectileSystem.Tick(w3, 0.02f);
+            Check(near.Unit.Hp < 1000f, "第一只被打中");
+            Check(!arrow.Dead && w3.Projectiles.Contains(arrow), "穿透箭命中后继续飞(没被销毁)");
+            Check(arrow.Pierce == spec.Pierce - 1, "穿透次数扣 1");
+            ProjectileSystem.Tick(w3, 0.02f);
+            Check(far.Unit.Hp < 1000f, "继续飞还能打中第二只");
+
+            // 溅射:秘术师法球对第二个目标的伤害 = 直击 × splashMult(减伤版)
+            var w4 = new LogicWorld();
+            var p4 = MakePlayer(w4, new Vector2(0f, 0f), atk: 100f);
+            var target = MakeEnemy(w4, new Vector2(1.0f, 0f), hp: 1000f);
+            var bystander = MakeEnemy(w4, new Vector2(1.0f, 0.5f), hp: 1000f);
+            var arc = BasicAttack.ShotOf(HeroClass.Arcanist);
+            var s4 = new ShotRuntime();
+            Check(s4.TryFire(w4, p4.Pos, new Vector2(1f, 0f), arc), "秘术师打出法球");
+            var orb = w4.Projectiles[0];
+            for (int i = 0; i < 60 && !orb.Dead && w4.Projectiles.Count > 0; i++) ProjectileSystem.Tick(w4, 1f / 60f);
+            float direct = 1000f - target.Unit.Hp;
+            float splash = 1000f - bystander.Unit.Hp;
+            Check(direct > 0f, $"直击有伤害({direct:0})");
+            Check(splash > 0f, $"旁边那只也被溅射到({splash:0})");
+            Near(splash / direct, arc.SplashMult, 0.02f, $"溅射 = 直击 × {arc.SplashMult}(减伤版)");
+
+            // 出招减速:猎手可走射、秘术师慢
+            Check(ShotRuntime.MoveSlowOf(spec) >= 1f, "猎手走射不减速");
+            Check(ShotRuntime.MoveSlowOf(arc) < 1f, "秘术师施法减速");
+        }
+
+        /// <summary>
+        /// 玩家动画接线(Core/PlayerAnim)—— 这段逻辑放 Core 就是为了能被这里驱动:
+        /// Unity 的 MonoBehaviour 层不在测试工程里编译,规则写在里面等于没有测试(web 漏 `castT` 的坑)。
+        /// </summary>
+        private static void TestPlayerAnim()
+        {
+            Suite("玩家动画接线(动作判定 / 帧名 / 远程普攻走 cast)");
+
+            // 形态:远程职业判定的唯一入口
+            Check(PlayerAnim.IsShotClass(HeroClass.Ranger) && PlayerAnim.IsShotClass(HeroClass.Arcanist), "远程职业 = 猎手/秘术师");
+            Check(!PlayerAnim.IsShotClass(HeroClass.Blade) && !PlayerAnim.IsShotClass(HeroClass.Warden), "近战职业 = 剑士/守卫");
+
+            // 猎手射箭:动作是 Cast,帧名落在 ranger_cast_* 上(普攻走 cast 的代码口径)
+            string fire = PlayerAnim.Frame(
+                "ranger", isShot: true, globalT: 12.3f,
+                dashT: 0f, dashDur: 0.22f, attackT: 0.5f, attackDur: 0.5f, hurt: false, moving: false);
+            Check(fire.StartsWith("ranger_cast_"), $"远程普攻播拉弓序列(实际 {fire})");
+            string fireMid = PlayerAnim.Frame(
+                "ranger", isShot: true, globalT: 12.3f,
+                dashT: 0f, dashDur: 0.22f, attackT: 0.35f, attackDur: 0.5f, hurt: false, moving: false);
+            Check(fireMid != fire, $"拉弓会真的换帧(第 1 帧 {fire} vs 中段 {fireMid})");
+
+            // 近战普攻:走 atk 序列
+            string slash = PlayerAnim.Frame(
+                "knight", isShot: false, globalT: 3f,
+                dashT: 0f, dashDur: 0.22f, attackT: 0.2f, attackDur: 0.2f, hurt: false, moving: false);
+            Check(slash.StartsWith("knight_atk_"), $"近战普攻播挥砍序列(实际 {slash})");
+
+            // 优先级:翻滚压过普攻、死亡压过一切
+            string dash = PlayerAnim.Frame(
+                "ranger", isShot: true, globalT: 1f,
+                dashT: 0.2f, dashDur: 0.22f, attackT: 0.3f, attackDur: 0.5f, hurt: false, moving: true);
+            Check(dash.StartsWith("ranger_dash_"), $"翻滚压过普攻(实际 {dash})");
+            Check(PlayerAnim.Action(true, 0.2f, 0.3f, false, true, dead: true) == AnimAction.Die, "死亡压过一切");
+
+            // 走路:循环动作吃全局时间(换房/暂停后时间轴不会错位)
+            string w1 = PlayerAnim.Frame("ranger", true, 0f, 0f, 0.22f, 0f, 0.5f, false, true);
+            string w2 = PlayerAnim.Frame("ranger", true, 0.13f, 0f, 0.22f, 0f, 0.5f, false, true);
+            Check(w1.StartsWith("ranger_walk_") && w1 != w2, $"走路按全局时间换帧({w1} → {w2})");
+
+            // 计时器归零(动作结束)→ 回到第 1 帧,而不是卡在最后一帧
+            string ended = PlayerAnim.Frame(
+                "knight", isShot: false, globalT: 9f,
+                dashT: 0f, dashDur: 0.22f, attackT: 0f, attackDur: 0.2f, hurt: false, moving: false);
+            Check(ended == "knight_idle_1", $"动作结束回待机第 1 帧(实际 {ended})");
         }
 
         private static void TestBossAI()
