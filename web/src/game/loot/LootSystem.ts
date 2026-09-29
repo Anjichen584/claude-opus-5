@@ -10,6 +10,7 @@ import { salvage } from './Equip';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
+import { runMods } from '@game/dungeon/RunMods';
 
 const L = balance.loot;
 
@@ -64,7 +65,7 @@ export class LootSystem implements System {
           this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
           continue;
         }
-        if (isElite || isBoss || this.rng.chance(L.dropEquip)) {
+        if (isElite || isBoss || this.rng.chance(L.dropEquip * runMods.dropMult)) {
           const wasPity = this.factory.pityCount >= L.pity;
           let item = this.factory.roll(this.luck);
           if (isElite && (item.rarity === 'common' || item.rarity === 'fine')) {
@@ -75,7 +76,7 @@ export class LootSystem implements System {
         }
       }
       // 药剂
-      if (this.rng.chance(L.dropPotion * lootMult)) {
+      if (this.rng.chance(L.dropPotion * lootMult * runMods.dropMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
       }
       // 符文:精英 35% / Boss 必掉(只掉本职业未拥有的,集齐后掉星尘)

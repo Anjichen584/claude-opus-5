@@ -2,17 +2,20 @@ import type { Input } from '@engine/input/Input';
 import balance from '@data/balance.json';
 import { UI } from '@game/constants';
 import { altarCost } from '@game/dungeon/Scaling';
+import { dailyChallenge, dailyKey, type DailyChallenge } from '@game/meta/Daily';
+import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
 type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
-export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick';
+export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily';
 
 const inside = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 function panelBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  if (drawPanel9(ctx, x, y, w, h)) return;
   ctx.fillStyle = 'rgba(19,23,36,0.96)';
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#3a4154';
@@ -34,11 +37,13 @@ export class CampUI {
   constructor(private readonly input: Input) {}
 
   open(p: CampPanel): void {
+    // 挂在营地久玩跨零点时,重新取当天词条(否则玩家会拿着昨天的规则开跑)
+    if (p === 'daily') this.daily = dailyChallenge(dailyKey(new Date()));
     this.panel = p;
   }
 
   /** 面板打开时每帧调用。返回 'start'(出发)| 'classChanged' | null;消费输入。 */
-  update(): 'start' | 'classChanged' | null {
+  update(): 'start' | 'startDaily' | 'classChanged' | null {
     if (this.panel === 'none') return null;
     if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyF') || this.input.wasPressed('PadB')) {
       this.panel = 'none';
@@ -47,6 +52,10 @@ export class CampUI {
     if (this.panel === 'expedition' && (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart'))) {
       this.panel = 'none';
       return 'start';
+    }
+    if (this.panel === 'daily' && (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart'))) {
+      this.panel = 'none';
+      return 'startDaily';
     }
     if (!this.input.mousePressed) return null;
     const mx = this.input.mouseX;
@@ -58,6 +67,10 @@ export class CampUI {
       if (r.act === 'go') {
         this.panel = 'none';
         return 'start';
+      }
+      if (r.act === 'goDaily') {
+        this.panel = 'none';
+        return 'startDaily';
       }
       if (r.act.startsWith('ch')) {
         const ch = Number(r.act.slice(2)) as 1 | 2 | 3;
@@ -88,8 +101,86 @@ export class CampUI {
 
     if (this.panel === 'expedition') this.renderExpedition(ctx, w, h);
     else if (this.panel === 'altar') this.renderAltar(ctx, w, h);
+    else if (this.panel === 'daily') this.renderDaily(ctx, w, h);
     else this.renderClasspick(ctx, w, h);
     ctx.restore();
+  }
+
+  /** 当日挑战信息(营地渲染与面板共用) */
+  daily: DailyChallenge = dailyChallenge(dailyKey(new Date()));
+
+  // ---- 每日挑战(混沌祭坛) ----
+  private renderDaily(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pw = 620;
+    const ph = 380;
+    const px = w / 2 - pw / 2;
+    const py = h / 2 - ph / 2;
+    panelBox(ctx, px, py, pw, ph);
+
+    const d = meta.data.daily;
+    const done = d.key === this.daily.key && d.cleared;
+
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('🗓 每日挑战 · 混沌祭坛', w / 2, py + 34);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = UI.text;
+    ctx.fillText(`${this.daily.key} · 每日 0 点刷新 · 全服同种子`, w / 2, py + 56);
+
+    // 今日词条(3 条)
+    const ch = this.daily.mods;
+    const cw = (pw - 48 - 16) / 3;
+    ch.forEach((m, i) => {
+      const rx = px + 24 + i * (cw + 8);
+      const ry = py + 76;
+      ctx.fillStyle = '#1a1f30';
+      ctx.fillRect(rx, ry, cw, 108);
+      ctx.strokeStyle = '#3a4154';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(rx, ry, cw, 108);
+      ctx.fillStyle = UI.gold;
+      ctx.font = 'bold 15px monospace';
+      ctx.fillText(m.name, rx + cw / 2, ry + 28);
+      ctx.fillStyle = UI.text;
+      ctx.font = '11px monospace';
+      // 描述按 12 字折行
+      const words = m.desc.split('、');
+      words.forEach((line, li) => {
+        ctx.fillText(line, rx + cw / 2, ry + 54 + li * 16);
+      });
+    });
+
+    // 记录
+    ctx.font = '12px monospace';
+    if (d.key === this.daily.key && (d.cleared || d.bestTimeS > 0)) {
+      const t = Math.floor(d.bestTimeS / 60);
+      const sec = Math.floor(d.bestTimeS % 60).toString().padStart(2, '0');
+      ctx.fillStyle = d.cleared ? UI.gold : UI.dim;
+      ctx.fillText(
+        d.cleared
+          ? `✅ 今日已通关 · 最佳 ${t}:${sec} · 击杀 ${d.bestKills}`
+          : `今日最佳 ${t}:${sec} · 击杀 ${d.bestKills}(尚未通关)`,
+        w / 2, py + 216,
+      );
+    } else {
+      ctx.fillStyle = UI.dim;
+      ctx.fillText('今日尚未挑战 —— 章节固定第一章,词条全服一致', w / 2, py + 216);
+    }
+
+    const go: Rect = { x: w / 2 - 110, y: py + ph - 84, w: 220, h: 46 };
+    ctx.fillStyle = '#2a3147';
+    ctx.fillRect(go.x, go.y, go.w, go.h);
+    ctx.strokeStyle = UI.gold;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(go.x, go.y, go.w, go.h);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(done ? '⚔ 再挑战一次' : '⚔ 开始挑战', w / 2, go.y + 30);
+    this.rects.push({ rect: go, act: 'goDaily' });
+
+    ctx.fillStyle = UI.dim;
+    ctx.font = '11px monospace';
+    ctx.fillText('[Enter] 开始 · [Esc/F] 关闭 · 词条只在本局生效,不影响普通远征', w / 2, py + ph - 16);
   }
 
   // ---- 出征 ----

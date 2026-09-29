@@ -53,6 +53,7 @@ import { meta } from '@game/meta/Save';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
+import { runMods } from '@game/dungeon/RunMods';
 
 const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   battle: { color: '#dfe8f2', label: '战斗' },
@@ -81,6 +82,8 @@ type GameState = 'menu' | 'camp' | 'run' | 'results';
  * 系统更新顺序即契约(docs/02-ARCHITECTURE.md §4)。
  */
 export class GameScene {
+  /** 本局是否为每日挑战(结算时写记录) */
+  private dailyRun = false;
   private state: GameState = 'menu';
   private paused = false;
   private muted = false;
@@ -139,10 +142,11 @@ export class GameScene {
 
   // ---------- run 生命周期 ----------
 
-  private startRun(): void {
+  private startRun(daily = false): void {
     this.paused = false;
+    this.dailyRun = daily;
     const klass = this.campUI.selectedClass;
-    const chapter = this.campUI.selectedChapter;
+    const chapter: 1 | 2 | 3 = daily ? 1 : this.campUI.selectedChapter;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
     this.skills = new SkillSystem(this.input, klass, this.renderer);
@@ -210,10 +214,19 @@ export class GameScene {
     playerComp.runeBag.push(gift.id);
     playerComp.equippedRunes[gift.skill] = gift.id;
 
+    // 挑战词条:初始药剂增减
+    playerComp.potionCharges = Math.max(0, playerComp.potionCharges + runMods.eff.potion);
+
     clock.reset();
     this.wasNight = false;
     meta.data.stats.runs++;
     meta.save();
+    if (runMods.active) {
+      this.world.emit(new ToastEvent(
+        `🗓 每日挑战 ${runMods.label}:${runMods.mods.map((m) => m.name).join(' · ')}`,
+        '#e8c07a',
+      ));
+    }
     this.run.startRoom(w, 'battle', this.playerE);
     const ptr = w.mustGet(this.playerE, Transform);
     this.renderer.camera.snap(ptr.x, ptr.y);
@@ -264,7 +277,7 @@ export class GameScene {
     pc.rage = 100;
 
     // 功能建筑
-    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick', label: string, icon: string, x: number, y: number): void => {
+    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily', label: string, icon: string, x: number, y: number): void => {
       const e = w.create();
       w.add(e, new Transform(x * M, y * M));
       w.add(e, new CampStation(kind, label, icon));
@@ -273,6 +286,7 @@ export class GameScene {
     station('altar', '星陨祭坛', '⭐', 4.6, 3.0);
     station('forge', '星辉铸台', '📜', 4.6, H - 3.0);
     station('classpick', '职业试炼场', '🏵', W / 2, 2.2);
+    station('daily', '混沌祭坛', '🗓', W / 2, H - 2.4);
 
     // 训练木桩 ×2(不死,DPS 计)
     for (const dy of [-2.2, 2.2]) {
@@ -342,7 +356,17 @@ export class GameScene {
     const panelWasOpen = this.campUI.panel !== 'none';
     const act = this.campUI.update();
     if (act === 'start') {
+      runMods.clear();
       this.startRun();
+      this.input.endFrame();
+      return;
+    }
+    if (act === 'startDaily') {
+      // 当日词条只在本局生效;章节固定第一章(全服同种子可比)
+      this.campUI.selectedChapter = 1;
+      this.dailyRun = true;
+      runMods.set(this.campUI.daily.key, this.campUI.daily.mods);
+      this.startRun(true);
       this.input.endFrame();
       return;
     }
@@ -449,8 +473,8 @@ export class GameScene {
     ctx.font = '11px monospace';
     ctx.fillText(
       this.input.touchActive
-        ? '打木桩试招 · 走近建筑点 F 钮 · 🌀传送门出征'
-        : '打木桩试招(怒气已满可放R) · 走近建筑按 [F] · 🌀传送门出征 · [Esc]设置',
+        ? '木桩试招 · 走近建筑点 F 钮 · 🌀出征 · 🗓每日挑战'
+        : '木桩试招(怒气满可放R) · 走近建筑按 [F] · 🌀出征 · 🗓每日挑战 · [Esc]设置',
       width / 2, height - 12,
     );
     ctx.restore();
@@ -491,8 +515,23 @@ export class GameScene {
         meta.data.stats.bestTimeS = clock.runTime;
       }
     }
+    // 每日挑战记录(按当天键存;跨天自动作废,只保留当日最佳)
+    if (this.dailyRun && runMods.active) {
+      const d = meta.data.daily;
+      const sameDay = d.key === runMods.key;
+      if (!sameDay) {
+        meta.data.daily = { key: runMods.key, cleared: victory, bestTimeS: victory ? clock.runTime : 0, bestKills: this.feedback.kills };
+      } else {
+        if (victory) d.cleared = true;
+        if (victory && (d.bestTimeS === 0 || clock.runTime < d.bestTimeS)) d.bestTimeS = clock.runTime;
+        d.bestKills = Math.max(d.bestKills, this.feedback.kills);
+      }
+      meta.save();
+    }
+    this.dailyRun = false;
     meta.save();
     this.state = 'results';
+    runMods.clear(); // 词条随本局结束失效(下一局由进入路径重新 set)
   }
 
   // ---------- 更新 ----------
@@ -1530,6 +1569,19 @@ export class GameScene {
     ctx.font = 'bold 12px monospace';
     const night = clock.isNight();
     ctx.fillText(`${night ? '🌙' : '☀'} ${roomLabel} · ${Math.ceil(clock.untilSwitch())}s`, width / 2, 31);
+
+    // 每日挑战角标:日期 + 三条词条名(玩家随时能确认本局规则)
+    if (runMods.active) {
+      const label = `🗓 ${runMods.label} · ${runMods.mods.map((m) => m.name).join(' / ')}`;
+      ctx.font = 'bold 11px monospace';
+      const tw = ctx.measureText(label).width + 20;
+      if (!drawPanel9(ctx, width / 2 - tw / 2, 44, tw, 22)) {
+        ctx.fillStyle = 'rgba(19,23,38,0.9)';
+        ctx.fillRect(width / 2 - tw / 2, 44, tw, 22);
+      }
+      ctx.fillStyle = UI.gold;
+      ctx.fillText(label, width / 2, 59);
+    }
 
     // Boss 血条(两章 Boss 通用)
     const drawBossBar = (bh: Health, name: string, phase: number, gold: boolean, color: string): void => {

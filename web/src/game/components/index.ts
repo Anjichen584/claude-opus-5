@@ -468,7 +468,7 @@ export class CampStation {
   animT = Math.random() * 10;
 
   constructor(
-    public kind: 'expedition' | 'altar' | 'forge' | 'classpick',
+    public kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily',
     public label: string,
     public icon: string,
   ) {}

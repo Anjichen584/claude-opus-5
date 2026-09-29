@@ -33,6 +33,8 @@ export interface SaveData {
   blueprintShards: number;
   /** 已预订铸造:下局开局自带随机橙装 */
   craftQueued: boolean;
+  /** 每日挑战记录(局外持久;key = 当天日期,跨天自动视作未通关) */
+  daily: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   settings: Settings;
   stats: { runs: number; clears: number; totalKills: number; bestTimeS: number };
 }
@@ -58,6 +60,7 @@ export function defaultSave(): SaveData {
     pity: 0,
     blueprintShards: 0,
     craftQueued: false,
+    daily: { key: '', cleared: false, bestTimeS: 0, bestKills: 0 },
     settings: {
       musicVol: 0.8, sfxVol: 0.35, uiScale: 1,
       screenShake: 1, hitstop: 1,
@@ -105,6 +108,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     v: CURRENT_SAVE_VERSION,
     altar: { ...d.altar, ...(parsed.altar ?? {}) },
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
+    daily: { ...d.daily, ...(parsed.daily ?? {}) },
     settings: {
       ...d.settings,
       ...(parsed.settings ?? {}),
@@ -117,6 +121,12 @@ export function migrateSave(raw: unknown): MigrateResult {
   data.pity = Math.max(0, Math.floor(num(data.pity)));
   data.blueprintShards = Math.max(0, Math.floor(num(data.blueprintShards)));
   data.craftQueued = data.craftQueued === true;
+  data.daily = {
+    key: typeof data.daily.key === 'string' ? data.daily.key : '',
+    cleared: data.daily.cleared === true,
+    bestTimeS: Math.max(0, num(data.daily.bestTimeS)),
+    bestKills: Math.max(0, Math.floor(num(data.daily.bestKills))),
+  };
   data.altar = {
     hp: Math.max(0, Math.floor(num(data.altar.hp))),
     atk: Math.max(0, Math.floor(num(data.altar.atk))),

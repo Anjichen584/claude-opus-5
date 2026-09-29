@@ -12,6 +12,7 @@ import {
 } from '@game/components';
 import { RUNE_POOL } from '@game/skills/SkillSystem';
 import { scaleAtk, scaleHp } from './Scaling';
+import { runMods } from './RunMods';
 import { clock } from './Clock';
 import type { ItemFactory } from '@game/loot/Items';
 
@@ -154,8 +155,12 @@ export class RunManager {
         world.add(e, new Velocity());
         world.add(e, new Body(cfg.bodyRadius, false));
         const bossOwnTuned = this.chapter >= 2; // 二三章 Boss 血攻已按章调好,不再乘章节系数
-        world.add(e, new Health(Math.round(scaleHp(cfg.hp, 0, night) * (bossOwnTuned ? 1 : mul))));
-        world.add(e, new Stats(Math.round(scaleAtk(cfg.atk, 0, night) * (bossOwnTuned ? 1 : mul)), cfg.speed, 0, 1, cfg.def));
+        const [mhp, matk] = runMods.enemy(
+          scaleHp(cfg.hp, 0, night) * (bossOwnTuned ? 1 : mul),
+          scaleAtk(cfg.atk, 0, night) * (bossOwnTuned ? 1 : mul),
+        );
+        world.add(e, new Health(Math.round(mhp)));
+        world.add(e, new Stats(Math.round(matk), cfg.speed, 0, 1, cfg.def));
         world.add(e, new Faction('enemy'));
         if (this.chapter === 3) world.add(e, new BossKazra());
         else if (this.chapter === 2) world.add(e, new BossVelsha());
@@ -397,9 +402,13 @@ export class RunManager {
     world.add(e, new Velocity());
     world.add(e, new Body(cfg.bodyRadius, kind === 'thornvine'));
     const mul = this.chapterCfg.statMult;
-    world.add(e, new Health(Math.round(scaleHp(cfg.hp, this.depth, night) * mul)));
+    const [mhp, matk] = runMods.enemy(
+      scaleHp(cfg.hp, this.depth, night) * mul,
+      scaleAtk(cfg.atk, this.depth, night) * mul,
+    );
+    world.add(e, new Health(Math.round(mhp)));
     const speed = 'speed' in cfg ? (cfg as { speed: number }).speed : 0;
-    world.add(e, new Stats(Math.round(scaleAtk(cfg.atk, this.depth, night) * mul), speed, 0, 1, cfg.def));
+    world.add(e, new Stats(Math.round(matk), speed, 0, 1, cfg.def));
     world.add(e, new Faction('enemy'));
     world.add(e, new ElementMarks());
     world.add(e, new Buffs());

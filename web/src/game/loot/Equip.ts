@@ -1,5 +1,6 @@
 import type { World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
+import { runMods } from '@game/dungeon/RunMods';
 import { Equipment, Health, Inventory, Player, Stats } from '@game/components';
 import { meta } from '@game/meta/Save';
 import type { Item } from './Items';
@@ -20,8 +21,8 @@ export function recompute(world: World, pe: Entity): void {
   const altar = meta.data.altar;
   const pl = world.mustGet(pe, Player);
   const kls = balance.classes[pl.klass];
-  let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl) * kls.atkMult * (1 + pl.runBuffAtk);
-  let hpFlat = B.hp * (1 + altar.hp * balance.altar.hpPerLvl) * kls.hpMult * pl.runHpMult;
+  let atkFlat = B.atk * (1 + altar.atk * balance.altar.atkPerLvl) * kls.atkMult * (1 + pl.runBuffAtk) * runMods.eff.playerAtk;
+  let hpFlat = B.hp * (1 + altar.hp * balance.altar.hpPerLvl) * kls.hpMult * pl.runHpMult * runMods.eff.playerHp;
   let critFlat = B.critRate;
   let moveBasePct = 0;
   let atkPct = 0;
@@ -70,7 +71,8 @@ export function recompute(world: World, pe: Entity): void {
   hp.max = newMax;
   hp.hp = Math.min(newMax, Math.max(1, Math.round(newMax * ratio)));
 
-  p.cdr = Math.min(cdrPct / 100, 0.4); // 上限 40%(docs/03 §1)
+  // 上限 40%(docs/03 §1);带「迅影」类挑战词条时放宽,否则词条会被上限吃掉
+  p.cdr = Math.min(cdrPct / 100 + runMods.eff.cdr, runMods.cdrCap);
   p.elemDmg = elemPct / 100;
   p.pickupRadiusM = balance.loot.pickupBaseM * (1 + pickupPct / 100);
   p.specials = specials;
