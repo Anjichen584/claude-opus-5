@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# AI 原画源图:体积大且可再生(见 web/art_src/README.md),只提交处理后的精灵
+web/art_src/*.png
