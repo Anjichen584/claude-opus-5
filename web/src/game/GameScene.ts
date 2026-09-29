@@ -49,6 +49,7 @@ import { bindOf, keyLabel } from '@game/meta/Bindings';
 import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
+import { terrain } from '@game/dungeon/Terrain';
 import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
@@ -124,6 +125,8 @@ export class GameScene {
   private bgHasTile = false;
   /** 已烘焙进背景的布局指纹(换模板/换房 → 重烘焙地面) */
   private bgLayoutKey = '';
+  /** 上帧玩家是否站在浅滩里(只提示一次,不刷屏) */
+  private wasInWater = false;
 
   constructor(
     private readonly renderer: Renderer,
@@ -249,6 +252,9 @@ export class GameScene {
     this.paused = false;
     this.state = 'camp';
     this.bgHasTile = false;
+    this.wasInWater = false;
+    terrain.clear(); // 营地没有房间地形
+    this.run.layout = null;
     const klass = this.campUI.selectedClass;
     this.world = new World();
     this.feedback = new FeedbackSystem(this.loop, this.renderer.camera);
@@ -705,6 +711,18 @@ export class GameScene {
     }
 
     for (const s of this.systems) s.update(this.world, dt);
+
+    // 浅滩提示:第一次趟水时提示一次(机制要有教学,否则玩家只当是贴图)
+    if (terrain.hasWater) {
+      const ptr = this.world.mustGet(this.playerE, Transform);
+      const inWater = terrain.isWater(ptr.x, ptr.y);
+      if (inWater && !this.wasInWater) {
+        this.world.emit(new ToastEvent(`💧 浅滩:移动 ×${balance.layouts.terrain.waterMoveMult} · 雷击 ×${balance.layouts.terrain.waterBoltAmp} 并麻痹`, '#7fd6d6'));
+      }
+      this.wasInWater = inWater;
+    } else {
+      this.wasInWater = false;
+    }
 
     const outcome = this.run.update(this.world, dt, this.playerE);
     if (outcome === 'victory') {
@@ -1275,9 +1293,26 @@ export class GameScene {
       // ---- 场景物件 ----
       for (const e of w.query(PropObstacle, Transform)) {
         const tr = w.mustGet(e, Transform);
-        const pk = w.mustGet(e, PropObstacle).kind;
+        const prop = w.mustGet(e, PropObstacle);
+        const pk = prop.kind;
+        // 碎掉的障碍:只剩一地残渣(不挡路,但看一眼就知道这儿被拆过)
+        if (prop.broken) {
+          list.push({ y: tr.y, draw: () => {
+            ctx.fillStyle = this.run.chapter === 3 ? '#b9a273' : this.run.chapter === 2 ? '#c8d6de' : '#8a7d5f';
+            for (let i = 0; i < 5; i++) {
+              const a = (i / 5) * Math.PI * 2 + tr.x * 0.01;
+              ctx.fillRect(tr.x + Math.cos(a) * 9 - 4, tr.y + Math.sin(a) * 5 - 3, 8, 5);
+            }
+          } });
+          continue;
+        }
         list.push({ y: tr.y, draw: () => {
           if (pk === 'tree') drawShadow(ctx, tr.x, tr.y, 20);
+          ctx.save();
+          if (prop.shakeT > 0) {
+            ctx.translate(Math.sin(prop.shakeT * 90) * 3, 0); // 挨打时抖一下
+            prop.shakeT -= 1 / 60;
+          }
           const propSprite = this.run.chapter === 3
             ? ({ tree: 'prop_cactus', rock: 'prop_sandrock', bush: 'prop_tumble' } as const)[pk]
             : this.run.chapter === 2
@@ -1287,6 +1322,7 @@ export class GameScene {
             blob(tr.x, tr.y, pk === 'tree' ? 22 : pk === 'rock' ? 14 : 10,
               pk === 'rock' ? '#9aa3ad' : '#4f8a44');
           }
+          ctx.restore();
         } });
       }
 

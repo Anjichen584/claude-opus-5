@@ -507,6 +507,12 @@
       "ring": 12,
       "shore": 10
     },
+    "terrain": {
+      "waterMoveMult": 0.72,
+      "waterBoltAmp": 1.25,
+      "waterStunS": 0.5,
+      "splashNoticeS": 2.5
+    },
     "byKind": {
       "battle": [
         "scatter",
@@ -764,12 +770,14 @@
     "tree": {
       "bodyRadius": 0.45,
       "perRoomMin": 3,
-      "perRoomMax": 6
+      "perRoomMax": 6,
+      "hp": 80
     },
     "rock": {
       "bodyRadius": 0.4,
       "perRoomMin": 2,
-      "perRoomMax": 4
+      "perRoomMax": 4,
+      "hp": 120
     },
     "bush": {
       "bodyRadius": 0,

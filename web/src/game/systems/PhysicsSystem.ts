@@ -2,7 +2,8 @@ import type { System, World } from '@engine/ecs/World';
 import { SpatialHash } from '@engine/physics/SpatialHash';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
-import { Body, Transform, Velocity } from '@game/components';
+import { Body, PropObstacle, Transform, Velocity } from '@game/components';
+import { terrain } from '@game/dungeon/Terrain';
 
 /**
  * 物理:速度积分(记录 prev 供插值)→ 空间哈希 → 圆形体分离 → 场地边界钳制。
@@ -14,14 +15,15 @@ export class PhysicsSystem implements System {
   update(world: World, dt: number): void {
     const movers = world.query(Transform, Velocity, Body);
 
-    // 积分
+    // 积分(浅滩减速在这一层统一施加:玩家/怪/Boss/冲刺/技能位移都吃到,不用各处改)
     for (const e of movers) {
       const tr = world.mustGet(e, Transform);
       const vel = world.mustGet(e, Velocity);
+      const t = terrain.moveMult(tr.x, tr.y);
       tr.prevX = tr.x;
       tr.prevY = tr.y;
-      tr.x += vel.vx * dt;
-      tr.y += vel.vy * dt;
+      tr.x += vel.vx * t * dt;
+      tr.y += vel.vy * t * dt;
     }
 
     // 重建哈希
@@ -39,6 +41,8 @@ export class PhysicsSystem implements System {
       this.hash.queryCircle(trA.x, trA.y, bodyA.radius * M * 2.5, this.nearby);
       for (const o of this.nearby) {
         if (o === e) continue;
+        const propB = world.get(o, PropObstacle);
+        if (propB?.broken) continue; // 碎了的障碍不再阻挡
         const trB = world.mustGet(o, Transform);
         const bodyB = world.mustGet(o, Body);
         const dx = trA.x - trB.x;

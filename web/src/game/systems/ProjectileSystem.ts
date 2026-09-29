@@ -2,8 +2,9 @@ import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
-  Body, Faction, Health, Player, Projectile, RingFxEvent, SfxEvent, Transform, Velocity,
+  Body, Faction, Health, Player, Projectile, PropObstacle, RingFxEvent, SfxEvent, Transform, Velocity,
 } from '@game/components';
+import { damageProp, propHp } from '@game/dungeon/Terrain';
 import { dealDamage } from '@game/combat/DamagePipeline';
 import { PlayerSystem } from './PlayerSystem';
 
@@ -52,6 +53,28 @@ export class ProjectileSystem implements System {
       pr.lifeS -= dt;
 
       if (pr.lifeS <= 0 || tr.x < 0 || tr.y < 0 || tr.x > maxX || tr.y > maxY) {
+        world.destroy(e);
+        continue;
+      }
+
+      // 撞上实心障碍:砸一发耐久,弹幕消失(远程也能拆墙,但要花弹药/时间)
+      let hitProp = false;
+      for (const pe of world.query(PropObstacle, Transform, Body)) {
+        const prop = world.mustGet(pe, PropObstacle);
+        if (prop.broken || propHp(prop.kind) <= 0) continue;
+        const ptr = world.mustGet(pe, Transform);
+        const pbody = world.mustGet(pe, Body);
+        if (Math.hypot(ptr.x - tr.x, ptr.y - tr.y) > pbody.radius * M + 6) continue;
+        const dmg = pr.atk * pr.mult; // 与打怪同一套数值口径
+        prop.shakeT = 0.18;
+        if (damageProp(prop, prop.kind, dmg)) {
+          world.remove(pe, Body);
+          world.emit(new SfxEvent('hit'));
+        }
+        hitProp = true;
+        break;
+      }
+      if (hitProp) {
         world.destroy(e);
         continue;
       }

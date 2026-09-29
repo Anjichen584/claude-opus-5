@@ -34,13 +34,14 @@
 | `Meta/Challenges.cs` | `game/meta/Daily.ts` + `Weekly.ts` | 挑战镜像:每日 10 条词条池 + 周常 8 条**铁律**(结构性:多一波怪/商店关门/祭坛失效/精英提前/地形定死)+ ISO 周键 + 与 web 同构的抽签链路(FNV-1a→雪崩→mulberry32,含 golden 向量);数据走 `Parity` 与 challenges.json 的 178 键逐项比对 |
 | `Combat/Telegraphs.cs` | `TelegraphStrike` / Boss 预警 | 预警区域:亮圈 → 到点结算 → 可残留元素地带 |
 | `Dungeon/CreatureAI.cs` | `EnemySystem/CritterSystem/EliteSystem/TundraSystem/DesertSystem` | 18 种杂兵 AI:炮台/风筝/滚撞/旋壳/俯冲/钻地/抛毒沼/瞬跳/精灵逃跑 |
+| `Dungeon/TerrainRules.cs` | `game/dungeon/Terrain.ts` | 地形机制镜像:浅滩(水里移动 ×0.72 / 雷伤 ×1.25 / 麻痹 0.5s)+ 可打穿的障碍(树 80 / 岩 120 耐久,碎后不再挡路)+ `TerrainState.ForLayout`;数值走 `Parity`,与 balance.json 的 6 个键(terrain 段 + props.*.hp)逐项比对 |
 | `Dungeon/RoomLayouts.cs` | `game/dungeon/RoomLayouts.ts` | 房间布局模板镜像:9 种模板清单 + 抽模板权重(战斗房加权、精英房不出散布、Boss/静谧房固定)+ 摆放常量(出入口净空/散件间距/通道净宽/墙砖间距);数值走 `Parity`,与 balance.json 的 layouts 段 16 键逐项比对 |
 | `Dungeon/BossAI.cs` | `BossSystem/VelshaSystem/KazraSystem` | 三个 Boss:南弥尔(横扫/根须线/地刺矩阵/根须风暴 + 阶段硬直)、薇尔莎(冰弹环/暴风雪/召唤/寒风冲锋)、卡兹拉(钻地突袭/熔痕/召唤烬鼠);三阶段血线与 P3 提速 |
 
 ## 测试(不需要 Unity 编辑器)
 
 ```bash
-bash unity/Tests/run.sh      # 293 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
+bash unity/Tests/run.sh      # 326 项断言:随机数/元素反应/伤害管线/方向性弱点/地带/预警/弹幕/四职业技能/杂兵与双Boss AI/掉落/时钟/存档/三章出怪/双端 parity
 ```
 
 - 只编译 `Assets/Scripts` 下**不依赖 UnityEngine** 的目录(`Core/ Combat/ Skills/ Dungeon/ Meta/ Loot/ Data/`),`Unity/` 目录不参与。

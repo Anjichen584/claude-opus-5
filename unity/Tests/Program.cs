@@ -283,6 +283,68 @@ namespace StarfallKnights.Tests
             Check(Challenges.KeySeed("2026-W40") != Challenges.KeySeed("2026-W41"), "相邻周 seed 不相关(雪崩没省)");
         }
 
+        // ---------------- 地形机制(浅滩 + 可打穿的障碍) ----------------
+        private static void TestTerrainRules()
+        {
+            Suite("地形机制(浅滩减速导电 / 障碍可打穿)");
+
+            const float W = 28f, H = 16f;
+
+            // 只有浅滩房有水;水带横穿房间中下段(与 web floorOf('shore') 一致)
+            var shore = TerrainRules.TerrainState.ForLayout("shore", H);
+            Check(shore.HasWater, "浅滩房有水");
+            Check(!TerrainRules.TerrainState.ForLayout("pillars", H).HasWater
+                  && !TerrainRules.TerrainState.ForLayout("narrow", H).HasWater, "其它房间没有水");
+            Check(shore.IsWater(W / 2f, H * 0.62f), "水带中心在水里");
+            Check(!shore.IsWater(2.5f, H / 2f), "入口落点(2.5m)不在水里");
+            Check(!shore.IsWater(W / 2f, 1.2f), "贴近上边界是旱地");
+
+            // 移动乘区:水里变慢、旱地不变;平衡区间(有感觉但走得动)
+            Near(shore.MoveMult(W / 2f, H * 0.62f), TerrainRules.WaterMoveMult, 1e-4f, "水里移动乘区");
+            Near(shore.MoveMult(W / 2f, 1.2f), 1f, 1e-4f, "旱地移动乘区不变");
+            Check(TerrainRules.WaterMoveMult > 0.5f && TerrainRules.WaterMoveMult < 1f, "减速幅度在有感但走得动的区间");
+
+            // 导电:只有雷吃加成;麻痹只在水里
+            Near(shore.ElemAmp(true, W / 2f, H * 0.62f), TerrainRules.WaterBoltAmp, 1e-4f, "水中雷伤乘区");
+            Near(shore.ElemAmp(true, W / 2f, 1.2f), 1f, 1e-4f, "旱地雷伤不加成");
+            Near(shore.ElemAmp(false, W / 2f, H * 0.62f), 1f, 1e-4f, "火/冰/毒与水无关");
+            Near(shore.StunOnBolt(true, W / 2f, H * 0.62f), TerrainRules.WaterStunS, 1e-4f, "水中雷击附带麻痹");
+            Near(shore.StunOnBolt(true, W / 2f, 1.2f), 0f, 1e-4f, "旱地雷击不麻痹");
+            Check(TerrainRules.WaterBoltAmp > 1f && TerrainRules.WaterBoltAmp <= 1.5f, "雷伤加成在合理区间(不至于变成必须浅滩开局)");
+            Check(TerrainRules.WaterStunS > 0f && TerrainRules.WaterStunS < Balance.NumbStunS, "浅滩麻痹短于反应链麻痹");
+
+            // 减速对位移的实际影响(与 web PhysicsSystem 同一口径:d = v × mult × dt)
+            float v = 240f, dt = 0.1f;
+            float onLand = v * dt;
+            float inWater = v * shore.MoveMult(W / 2f, H * 0.62f) * dt;
+            Check(inWater < onLand && inWater > onLand * 0.5f, $"水里位移被砍但不至于走不动({inWater:0.#} vs {onLand:0.#} 像素)");
+
+            // 障碍耐久:树 80 / 岩 120;灌木打不烂
+            Near(TerrainRules.PropHp("tree"), 80f, 1e-4f, "树耐久 80");
+            Near(TerrainRules.PropHp("rock"), 120f, 1e-4f, "岩耐久 120");
+            Check(TerrainRules.PropHp("rock") > TerrainRules.PropHp("tree"), "岩比树结实(窄道墙更贵)");
+            Check(TerrainRules.PropHp("bush") == 0f && TerrainRules.PropHp("nope") == 0f, "灌木/未知种类没有耐久");
+
+            // 破坏流程:扣血 → 归零才碎;碎了再打无效
+            var rock = TerrainRules.Breakable.Make("rock");
+            Check(TerrainRules.Blocks(rock), "整块岩石挡路");
+            Check(!TerrainRules.DamageProp(ref rock, 50f), "50 点没打破");
+            Near(rock.Hp, 70f, 1e-4f, "剩余耐久 70");
+            Check(TerrainRules.DamageProp(ref rock, 70f), "补给 70 → 刚好碎裂");
+            Check(rock.Broken && !TerrainRules.Blocks(rock), "碎裂后不再挡路");
+            Check(!TerrainRules.DamageProp(ref rock, 999f), "碎了之后再打无效");
+
+            var bush = TerrainRules.Breakable.Make("bush");
+            Check(!TerrainRules.DamageProp(ref bush, 999f) && !bush.Broken, "灌木打不烂");
+
+            // 手感数字:基准攻击 12 → 砍树 7 刀、拆岩 10 刀;大招级 60 → 2 刀开洞
+            Check(TerrainRules.HitsToBreak("tree", Balance.PlayerAtk) == 7, $"砍树 7 刀(实际 {TerrainRules.HitsToBreak("tree", Balance.PlayerAtk)})");
+            Check(TerrainRules.HitsToBreak("rock", Balance.PlayerAtk) == 10, $"拆岩 10 刀(实际 {TerrainRules.HitsToBreak("rock", Balance.PlayerAtk)})");
+            Check(TerrainRules.HitsToBreak("rock", 60f) == 2, "技能级伤害两下开洞(拆墙是可选项而不是苦工)");
+            Check(TerrainRules.HitsToBreak("bush", Balance.PlayerAtk) == 0 && TerrainRules.HitsToBreak("tree", 0f) == 0, "打不烂 / 0 伤害 → 0 刀");
+            Check(TerrainRules.WallOpenSwings(Balance.PlayerAtk) == 10, "窄道墙上开个口子 = 10 刀");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -308,6 +370,7 @@ namespace StarfallKnights.Tests
             TestClassSkillSet();
             TestRoomLayouts();
             TestChallenges();
+            TestTerrainRules();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));

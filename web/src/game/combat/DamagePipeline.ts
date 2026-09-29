@@ -11,6 +11,7 @@ import {
 import { elementColor, reactionOf } from './Elements';
 import { defenseReduction, finalDamage } from './formulas';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
+import { terrain } from '@game/dungeon/Terrain';
 
 const RX = balance.reactions;
 
@@ -67,12 +68,22 @@ export function dealDamage(world: World, o: DealOpts): void {
     backstab *= 1 - balance.enemies.iceturtle.frontDR;
   }
 
-  const amount = finalDamage(atk, o.mult * elemBonus * backstab * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
+  // 地形:浅滩导电 —— 雷元素打水里的目标更疼,并附带短时麻痹(docs/01-GDD.md §9.2)
+  const terrainAmp = terrain.elemAmp(o.element, tTr.x, tTr.y);
+
+  const amount = finalDamage(atk, o.mult * elemBonus * backstab * terrainAmp * Math.pow(RX.chainDecay, depth), crit, srcStats?.critDmg ?? 1, defRed, vuln);
 
   // ---- 玩家目标走受伤入口(尊重无敌帧/翻滚) ----
   if (world.has(o.target, Player)) {
     PlayerSystem.applyHurt(world, o.target, amount);
     return;
+  }
+
+  // 水里的雷击:短时麻痹(不占印记槽,免得盖掉玩家自己的元素铺场)
+  const stunS = terrain.stunOnBolt(o.element, tTr.x, tTr.y);
+  if (stunS > 0) {
+    const tBuffs2 = world.get(o.target, Buffs);
+    if (tBuffs2) tBuffs2.stunT = Math.max(tBuffs2.stunT, stunS);
   }
 
   // ---- 元素印记与连锁 ----

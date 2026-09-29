@@ -134,6 +134,8 @@ namespace StarfallKnights.Tests
                 }
             }
             Walk(layouts, "layouts");
+            // layouts.terrain.* 归 TerrainRules(见下面的"地形机制"段),这里只比摆放规则常量
+            foreach (var k in new List<string>(leaves.Keys)) if (k.StartsWith("layouts.terrain.")) leaves.Remove(k);
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -180,6 +182,34 @@ namespace StarfallKnights.Tests
                 }
             }
             check(listBad == 0, "布局模板名单逐项一致(战斗/精英/Boss/静谧)");
+
+            // 地形机制(浅滩减速/导电)与障碍耐久:键在 layouts.terrain.* 与 props.*.hp
+            int mechBad = 0;
+            var layoutTerrain = MiniJson.Opt(layouts, "terrain");
+            if (layoutTerrain == null) check(false, "layouts.terrain 段存在");
+            else
+            {
+                foreach (var kv in TerrainRules.Parity)
+                {
+                    if (!kv.Key.StartsWith("layouts.terrain.")) continue;
+                    string leaf = kv.Key.Substring("layouts.terrain.".Length);
+                    double json = MiniJson.Num(layoutTerrain, leaf);
+                    if (double.IsNaN(json)) { mechBad++; check(false, $"layouts.terrain 缺键 {leaf}"); continue; }
+                    if (Math.Abs((double)kv.Value - json) > Tol) { mechBad++; check(false, $"地形机制不一致:{leaf}(JSON={json} vs C#={kv.Value})"); }
+                }
+            }
+            var propsDoc = MiniJson.Opt(doc, "props");
+            if (propsDoc == null) check(false, "balance.json 有 props 段");
+            else
+            {
+                foreach (var kind in new[] { "tree", "rock" })
+                {
+                    double json = MiniJson.Num(MiniJson.Opt(propsDoc, kind), "hp");
+                    if (double.IsNaN(json)) { mechBad++; check(false, $"props.{kind}.hp 缺失"); continue; }
+                    if (Math.Abs(TerrainRules.PropHp(kind) - json) > Tol) { mechBad++; check(false, $"障碍耐久不一致:{kind}(JSON={json} vs C#={TerrainRules.PropHp(kind)})"); }
+                }
+            }
+            check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(6 个键)");
 
             // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
             near(Balance.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");

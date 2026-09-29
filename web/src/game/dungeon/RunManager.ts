@@ -19,6 +19,7 @@ import {
   buildLayout, isBlockedAt, isSolid as isSolidProp, pickLayout, propRadius,
   type LayoutCtxKind, type LayoutResult, type Reserved,
 } from './RoomLayouts';
+import { propHp, terrain } from './Terrain';
 
 export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event';
 
@@ -207,6 +208,7 @@ export class RunManager {
       reserved,
     });
     this.layoutKey = `${this.layout.id}#${this.layoutSeq++}`;
+    terrain.setFromLayout(this.layout); // 地形效果(浅滩减速/导电)随房生效
     this.spawnProps(world);
   }
 
@@ -372,13 +374,15 @@ export class RunManager {
   }
 
   /** 场景物件:按地形模板布置(战斗房 4 模板随机,走位差异化) */
-  /** 把本房布局的物件落成实体(实心件带 Body 参与碰撞,bush 只是装饰) */
+  /** 把本房布局的物件落成实体(实心件带 Body 与耐久,bush 只是装饰) */
   private spawnProps(world: World): void {
     const props = this.layout?.props ?? [];
     for (const p of props) {
       const e = world.create();
       world.add(e, new Transform(p.xM * M, p.yM * M));
-      world.add(e, new PropObstacle(p.pk));
+      const comp = new PropObstacle(p.pk);
+      comp.hp = propHp(p.pk); // 树 80 / 岩 120(balance.json props.*.hp)
+      world.add(e, comp);
       if (isSolidProp(p.pk)) {
         world.add(e, new Velocity()); // Body 需参与物理查询(速度恒 0)
         world.add(e, new Body(propRadius(p.pk), true));

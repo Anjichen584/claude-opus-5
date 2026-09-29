@@ -331,8 +331,15 @@ export class Projectile {
   homing = 0;
 }
 
-/** 场景物件:树/岩石可碰撞,灌木纯装饰 */
+/** 场景物件:树/岩石可碰撞且**可被打穿**(有耐久),灌木纯装饰 */
 export class PropObstacle {
+  /** 剩余耐久(<=0 且 broken 才作数;灌木恒 0) */
+  hp = 0;
+  /** 已碎裂:不再阻挡,只剩碎屑贴图 */
+  broken = false;
+  /** 被击中时的抖动计时(渲染用) */
+  shakeT = 0;
+
   constructor(public kind: 'tree' | 'rock' | 'bush') {}
 }
 
