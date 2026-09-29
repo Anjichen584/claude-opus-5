@@ -25,6 +25,13 @@ if ! git remote get-url origin >/dev/null 2>&1; then
   echo "🔧 已自愈 origin 远程配置(快照剥离了 .git/config)"
 fi
 
+# ---- 权限自愈:快照不保留权限位 —— 密钥变 644 会被 ssh 拒绝,脚本自身也可能丢 +x ----
+if [ -f "$HOME/.ssh/github_deploy" ]; then
+  chmod 600 "$HOME/.ssh/github_deploy" 2>/dev/null || true
+  [ -f "$HOME/.ssh/config" ] && chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
+fi
+chmod +x "$0" 2>/dev/null || true
+
 # 密钥缺失时的友好提示(环境重建会清掉 ~/.ssh)
 if [ ! -f "$HOME/.ssh/github_deploy" ]; then
   echo "⚠️  缺少部署密钥 ~/.ssh/github_deploy —— 请重新放置后再推送(见 docs/07-CONTRIBUTING.md)"
