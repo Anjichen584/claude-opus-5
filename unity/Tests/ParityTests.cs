@@ -1,4 +1,5 @@
 using System;
+using StarfallKnights.Core;
 using System.Collections.Generic;
 using System.IO;
 using StarfallKnights.Combat;
@@ -32,6 +33,7 @@ namespace StarfallKnights.Tests
             CheckBestiary(check, near, root);
             CheckLayouts(check, near, root);
             CheckChallenges(check, near, root);
+            CheckPixelFont(check, near, root);
         }
 
         /// <summary>图鉴 parity:balance.json 的敌人/章节数值 vs Data/Bestiary.cs 的常量。</summary>
@@ -323,6 +325,51 @@ namespace StarfallKnights.Tests
                 }
             }
             check(layoutBad == 0, "周常地形候选清单一致");
+        }
+
+        /// <summary>像素数字字体 parity:web/src/data/font.json ↔ Core/PixelFont.cs(逐字符逐行比对字模)。</summary>
+        private static void CheckPixelFont(Action<bool, string> check, Action<float, float, float, string> near, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/font.json");
+            if (!File.Exists(path)) { check(false, "存在 font.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+
+            near(PixelFont.GlyphW, (float)MiniJson.Num(doc, "glyphW"), Tol, "字宽");
+            near(PixelFont.GlyphH, (float)MiniJson.Num(doc, "glyphH"), Tol, "字高");
+            near(PixelFont.Spacing, (float)MiniJson.Num(doc, "spacing"), Tol, "字距");
+
+            var glyphs = MiniJson.Opt(doc, "glyphs");
+            if (glyphs == null) { check(false, "font.json 有 glyphs 段"); return; }
+
+            check(glyphs.Count == PixelFont.Glyphs.Count,
+                $"字模数量一致(JSON={glyphs.Count} vs C#={PixelFont.Glyphs.Count})");
+            check(PixelFont.Order.Length == glyphs.Count, "C# 字模顺序表与字模表同长");
+
+            int bad = 0;
+            foreach (var kv in glyphs)
+            {
+                string ch = kv.Key;
+                if (!PixelFont.Glyphs.TryGetValue(ch, out var csRows))
+                {
+                    bad++;
+                    check(false, $"C# 缺字模:'{ch}'");
+                    continue;
+                }
+                var jsonRows = MiniJson.Arr(kv.Value);
+                if (jsonRows.Count != csRows.Length) { bad++; check(false, $"'{ch}' 行数不符(JSON={jsonRows.Count} vs C#={csRows.Length})"); continue; }
+                for (int r = 0; r < jsonRows.Count; r++)
+                {
+                    if (!Equals(jsonRows[r], csRows[r]))
+                    {
+                        bad++;
+                        check(false, $"'{ch}' 第 {r} 行不符(JSON={jsonRows[r]} vs C#={csRows[r]})");
+                    }
+                }
+            }
+            var extra = new List<string>();
+            foreach (var ch in PixelFont.Glyphs.Keys) if (!glyphs.ContainsKey(ch)) extra.Add(ch);
+            check(extra.Count == 0, $"C# 没有多余字模(多出 {extra.Count} 个{(extra.Count > 0 ? ": " + string.Join(",", extra) : "")})");
+            check(bad == 0, $"font.json → PixelFont.cs 逐字符逐行一致({glyphs.Count} 个字模)");
         }
 
         private static Core.EnemyKind? KindOf(string jsonKey)

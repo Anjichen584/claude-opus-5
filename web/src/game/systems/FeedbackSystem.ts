@@ -3,6 +3,7 @@ import type { GameLoop } from '@engine/core/GameLoop';
 import type { Camera } from '@engine/render/Camera';
 import { sfx } from '@engine/audio/Sfx';
 import balance from '@data/balance.json';
+import { drawFloatText } from '@game/gfx/floatText';
 import { UI } from '@game/constants';
 import { meta } from '@game/meta/Save';
 import {
@@ -370,17 +371,11 @@ export class FeedbackSystem implements System {
     }
     ctx.globalAlpha = 1;
     for (const f of this.floaters) {
-      const a = 1 - (f.t / f.life) ** 2;
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.font = `bold ${Math.round(13 * f.scale)}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#0d0f1a';
-      ctx.strokeText(f.text, f.x, f.y);
-      ctx.fillStyle = f.color;
-      ctx.fillText(f.text, f.x, f.y);
-      ctx.restore();
+      // 伤害数字走像素字体:整数倍缩放 + 1px 描边,压在火焰/毒雾上也读得清
+      drawFloatText(ctx, {
+        text: f.text, x: f.x, y: f.y, color: f.color, scale: f.scale,
+        alpha: 1 - (f.t / f.life) ** 2,
+      });
     }
   }
 

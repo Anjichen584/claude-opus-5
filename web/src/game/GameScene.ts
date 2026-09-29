@@ -50,6 +50,7 @@ import { recompute } from '@game/loot/Equip';
 import { RunManager } from '@game/dungeon/RunManager';
 import { LAYOUT_LABELS } from '@game/dungeon/RoomLayouts';
 import { terrain } from '@game/dungeon/Terrain';
+import { drawPixelText, lineHeight, measure } from '@game/gfx/pixelFont';
 import { paintFloorFeature } from '@game/gfx/floor';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
@@ -1636,9 +1637,10 @@ export class GameScene {
     ctx.fillRect(24, 44, 220, 14);
     ctx.fillStyle = ratio > 0.3 ? UI.hp : UI.hpLow;
     ctx.fillRect(24, 44, 220 * ratio, 14);
-    ctx.fillStyle = UI.text;
-    ctx.font = '11px monospace';
-    ctx.fillText(`${Math.ceil(hp.hp)} / ${hp.max}`, 28, 55);
+    // 血量数字走像素字体(整串都是数字/斜杠/空格 → 可位图化)
+    drawPixelText(ctx, `${Math.ceil(hp.hp)}/${hp.max}`, 28, 50, {
+      scale: 1, color: ratio > 0.3 ? UI.text : UI.hpLow, align: 'left', outline: '#0d0f1a',
+    });
 
     // 顶部中央:房间进度 + 昼夜
     const layoutTag = this.run.layout !== null && this.run.roomKind !== 'boss'
@@ -1770,9 +1772,11 @@ export class GameScene {
         const cr = s.cd / s.cdMax;
         ctx.fillStyle = 'rgba(13,15,26,0.65)';
         ctx.fillRect(x, baseY, slotW, slotH * Math.min(cr, 1));
-        ctx.fillStyle = UI.text;
-        ctx.font = 'bold 13px monospace';
-        ctx.fillText(s.cd.toFixed(1), x + slotW / 2, baseY + slotH / 2 + 4);
+        // 冷却剩余秒数:纯数字(带小数点)→ 像素字体,整数倍放大,读得清也看得快
+        const cdText = s.cd.toFixed(1);
+        drawPixelText(ctx, cdText, x + slotW / 2, baseY + slotH / 2 - lineHeight(2) / 2, {
+          scale: 2, color: UI.text, align: 'center', outline: '#0d0f1a',
+        });
       } else if (s.locked) {
         ctx.fillStyle = 'rgba(13,15,26,0.5)';
         ctx.fillRect(x, baseY, slotW, slotH);
@@ -1792,7 +1796,19 @@ export class GameScene {
     }
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
-    ctx.fillText(`击杀 ${this.feedback.kills}  FPS ${Math.round(this.fps)}`, width - 24, 32);
+    // 击杀数 / FPS:标签走平台字体(中文),数字走像素字体 —— 混排时各画各的反而更整齐
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'right';
+    const fpsText = String(Math.round(this.fps));
+    const killText = String(this.feedback.kills);
+    const fpsW = measure(fpsText, 2);
+    const killW = measure(killText, 2);
+    drawPixelText(ctx, fpsText, width - 24, 22, { scale: 2, color: UI.text, align: 'right', outline: '#0d0f1a' });
+    ctx.fillStyle = UI.text;
+    ctx.fillText('FPS', width - 24 - fpsW - 6, 32);
+    drawPixelText(ctx, killText, width - 24 - fpsW - 6 - 26, 22, { scale: 2, color: UI.gold, align: 'right', outline: '#0d0f1a' });
+    ctx.fillStyle = UI.text;
+    ctx.fillText('击杀', width - 24 - fpsW - 6 - 26 - killW - 6, 32);
     ctx.fillStyle = UI.gold;
     ctx.fillText(`✦ ${p.stardust}`, width - 110, 52);
     ctx.fillStyle = p.potionCharges > 0 ? UI.hpLow : UI.dim;

@@ -345,6 +345,82 @@ namespace StarfallKnights.Tests
             Check(TerrainRules.WallOpenSwings(Balance.PlayerAtk) == 10, "窄道墙上开个口子 = 10 刀");
         }
 
+        // ---------------- 像素数字字体 ----------------
+        private static void TestPixelFont()
+        {
+            Suite("像素数字字体(5×7 字模 / 度量 / 对齐)");
+
+            Check(PixelFont.GlyphW == 5 && PixelFont.GlyphH == 7 && PixelFont.Spacing == 1, "字模规格 5×7,字距 1");
+            Check(PixelFont.Glyphs.Count == 24, $"收录 24 个字符(实际 {PixelFont.Glyphs.Count})");
+            Check(PixelFont.Order.Length == PixelFont.Glyphs.Count, "顺序表长度与字模表一致");
+
+            int missing = 0;
+            foreach (var c in "0123456789") if (!PixelFont.Has(c)) missing++;
+            foreach (var c in ".:/-+x,% PFSKH") if (!PixelFont.Has(c)) missing++;
+            Check(missing == 0, $"数字与常用符号全部收录(缺 {missing} 个)");
+            Check(!PixelFont.Has('生') && !PixelFont.Has('$') && !PixelFont.Has('p'), "中文/未收录字符/小写不冒充字模");
+
+            // 字模尺寸与字符集:每行必须正好 5 列,只含 '#' 与 '.'
+            int shapeBad = 0;
+            foreach (var kv in PixelFont.Glyphs)
+            {
+                if (kv.Value.Length != PixelFont.GlyphH) shapeBad++;
+                foreach (var row in kv.Value)
+                {
+                    if (row.Length != PixelFont.GlyphW) shapeBad++;
+                    foreach (var c in row) if (c != '#' && c != '.') shapeBad++;
+                }
+            }
+            Check(shapeBad == 0, "每个字模都是 7 行 × 5 列且只有 '#' / '.'");
+
+            // 笔画量:既不是空字也不是全实心;空格确实是空的
+            int degenerate = 0;
+            foreach (var kv in PixelFont.Glyphs)
+            {
+                int lit = PixelFont.LitPixels(kv.Key);
+                if (kv.Key == " ") { if (lit != 0) degenerate++; continue; }
+                if (lit < 4 || lit > PixelFont.GlyphW * PixelFont.GlyphH * 0.8) degenerate++;
+            }
+            Check(degenerate == 0, $"没有空字/糊字({degenerate} 个异常)");
+
+            // 十个数字彼此可区分(不然 '1' 和 '7' 在飘字里会看错)
+            var seen = new HashSet<string>();
+            bool dup = false;
+            foreach (var d in "0123456789")
+            {
+                if (!seen.Add(string.Join("|", PixelFont.Glyphs[d.ToString()]))) dup = true;
+            }
+            Check(!dup, "十个数字字模互不相同");
+
+            // 度量:宽度 = n×5×scale + (n-1)×1×scale
+            Check(PixelFont.Width("") == 0, "空串宽 0");
+            Check(PixelFont.Width("1") == 5, "单字宽 5");
+            Check(PixelFont.Width("12") == 11, $"两字宽 11(实际 {PixelFont.Width("12")})");
+            Check(PixelFont.Width("123", 2) == 34, "3 字 ×2 倍 = 34");
+            Check(PixelFont.Width("12:34") == 5 * 5 + 4, "含符号整串宽度按字距累加");
+
+            // 对齐:左 = 原样,中 = 减半宽,右 = 减全宽
+            Check(PixelFont.AlignX(100, "1234", 1, "left") == 100, "左对齐 = 原点");
+            Check(PixelFont.AlignX(100, "1234", 1, "center") == 100 - PixelFont.Width("1234") / 2, "居中 = 原点 − 半宽");
+            Check(PixelFont.AlignX(100, "1234", 1, "right") == 100 - PixelFont.Width("1234"), "右对齐 = 原点 − 全宽");
+
+            // 点亮像素查询:'0' 的中列在上下两端是空的(中间是斜杠),这能抓住"抄错一行"
+            Check(PixelFont.Pixel('0', 0, 0) == false && PixelFont.Pixel('0', 0, 1) == true, "'0' 第一行是 .###.");
+            Check(PixelFont.Pixel('0', 3, 2) == true, "'0' 的斜杠经过中心");
+            Check(PixelFont.Pixel('0', 99, 99) == false && PixelFont.Pixel('生', 0, 0) == false, "越界/未收录返回 false");
+            Check(PixelFont.LitPixels("0123456789") > 100, "十个数字合计点亮像素 > 100(字模不是空壳)");
+
+            // HUD 实际会画的东西:P 阶段名 / 血量 / 计时 / 掉落倍率都必须整串可位图化
+            foreach (var s in new[] { "P1", "P3", "FPS 60", "HP 128/200", "12:34", "999", "+1.25x", "x2", "45%" })
+            {
+                if (!PixelFont.Supports(s)) Check(false, $"HUD 字符串无法位图化:{s}");
+            }
+            Check(PixelFont.Supports("P1") && PixelFont.Supports("128/200") && PixelFont.Supports("12:34")
+                  && PixelFont.Supports("FPS 60"), "HUD 字符串(阶段/血量/计时/FPS)整串可位图化");
+            Check(!PixelFont.Supports("生命 12"), "含中文的整串会回退平台字体(不混排)");
+            Check(PixelFont.Supports("") , "空串视为可位图化");
+        }
+
         public static int Main()
         {
             Console.WriteLine("星陨骑士 · C# 逻辑层测试");
@@ -371,6 +447,7 @@ namespace StarfallKnights.Tests
             TestRoomLayouts();
             TestChallenges();
             TestTerrainRules();
+            TestPixelFont();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
