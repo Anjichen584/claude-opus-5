@@ -41,7 +41,22 @@ jobs:
           npx vitest run
           npx vite build --base=/claude-opus-5/
       # 推到 gh-pages 分支:GitHub 会自动为该分支开启 Pages(经典模式,无需手动设置)
+      #
+      # 为什么要"失败重试一次":2026-09-29 连续几次 push(同一分钟内)时,这一步偶发失败 ——
+      # 而 `Install & Test & Build` 永远是绿的,且单独重跑即恢复。根因是**两个写 gh-pages 的东西在抢**:
+      # 本工作流(concurrency: pages)只和"自己"串行,管不住 GitHub 自带的 "pages build and deployment"
+      # (push 到 gh-pages 后由 GitHub 触发)。所以这里用 continue-on-error + 条件重试兜一层:
+      # 首次失败不判死,重试成功则整个 job 仍为绿 —— 真失败(代码/构建问题)会在上一步就红,不会被这层掩盖。
       - name: Deploy to gh-pages
+        id: deploy1
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: web/dist
+          force_orphan: true
+      - name: Deploy to gh-pages (retry)
+        if: steps.deploy1.outcome != 'success'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
