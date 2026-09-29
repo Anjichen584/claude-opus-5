@@ -109,8 +109,8 @@ namespace StarfallKnights.Dungeon
                         Bestiary.DustStingerLobTickS, Bestiary.DustStingerLobMult,
                         Bestiary.DustStingerHopCd, Bestiary.DustStingerHopDur, Bestiary.DustStingerHopSpeedM,
                         Element.Toxin); break;
-                    // 薇尔莎/卡兹拉由 BossAI 接管(这里必须显式跳过,否则会和 BossAI 抢速度);
-                    // 南弥尔暂无招式镜像,先用"追击+接触"占位(web 的四套招式待补)。
+                    // 三个 Boss 全部由 BossAI 接管(这里必须显式跳过,否则两套 AI 抢速度)
+                    case EnemyKind.BossNanmir:
                     case EnemyKind.BossVelsha:
                     case EnemyKind.BossKazra:
                         break;

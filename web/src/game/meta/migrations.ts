@@ -10,6 +10,7 @@
 export const CURRENT_SAVE_VERSION = 2;
 
 import { emptyCodex, sanitizeCodex, type CodexData } from './Codex';
+import { sanitizeAchievements } from './Achievements';
 
 export interface Settings {
   /** 音乐音量 0~1 */
@@ -40,7 +41,18 @@ export interface SaveData {
   /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存"见过没有+次数" */
   codex: CodexData;
   settings: Settings;
-  stats: { runs: number; clears: number; totalKills: number; bestTimeS: number };
+  /** 累计统计。加字段(noHitClears/dailyClears/crafts)走逐层兜底,不升存档版本 */
+  stats: {
+    runs: number; clears: number; totalKills: number; bestTimeS: number;
+    /** 无伤通关次数 */
+    noHitClears: number;
+    /** 通关每日挑战次数(跨天不清零) */
+    dailyClears: number;
+    /** 星辉铸台铸造次数 */
+    crafts: number;
+  };
+  /** 成就:已解锁 id → 首次解锁时间戳(只增不减) */
+  achievements: { unlocked: Record<string, number> };
 }
 
 /** 默认键位(动作定义见 meta/Bindings.ts) */
@@ -71,7 +83,8 @@ export function defaultSave(): SaveData {
       screenShake: 1, hitstop: 1,
       binds: { ...DEFAULT_BINDS },
     },
-    stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0 },
+    stats: { runs: 0, clears: 0, totalKills: 0, bestTimeS: 0, noHitClears: 0, dailyClears: 0, crafts: 0 },
+    achievements: { unlocked: {} },
   };
 }
 
@@ -115,6 +128,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     stats: { ...d.stats, ...(parsed.stats ?? {}) },
     daily: { ...d.daily, ...(parsed.daily ?? {}) },
     codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
+    achievements: sanitizeAchievements((parsed as Partial<SaveData>).achievements),
     settings: {
       ...d.settings,
       ...(parsed.settings ?? {}),
@@ -143,6 +157,9 @@ export function migrateSave(raw: unknown): MigrateResult {
     clears: Math.max(0, Math.floor(num(data.stats.clears))),
     totalKills: Math.max(0, Math.floor(num(data.stats.totalKills))),
     bestTimeS: Math.max(0, num(data.stats.bestTimeS)),
+    noHitClears: Math.max(0, Math.floor(num(data.stats.noHitClears))),
+    dailyClears: Math.max(0, Math.floor(num(data.stats.dailyClears))),
+    crafts: Math.max(0, Math.floor(num(data.stats.crafts))),
   };
   const s = data.settings;
   s.musicVol = clamp(s.musicVol, 0, 1, d.settings.musicVol);

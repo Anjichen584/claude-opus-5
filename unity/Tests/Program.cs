@@ -900,16 +900,19 @@ namespace StarfallKnights.Tests
             }
 
             {
-                // 回归:两个新 Boss 必须由 BossAI 独占驱动,CreatureAI 不能碰
+                // 回归:三个 Boss 必须由 BossAI 独占驱动,CreatureAI 不能碰
                 var w = new LogicWorld();
                 MakePlayer(w, new Vector2(0f, 6f));
                 var velsha = MakeEnemy(w, new Vector2(4f, 0f), 5000f);
                 velsha.Kind = EnemyKind.BossVelsha;
                 var kazra = MakeEnemy(w, new Vector2(2f, 0f), 5000f);
                 kazra.Kind = EnemyKind.BossKazra;
+                var nanmir = MakeEnemy(w, new Vector2(3f, 0f), 5000f);
+                nanmir.Kind = EnemyKind.BossNanmir;
                 for (int i = 0; i < 60; i++) ai.Update(w, 1f / 60f);
                 Near(velsha.Vel.Length(), 0f, 1e-4f, "薇尔莎不受杂兵 AI 驱动(速度由 BossAI 决定)");
                 Near(kazra.Vel.Length(), 0f, 1e-4f, "卡兹拉不受杂兵 AI 驱动");
+                Near(nanmir.Vel.Length(), 0f, 1e-4f, "南弥尔不受杂兵 AI 驱动(改用四套招式)");
             }
 
             {
@@ -1012,6 +1015,66 @@ namespace StarfallKnights.Tests
                 }
                 Check(fireTrail, "P3 追击移动时淌下熔痕地带");
             }
+
+            {
+                // ---- 腐木巨像·南弥尔:四套招式 + 阶段硬直 ----
+                spawned.Clear();
+                var ai3 = new BossAI();
+                var w3 = new LogicWorld();
+                var pTank3 = MakePlayer(w3, new Vector2(0f, 0f));
+                pTank3.Unit.HpMax = 100000f;
+                pTank3.Unit.Hp = 100000f;
+                var nanmir = MakeEnemy(w3, new Vector2(2.5f, 0f), Bestiary.Of(EnemyKind.BossNanmir).Hp);
+                nanmir.Kind = EnemyKind.BossNanmir;
+                nanmir.Unit.Atk = Bestiary.Of(EnemyKind.BossNanmir).Atk;
+                ai3.SpawnMinion = (k, pos) => spawned.Add(k);
+                var phases3 = new List<int>();
+                ai3.OnPhaseChanged = (a, ph, msg) => phases3.Add(ph);
+
+                // P1:P1 招式轮换(横扫/根须线都会留预警)
+                int maxTele = 0;
+                for (int i = 0; i < 900; i++)
+                {
+                    ai3.Update(w3, 1f / 60f);
+                    w3.Tick(1f / 60f);
+                    maxTele = Math.Max(maxTele, w3.Telegraphs.Count);
+                }
+                Check(maxTele > 0, "P1 会放藤鞭横扫/根须线(留下预警)");
+                Check(ai3.PhaseOf(nanmir) == 1, "满血时是 P1");
+                Check(!spawned.Contains(EnemyKind.Shroomling), "P1 不召唤菇灵(P2 才有)");
+
+                // 阶段转换 → 硬直:速度归零(输出窗口)
+                nanmir.Unit.Hp = nanmir.Unit.HpMax * 0.6f;
+                ai3.Update(w3, 1f / 60f);
+                Check(ai3.PhaseOf(nanmir) == 2 && phases3.Contains(2), "掉到 65% 血进 P2");
+                Near(nanmir.Vel.Length(), 0f, 1e-4f, "进 P2 瞬间进入硬直(速度归零 = 输出窗口)");
+
+                // P2:召唤菇灵 + 地刺矩阵
+                int burst = 0;
+                for (int i = 0; i < 2400; i++)
+                {
+                    ai3.Update(w3, 1f / 60f);
+                    w3.Tick(1f / 60f);
+                    burst = Math.Max(burst, w3.Telegraphs.Count);
+                }
+                Check(spawned.Contains(EnemyKind.Shroomling), "P2 会召唤菇灵");
+                Check(burst >= (int)Bestiary.BossNanmirSpikegridCount, $"地刺矩阵一次放 {burst} 处预警(≥{Bestiary.BossNanmirSpikegridCount})");
+
+                // P3:根须风暴(三环 + 缺口 → 预警数少于"每环 10 × 3 环")
+                nanmir.Unit.Hp = nanmir.Unit.HpMax * 0.2f;
+                int stormBurst = 0;
+                int full = (int)Bestiary.BossNanmirStormPerRing * 3;
+                for (int i = 0; i < 3000; i++)
+                {
+                    ai3.Update(w3, 1f / 60f);
+                    w3.Tick(1f / 60f);
+                    stormBurst = Math.Max(stormBurst, w3.Telegraphs.Count);
+                }
+                Check(ai3.PhaseOf(nanmir) == 3 && phases3.Contains(3), "掉到 30% 血进 P3(狂暴)");
+                Check(stormBurst > 0 && stormBurst < full,
+                    $"根须风暴留了安全缺口(峰值 {stormBurst} 处 < 满编 {full} 处)");
+            }
+
         }
 
         // ---------------- 房间序列 ----------------

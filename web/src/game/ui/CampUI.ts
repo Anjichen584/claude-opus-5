@@ -6,11 +6,12 @@ import { dailyChallenge, dailyKey, type DailyChallenge } from '@game/meta/Daily'
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { meta } from '@game/meta/Save';
 import { ENEMY_KEYS, RUNE_KEYS, codexProgress, enemyEntry, isBossKey, runeEntry } from '@game/meta/Codex';
+import { ACHIEVEMENTS, ACHV_CATS, achvProgress, achvInCat, isUnlocked, summaryLine } from '@game/meta/Achievements';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
 type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
-export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' | 'codex';
+export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' | 'codex' | 'achv';
 
 const inside = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -110,10 +111,94 @@ export class CampUI {
     else if (this.panel === 'altar') this.renderAltar(ctx, w, h);
     else if (this.panel === 'daily') this.renderDaily(ctx, w, h);
     else if (this.panel === 'codex') this.renderCodex(ctx, w, h);
+    else if (this.panel === 'achv') this.renderAchv(ctx, w, h);
     else this.renderClasspick(ctx, w, h);
     ctx.restore();
   }
 
+
+
+  // ---- 成就(星陨殿堂) ----
+  private renderAchv(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const pw = 720, ph = 470;
+    const px = w / 2 - pw / 2, py = h / 2 - ph / 2;
+    panelBox(ctx, px, py, pw, ph);
+
+    const prog = achvProgress(meta.data);
+    ctx.fillStyle = UI.gold;
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('🏆 星陨殿堂', w / 2, py + 32);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = prog.unlocked >= prog.total ? UI.gold : UI.dim;
+    ctx.fillText(
+      prog.unlocked >= prog.total
+        ? `★ 全成就达成 ${prog.unlocked}/${prog.total}`
+        : `成就 ${prog.unlocked}/${prog.total} · ${(prog.pct * 100).toFixed(0)}%`,
+      w / 2, py + 52);
+    ctx.fillStyle = UI.text;
+    ctx.fillText(summaryLine(meta.data), w / 2, py + 70);
+
+    // 分类分栏(每类一行,行内放该类的成就格子)
+    const cats = ACHV_CATS;
+    const gx = px + 22;
+    const gy = py + 86;
+    const rowH = 46;
+    cats.forEach((cat, ci) => {
+      const list = achvInCat(cat);
+      const ry = gy + ci * rowH;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#5a6377';
+      ctx.font = '11px monospace';
+      ctx.fillText(cat, gx, ry + 12);
+      ctx.textAlign = 'center';
+      const sub = ACHIEVEMENTS.filter((a) => a.cat === cat).length;
+      const cellW = Math.min(150, Math.floor((pw - 100) / Math.max(1, sub)) - 6);
+      list.forEach((a, i) => {
+        const cx = gx + 44 + i * (cellW + 6);
+        const cy = ry;
+        const got = isUnlocked(meta.data, a.id);
+        const { cur, goal } = a.progress(meta.data);
+        const ratio = goal > 0 ? Math.min(1, cur / goal) : 0;
+
+        ctx.fillStyle = got ? '#2a2a1c' : '#161a26';
+        ctx.fillRect(cx, cy, cellW, 34);
+        ctx.strokeStyle = got ? UI.gold : '#2a3147';
+        ctx.lineWidth = got ? 2 : 1;
+        ctx.strokeRect(cx, cy, cellW, 34);
+
+        ctx.font = '13px monospace';
+        ctx.fillStyle = got ? UI.gold : '#4a5164';
+        ctx.fillText(got ? a.icon : '🔒', cx + 14, cy + 22);
+        ctx.font = '10px monospace';
+        ctx.fillStyle = got ? UI.text : UI.dim;
+        ctx.textAlign = 'left';
+        ctx.fillText(a.name, cx + 26, cy + 14);
+        ctx.font = '9px monospace';
+        ctx.fillStyle = UI.dim;
+        ctx.fillText(got ? '已达成' : `${Math.min(cur, goal)}/${goal}`, cx + 26, cy + 27);
+        ctx.textAlign = 'center';
+
+        // 进度条(未解锁才画)
+        if (!got && ratio > 0) {
+          ctx.fillStyle = '#2a3147';
+          ctx.fillRect(cx + 2, cy + 32, cellW - 4, 2);
+          ctx.fillStyle = UI.gold;
+          ctx.fillRect(cx + 2, cy + 32, (cellW - 4) * ratio, 2);
+        }
+      });
+    });
+
+    // 底部提示 + 最近解锁
+    const recent = ACHIEVEMENTS
+      .filter((a) => isUnlocked(meta.data, a.id))
+      .sort((a, b) => (meta.data.achievements.unlocked[b.id] ?? 0) - (meta.data.achievements.unlocked[a.id] ?? 0))[0];
+    ctx.font = '11px monospace';
+    ctx.fillStyle = UI.dim;
+    ctx.fillText(
+      recent ? `最近解锁:${recent.icon} ${recent.name}(${recent.desc})` : '还没有解锁任何成就 —— 出去打一局吧',
+      w / 2, py + ph - 26);
+    ctx.fillText('[Esc/F] 关闭 · 成就跨局保留', w / 2, py + ph - 12);
+  }
 
   // ---- 图鉴(收录) ----
   private renderCodex(ctx: CanvasRenderingContext2D, w: number, h: number): void {

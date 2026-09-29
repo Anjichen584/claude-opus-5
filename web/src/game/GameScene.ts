@@ -51,6 +51,7 @@ import { RunManager } from '@game/dungeon/RunManager';
 import { clock } from '@game/dungeon/Clock';
 import { meta } from '@game/meta/Save';
 import { markRuneOwned } from '@game/meta/Codex';
+import { checkUnlocks } from '@game/meta/Achievements';
 import { sprites } from '@engine/render/Sprites';
 import { drawSprite, SPRITE_NAMES } from '@game/gfx/spriteDraw';
 import { drawPanel9 } from '@game/gfx/nineSlice';
@@ -279,7 +280,7 @@ export class GameScene {
     pc.rage = 100;
 
     // 功能建筑
-    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily' | 'codex', label: string, icon: string, x: number, y: number): void => {
+    const station = (kind: 'expedition' | 'altar' | 'forge' | 'classpick' | 'daily' | 'codex' | 'achv', label: string, icon: string, x: number, y: number): void => {
       const e = w.create();
       w.add(e, new Transform(x * M, y * M));
       w.add(e, new CampStation(kind, label, icon));
@@ -290,6 +291,11 @@ export class GameScene {
     station('classpick', '职业试炼场', '🏵', W / 2, 2.2);
     station('daily', '混沌祭坛', '🗓', W / 2, H - 2.4);
     station('codex', '星陨图鉴', '📖', W - 4.6, H - 3.0);
+    station('achv', '星陨殿堂', '🏆', W - 4.6, 3.0);
+
+    this.feedback.hitsTaken = 0;
+    // 进营地顺手补判一次(老档/上局遗留的成就一次性追上)
+    this.awardAchievements();
 
     // 训练木桩 ×2(不死,DPS 计)
     for (const dy of [-2.2, 2.2]) {
@@ -483,6 +489,15 @@ export class GameScene {
     ctx.restore();
   }
 
+  /** 结算/交互后统一判定成就:返回本次新解锁的成就并弹提示 */
+  private awardAchievements(): void {
+    const fresh = checkUnlocks(meta.data, Date.now());
+    for (const a of fresh) {
+      this.world.emit(new ToastEvent(`🏆 成就解锁「${a.icon} ${a.name}」`, '#ffd94f'));
+    }
+    if (fresh.length > 0) meta.save();
+  }
+
   /** 星辉铸台:即时交互 */
   private forgeInteract(): void {
     const bp = balance.blueprint;
@@ -493,6 +508,8 @@ export class GameScene {
     if (meta.data.blueprintShards >= bp.craftCost) {
       meta.data.blueprintShards -= bp.craftCost;
       meta.data.craftQueued = true;
+      meta.data.stats.crafts++;
+      this.awardAchievements();
       meta.save();
       this.world.emit(new ToastEvent('📜 铸造完成!下局开局自带随机橙装', RARITY_COLORS.legendary));
     } else {
@@ -514,6 +531,7 @@ export class GameScene {
     meta.data.stats.totalKills += this.feedback.kills;
     if (victory) {
       meta.data.stats.clears++;
+      if (this.feedback.hitsTaken === 0) meta.data.stats.noHitClears++; // 无伤通关
       if (meta.data.stats.bestTimeS === 0 || clock.runTime < meta.data.stats.bestTimeS) {
         meta.data.stats.bestTimeS = clock.runTime;
       }
@@ -529,9 +547,12 @@ export class GameScene {
         if (victory && (d.bestTimeS === 0 || clock.runTime < d.bestTimeS)) d.bestTimeS = clock.runTime;
         d.bestKills = Math.max(d.bestKills, this.feedback.kills);
       }
+      if (victory) meta.data.stats.dailyClears++; // 每日挑战通关(跨天累计)
       meta.save();
     }
     this.dailyRun = false;
+    // 结算时统一判定成就(首次通关/极速/无伤/击杀里程碑/每日挑战等)
+    this.awardAchievements();
     meta.save();
     this.state = 'results';
     runMods.clear(); // 词条随本局结束失效(下一局由进入路径重新 set)

@@ -35,6 +35,8 @@ export class FeedbackSystem implements System {
   private reactions: Array<{ x: number; y: number; elA: string; elB: string; color: string; t: number; life: number }> = [];
   hurtVignette = 0;
   kills = 0;
+  /** 本局玩家受伤次数(无伤通关成就判定;enterCamp/startRun 时清零) */
+  hitsTaken = 0;
 
   constructor(
     private readonly loop: GameLoop,
@@ -166,6 +168,7 @@ export class FeedbackSystem implements System {
     }
 
     for (const hurt of world.read(PlayerHurtEvent)) {
+      this.hitsTaken += 1;
       this.hurtVignette = feel.hurtVignetteSec;
       this.shake(feel.shake.hurt.amp, feel.shake.hurt.dur);
       sfx.play('hurt');
