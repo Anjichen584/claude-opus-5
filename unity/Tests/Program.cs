@@ -604,6 +604,7 @@ namespace StarfallKnights.Tests
             TestTelegraphs();
             TestWeakspots();
             TestCreatureAI();
+            TestMidBoss();
             TestBossAI();
             TestClassSkillSet();
             TestRoomLayouts();
@@ -1172,14 +1173,174 @@ namespace StarfallKnights.Tests
             Check(set3.SkillId("Q") == "warden_q_quake" && set3.SkillId("R") == "warden_r_roar", "技能 id 映射与 JSON 一致");
         }
 
+
+        // ---------------- 中 Boss:苔冠巨鹿(镜像 web systems/MidBossSystem.ts) ----------------
+
+        private static void TestMidBoss()
+        {
+            Suite("中 Boss 苔冠巨鹿(距离管理 / 冲撞预警 / 撞墙自晕 / 孢子弹幕 / 狂怒)");
+
+            // 只刷一只,且在正确的房号
+            {
+                var w = new LogicWorld();
+                MakePlayer(w);
+                var run = new RunManagerLite();
+                int midSpawns = 0;
+                run.OnSpawn = (k, hp, atk, spd) => { if (k == EnemyKind.MidBossMossstag) midSpawns++; };
+                for (int d = 0; d < 8; d++)
+                {
+                    run.NextRoom(w);
+                    if (run.Room == RoomKind.MidBoss)
+                    {
+                        Check(run.Depth == 6, $"中 Boss 在第 6 房(实际第 {run.Depth + 1} 房)");
+                        Check(midSpawns == 1, $"中 Boss 房只刷一只(实际 {midSpawns})");
+                    }
+                }
+                // 三章门控:二三章的中 Boss 还没做,不该刷
+                var run2 = new RunManagerLite();
+                run2.SetChapter(2);
+                int ch2Mid = 0;
+                run2.OnSpawn = (k, hp, atk, spd) => { if (k == EnemyKind.MidBossMossstag) ch2Mid++; };
+                for (int d = 0; d < 8; d++) run2.NextRoom(w);
+                Check(ch2Mid == 0, "第二章暂时不刷中 Boss(章节门控)");
+            }
+
+            // 注意:测试里的站位要离墙远一点(撞墙判定读的是 0.6m 边界余量,
+            // 站在 y=0 会被判成"贴着墙",一冲就自晕 —— 我第一版就踩了这个)
+            var mid = new Vector2(Bestiary.ArenaWidthM / 2f, Bestiary.ArenaHeightM / 2f);
+
+            // stalk:保持助跑距离,不贴脸
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var stag = MakeEnemy(w, mid + new Vector2(6f, 0f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                var ai = new CreatureAI();
+                for (int i = 0; i < 90; i++) ai.Update(w, 1f / 60f);
+                float d = Vector2.Distance(stag.Pos, w.Player.Pos);
+                Check(d > 1.2f && d < 9f, $"中 Boss 保持距离({d:0.0}m)");
+            }
+
+            // 冲撞:亮出路径预警圈 → 冲刺(速度到得了表里的值)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var stag = MakeEnemy(w, mid + new Vector2(4f, 0f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                var ai = new CreatureAI();
+                bool sawTelegraph = false;
+                float maxSpeed = 0f;
+                for (int i = 0; i < 60 * 8; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    if (w.Telegraphs.Count > 0) sawTelegraph = true;
+                    maxSpeed = MathF.Max(maxSpeed, stag.Vel.Length());
+                    w.Telegraphs.Clear(); // 只关心"有没有亮过",不然会一直堆积
+                }
+                Check(sawTelegraph, "冲撞前在路径上亮预警圈");
+                Check(maxSpeed >= Bestiary.MidBossMossstagChargeSpeedM - 0.01f,
+                    $"冲撞速度到得了表里的值(峰值 {maxSpeed:0.0} m/s)");
+            }
+
+            // 孢子弹幕:多发毒弹 + 玩家脚下孢子云
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var stag = MakeEnemy(w, mid + new Vector2(3f, 0f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                var ai = new CreatureAI();
+                int maxShots = 0, maxZones = 0;
+                // **不强制冷却**:让 AI 按真实节奏自己决定何时放(踩过"冲撞把弹幕饿死"的坑)
+                for (int i = 0; i < 60 * 12; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxShots = Math.Max(maxShots, w.Projectiles.Count);
+                    maxZones = Math.Max(maxZones, w.Zones.Count);
+                    w.Projectiles.Clear(); // 只数"一次打了几发"
+                }
+                Check(maxShots >= (int)Bestiary.MidBossMossstagVolleyCount,
+                    $"孢子弹幕一次打出 ≥{Bestiary.MidBossMossstagVolleyCount:0} 发(实测最多 {maxShots} 发)");
+                Check(maxZones >= 1, "弹幕落点种下孢子云(空间封锁)");
+            }
+
+            // 撞墙自晕:贴墙站位 → 冲锋撞墙 → 长硬直(可观测:连续静止帧够多)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, new Vector2(1.0f, 8f));
+                var stag = MakeEnemy(w, new Vector2(2.2f, 8f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                var ai = new CreatureAI();
+                int still = 0, bestStill = 0;
+                for (int i = 0; i < 60 * 12; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    if (stag.Vel.Length() < 0.01f) { still++; bestStill = Math.Max(bestStill, still); }
+                    else still = 0;
+                }
+                float longest = bestStill / 60f;
+                Check(longest >= Bestiary.MidBossMossstagChargeWallStunS * 0.5f,
+                    $"撞墙硬直够长(最长静止 {longest:0.0}s,表里 wallStunS={Bestiary.MidBossMossstagChargeWallStunS:0.0}s)");
+            }
+
+            // 狂怒:半血后弹幕变多(基础 +enrageVolleyAdd)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var stag = MakeEnemy(w, mid + new Vector2(4f, 0f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                stag.Unit.Hp = stag.Unit.HpMax * (Bestiary.MidBossMossstagPhase2At - 0.05f);
+                var ai = new CreatureAI();
+                int maxShots = 0;
+                for (int i = 0; i < 60 * 16; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxShots = Math.Max(maxShots, w.Projectiles.Count);
+                    w.Projectiles.Clear();
+                }
+                int expect = (int)(Bestiary.MidBossMossstagVolleyCount + Bestiary.MidBossMossstagEnrageVolleyAdd);
+                Check(maxShots >= expect, $"狂怒弹幕更多(实测最多 {maxShots} 发 ≥ {expect})");
+            }
+
+            // 两招轮换:30 秒内冲撞与弹幕都要出现(不许互相饿死)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var stag = MakeEnemy(w, mid + new Vector2(6f, 0f), Bestiary.MidBossMossstagHp);
+                stag.Kind = EnemyKind.MidBossMossstag;
+                var ai = new CreatureAI();
+                int charges = 0, volleys = 0;
+                var prev = MobPhase.Chase;
+                // 用状态字典反推不方便,这里用"速度突变 + 弹幕出现"来数:
+                bool sawCharge = false;
+                for (int i = 0; i < 60 * 30; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    if (stag.Vel.Length() >= Bestiary.MidBossMossstagChargeSpeedM - 0.01f && !sawCharge)
+                    {
+                        sawCharge = true; charges++;
+                    }
+                    else if (stag.Vel.Length() < 0.01f) sawCharge = false;
+                    if (w.Projectiles.Count > 0) { volleys++; w.Projectiles.Clear(); }
+                }
+                Check(charges >= 3, $"30 秒至少冲 3 次(实际 {charges})");
+                Check(volleys >= 3, $"30 秒至少放 3 次弹幕(实际 {volleys})");
+            }
+
+            // 分类助手:中 Boss 是 Boss 级,但不是章 Boss
+            Check(EnemyKinds.IsMidBoss(EnemyKind.MidBossMossstag), "IsMidBoss 认得苔冠巨鹿");
+            Check(EnemyKinds.IsBossTier(EnemyKind.MidBossMossstag) && !EnemyKinds.IsBoss(EnemyKind.MidBossMossstag),
+                "中 Boss 属 Boss 级但不是章 Boss");
+            Check(EnemyKinds.ChapterOf(EnemyKind.MidBossMossstag) == 1, "苔冠巨鹿归第一章");
+        }
+
         // ---------------- 图鉴(收录) ----------------
 
         private static void TestCodex()
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 21 && Codex.RuneTotal == 36,
-                $"条目总数 21 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 22 && Codex.RuneTotal == 36,
+                $"条目总数 22 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1243,7 +1404,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 21, $"图鉴覆盖 21 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 22, $"图鉴覆盖 22 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {
@@ -1621,16 +1782,19 @@ namespace StarfallKnights.Tests
             run.OnRoomCleared = r => rooms.Add(r);
             run.OnVictory = () => { };
 
-            bool treasure0 = false, elite0 = false, boss0 = false;
+            bool treasure0 = false, elite0 = false, boss0 = false, mid0 = false;
             for (int d = 0; d < 8; d++)
             {
                 Check(run.NextRoom(w), $"第 {d + 1} 房间可进入");
                 if (run.Room == RoomKind.Treasure) treasure0 = true;
                 if (run.Room == RoomKind.Elite) elite0 = true;
+                if (run.Room == RoomKind.MidBoss) mid0 = true;
                 if (run.Room == RoomKind.Boss) boss0 = true;
             }
             Check(!run.NextRoom(w), "第 9 次请求返回 false(序列结束)");
             Check(treasure0 && elite0 && boss0, "序列包含 宝藏/精英/Boss 房");
+            Check(mid0, "一章序列包含中 Boss 房(第 6 房)");
+            Check(spawned.Contains(EnemyKind.MidBossMossstag), "中 Boss 房生成苔冠巨鹿");
             Check(spawned.Contains(EnemyKind.BossNanmir), "一章 Boss 房生成腐木巨像·南弥尔");
             Check(spawned.Count > 20, $"战斗房按预算出怪(本次共 {spawned.Count} 只)");
 

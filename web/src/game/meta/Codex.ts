@@ -37,9 +37,14 @@ export const ENEMY_CHAPTER: Record<string, 1 | 2 | 3> = {
   cinderrat: 3, dunebeetle: 3, flamedancer: 3, duststinger: 3, boss_kazra: 3,
 };
 
-export const isBossKey = (key: string): boolean => key.startsWith('boss_');
+/** Boss 级条目:章 Boss(boss_*)与中 Boss(midboss_*),图鉴里都带 ★ 并排在杂兵之后 */
+export const isBossKey = (key: string): boolean =>
+  key.startsWith('boss_') || key.startsWith('midboss_');
 
-/** 全部敌人 key(21:18 杂兵 + 3 Boss),顺序 = 展示顺序(按章节,杂兵在前 Boss 在后) */
+/** 中 Boss(每章 1 只,推图第 6 房):与章 Boss 区分开,用于图鉴文案与排序细调 */
+export const isMidBossKey = (key: string): boolean => key.startsWith('midboss_');
+
+/** 全部敌人 key(22:18 杂兵 + 1 中 Boss + 3 章 Boss),顺序 = 展示顺序(按章节,杂兵在前 Boss 在后) */
 export const ENEMY_KEYS: string[] = Object.keys(enemyTable()).sort((a, b) =>
   chapterRank(a) - chapterRank(b) ||
   Number(isBossKey(a)) - Number(isBossKey(b)) ||
@@ -72,6 +77,7 @@ export const ENEMY_HINT: Record<string, string> = {
   dunebeetle: '钻地接近 → 预警 → 钻出爆发',
   flamedancer: '瞬跳走位 + 双火球',
   duststinger: '蝎尾抛毒沼,平时小跳接近',
+  midboss_mossstag: '一章中 Boss:冲撞(撞墙自晕!)/ 孢子弹幕 / 脚下孢子云;半血狂怒',
   boss_nanmir: '一章 Boss:扫击 / 根须线 / 尖刺网格 / 环形风暴',
   boss_velsha: '二章 Boss:冰弹环 / 暴风雪 / 召唤雪绒球 / P3 寒风冲锋',
   boss_kazra: '三章 Boss:钻地突袭 / 熔痕 / 召唤烬鼠 / P3 熔核暴走',

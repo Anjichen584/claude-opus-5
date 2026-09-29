@@ -238,7 +238,7 @@ export class BossNanmir {
 /** 房间出口传送门 */
 export class Portal {
   animT = Math.random() * 10;
-  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event') {}
+  constructor(public kind: 'battle' | 'treasure' | 'elite' | 'midboss' | 'boss' | 'shop' | 'event') {}
 }
 
 /** 预警打击:地面警示圈倒计时 → 一次性爆发伤害(Boss/藤妖/傀儡通用) */
@@ -430,6 +430,30 @@ export class BossVelsha {
   dashX = 0;
   dashY = 0;
   animT = 0;
+}
+
+/** 第一章中 Boss:苔冠巨鹿(推图中段的"半个 Boss") */
+export class MidBossStag {
+  phase: 1 | 2 = 1;
+  /**
+   * stalk      保持 4~6m 距离游走(为冲撞留助跑)
+   * chargeWind 冲撞预警(路径上亮 3 个圈)
+   * charge     冲撞中(撞墙 → 自晕 = 奖励窗口)
+   * stagger    硬直(撞墙/撞人之后)
+   * volleyAim  抬头蓄力(孢子弹幕预警)
+   * recover    招式后摇
+   */
+  state: 'stalk' | 'chargeWind' | 'charge' | 'stagger' | 'volleyAim' | 'recover' = 'stalk';
+  t = 0;
+  chargeCd = 2.4;   // 首次冲撞给玩家喘息,之后走 balance 的 cdS
+  volleyCd = 3.2;
+  dirX = 0;         // 冲撞/弹幕朝向(预警时锁定,冲撞中不再转向)
+  dirY = 0;
+  /** 上一招(两个招式各有独立冷却,只重置用掉的那个 → 自然轮换,不会互相饿死) */
+  lastMove: 'charge' | 'volley' = 'charge';
+  animT = 0;
+  spawnX = 0;       // 出生点(离太远就回中,避免被放风筝到墙角)
+  spawnY = 0;
 }
 
 /** ===== 第三章「烬语荒漠」怪物 ===== */

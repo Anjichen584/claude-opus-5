@@ -9,10 +9,10 @@ import {
 import { defaultSave, migrateSave } from '../migrations';
 
 describe('图鉴条目表', () => {
-  it('怪物条目 = balance.enemies + boss.nanmir,共 21 条', () => {
+  it('怪物条目 = balance.enemies + boss.nanmir,共 22 条(18 杂兵 + 1 中 Boss + 3 章 Boss)', () => {
     const jsonCount = Object.keys(balance.enemies).length + 1; // + boss.nanmir
     expect(ENEMY_TOTAL).toBe(jsonCount);
-    expect(ENEMY_TOTAL).toBe(21);
+    expect(ENEMY_TOTAL).toBe(22);
   });
 
   it('符文条目 = pool.json 全量,共 36 条', () => {
@@ -61,7 +61,7 @@ describe('收录与进度', () => {
   it('空图鉴:一条都没收录,收录率 0', () => {
     const c = emptyCodex();
     const p = codexProgress(c);
-    expect(p).toEqual({ enemyFound: 0, enemyTotal: 21, runeFound: 0, runeTotal: 36 });
+    expect(p).toEqual({ enemyFound: 0, enemyTotal: 22, runeFound: 0, runeTotal: 36 });
     expect(codexPct(c)).toBe(0);
   });
 
@@ -89,9 +89,9 @@ describe('收录与进度', () => {
     expect(Object.keys(c.enemies)).toHaveLength(0);
   });
 
-  it('种类名兜底键不污染进度:塞进 21 条未知 key 也只算已收录的', () => {
+  it('种类名兜底键不污染进度:塞进 22 条未知 key 也只算已收录的', () => {
     const c = emptyCodex();
-    for (let i = 0; i < 21; i++) c.enemies[`fake_${i}`] = 5;
+    for (let i = 0; i < 22; i++) c.enemies[`fake_${i}`] = 5;
     expect(codexProgress(c).enemyFound).toBe(0);
     expect(codexPct(c)).toBe(0);
   });

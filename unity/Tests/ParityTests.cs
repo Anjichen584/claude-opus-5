@@ -72,6 +72,9 @@ namespace StarfallKnights.Tests
             foreach (var kv in chapters) Walk(kv.Value, $"chapters.{kv.Key}");
             var boss = MiniJson.Opt(doc, "boss");
             if (boss != null && boss.ContainsKey("nanmir")) Walk(boss["nanmir"], "boss_nanmir");
+            // 竞技场尺寸(中 Boss 的撞墙判定要读;此前是 parity 盲区)
+            var arena = MiniJson.Opt(doc, "arena");
+            if (arena != null) Walk(arena, "arena");
 
             int mismatches = 0, matched = 0;
             foreach (var kv in leaves)
@@ -109,7 +112,7 @@ namespace StarfallKnights.Tests
                 double sp = MiniJson.Num(e, "speed", 0);
                 if (Math.Abs(stat.Speed - sp) > Tol) { rowBad++; check(false, $"{kv.Key} 速度不符"); }
             }
-            check(rowBad == 0, $"21 行图鉴(血/攻/防/速/体型)与 JSON 一致");
+            check(rowBad == 0, $"{enemies.Count} 行图鉴(血/攻/防/速/体型)与 JSON 一致");
         }
 
         /// <summary>房间布局 parity:balance.json 的 layouts 段(含 combatWeights)vs Dungeon/RoomLayouts.cs。</summary>
@@ -472,6 +475,11 @@ namespace StarfallKnights.Tests
                 "时间榜升序、分数榜降序");
         }
 
+        /// <summary>
+        /// JSON 敌键 → C# 枚举名。**权威表是 tools/gen_bestiary.py 的 KIND**;
+        /// 这里手写一份只是因为 ParityTests 是测试程序集(不便共享生成器的 Python 表)。
+        /// 新增怪时两处都要加(踩过一次:漏加 → "未知敌人键")。
+        /// </summary>
         private static Core.EnemyKind? KindOf(string jsonKey)
         {
             switch (jsonKey)
@@ -494,6 +502,7 @@ namespace StarfallKnights.Tests
                 case "dunebeetle": return Core.EnemyKind.DuneBeetle;
                 case "flamedancer": return Core.EnemyKind.FlameDancer;
                 case "duststinger": return Core.EnemyKind.DustStinger;
+                case "midboss_mossstag": return Core.EnemyKind.MidBossMossstag;
                 case "boss_velsha": return Core.EnemyKind.BossVelsha;
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;

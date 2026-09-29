@@ -425,6 +425,46 @@
         "mult": 0.35
       },
       "contactCd": 0.8
+    },
+    "midboss_mossstag": {
+      "name": "苔冠巨鹿",
+      "hp": 1500,
+      "atk": 12,
+      "def": 4,
+      "speed": 1.5,
+      "bodyRadius": 0.55,
+      "stalkM": 4.6,
+      "charge": {
+        "telegraphS": 0.75,
+        "speedM": 6.4,
+        "durS": 0.85,
+        "recoverS": 1.2,
+        "mult": 1.15,
+        "cdS": 3.6,
+        "wallStunS": 2.2,
+        "laneM": 7.0
+      },
+      "volley": {
+        "telegraphS": 0.55,
+        "count": 5,
+        "spreadDeg": 36,
+        "speedM": 4.4,
+        "lifeS": 1.5,
+        "radiusM": 0.34,
+        "mult": 0.8,
+        "cdS": 4.4
+      },
+      "spore": {
+        "radiusM": 1.0,
+        "lifeS": 3.2,
+        "intervalS": 0.6,
+        "mult": 0.3
+      },
+      "phase2At": 0.5,
+      "enrageSpeedMul": 1.25,
+      "enrageVolleyAdd": 2,
+      "runeDrop": 1,
+      "$doc": "中 Boss 第一章「苔冠巨鹿」:推图中段的\"半个 Boss\"。三招 = 冲撞(路径预警 3 圈,撞墙自晕 charge.wallStunS = 玩家的输出窗口)/ 扇形孢子弹幕 / 玩家脚下孢子云(空间封锁)。P2(<phase2At)狂怒:冲速 ×enrageSpeedMul、弹幕 +enrageVolleyAdd 发、冷却 ×0.8。掉落:击杀必掉紫装 + 保底 1 枚符文(LootSystem 的 isMid 分支)。"
     }
   },
   "boss": {
@@ -486,7 +526,8 @@
     "waveBudgetPerDepth": 2,
     "wavesPerRoom": 2,
     "treasureItems": 3,
-    "spriteChance": 0.25
+    "spriteChance": 0.25,
+    "midbossIndex": 6
   },
   "leaderboard": {
     "topN": 5,

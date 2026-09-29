@@ -59,6 +59,8 @@ export class LootSystem implements System {
       // 装备:精英必掉蓝起步,Boss 必掉紫+30%橙(docs/03 §6)
       const isElite = kill.kind === 'oakgolem';
       const isBoss = kill.kind.startsWith('boss'); // boss_nanmir / boss_velsha / boss_kazra
+      // 中 Boss:保底紫装 + 保底符文(不用随机数,它值这条命;见 docs/10-FULL-PLAN 轮 5)
+      const isMid = kill.kind.startsWith('midboss');
       // 图纸碎片:Boss 必掉(夜战 +1),局外货币立即入账
       if (isBoss) {
         const bp = balance.blueprint;
@@ -67,7 +69,13 @@ export class LootSystem implements System {
         meta.save();
         world.emit(new ToastEvent(`📜 图纸碎片 +${gain}(共 ${meta.data.blueprintShards})`, '#e8c07a'));
       }
-      const rolls = isBoss ? 2 : 1;
+      if (isMid) {
+        const item = this.factory.make(
+          this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), 'epic');
+        this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
+        world.emit(new ToastEvent('🌿 苔冠巨鹿倒下,角上掉下一件古物', RARITY_COLORS.epic));
+      }
+      const rolls = isBoss ? 2 : isMid ? 0 : 1;
       for (let r = 0; r < rolls * lootMult; r++) {
         if (isBoss && r === 0) {
           const rarity = this.rng.chance(0.3) ? 'legendary' as const : 'epic' as const;
@@ -89,18 +97,24 @@ export class LootSystem implements System {
       if (this.rng.chance(L.dropPotion * lootMult * runMods.dropMult)) {
         this.spawnPickup(world, kill.x, kill.y, new Pickup('potion'));
       }
-      // 符文:精英 35% / Boss 必掉(只掉本职业未拥有的,集齐后掉星尘)
-      if (isBoss || (isElite && this.rng.chance(L.runeDropElite))) {
+      // 符文:精英 35% / 中 Boss 与章 Boss 必掉(只掉本职业未拥有的,集齐后掉星尘)
+      if (isBoss || isMid || (isElite && this.rng.chance(L.runeDropElite))) {
         const info = this.playerRuneInfo(world);
         const owned = new Set(info.bag);
         const prefix = `${info.klass}_`;
-        const candidates = [...RUNE_POOL.values()]
-          .filter((r) => r.skill.startsWith(prefix) && !owned.has(r.id))
-          .map((r) => r.id);
-        if (candidates.length > 0) {
-          this.spawnPickup(world, kill.x, kill.y, new Pickup('rune', null, 0, this.rng.pick(candidates)));
-        } else {
-          this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, 30));
+        const take = isMid ? balance.enemies.midboss_mossstag.runeDrop : 1;
+        for (let n = 0; n < take; n++) {
+          const candidates = [...RUNE_POOL.values()]
+            .filter((r) => r.skill.startsWith(prefix) && !owned.has(r.id))
+            .map((r) => r.id);
+          if (candidates.length === 0) {
+            // 本职业符文已集齐 → 折成星尘(旧行为保持一致)
+            this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, 30));
+            break;
+          }
+          const id = this.rng.pick(candidates);
+          owned.add(id); // 同一次掉两枚时不重复
+          this.spawnPickup(world, kill.x, kill.y, new Pickup('rune', null, 0, id));
         }
       }
     }

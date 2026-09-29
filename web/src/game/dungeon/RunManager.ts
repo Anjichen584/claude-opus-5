@@ -5,7 +5,7 @@ import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
   DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
-  FrostMage, FrostSlime, Health, IceTurtle, SnowPuff,
+  FrostMage, FrostSlime, Health, IceTurtle, MidBossStag, SnowPuff,
   OakGolem, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
@@ -21,10 +21,10 @@ import {
 } from './RoomLayouts';
 import { propHp, terrain } from './Terrain';
 
-export type RoomKind = 'battle' | 'treasure' | 'elite' | 'boss' | 'shop' | 'event';
+export type RoomKind = 'battle' | 'treasure' | 'elite' | 'midboss' | 'boss' | 'shop' | 'event';
 
 type SpawnKind =
-  | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem'
+  | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem' | 'midboss_mossstag'
   | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite'
   | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage'
   | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger';
@@ -160,6 +160,33 @@ export class RunManager {
         world.emit(new ToastEvent('❓ 秘境:三座石碑,只能选一(按 F)', '#e8c07a'));
         break;
       }
+      case 'midboss': {
+        // 中 Boss 房:只刷一只(它本身就是这场战斗的全部压力)
+        this.pendingWaves = 0;
+        const night = clock.isNight();
+        const cfg = balance.enemies.midboss_mossstag;
+        hold(balance.arena.widthM - 6, balance.arena.heightM / 2, 2.0);
+        const e = world.create();
+        world.add(e, new Transform((balance.arena.widthM - 6) * M, (balance.arena.heightM / 2) * M));
+        world.add(e, new Velocity());
+        world.add(e, new Body(cfg.bodyRadius, false));
+        const [mhp, matk] = runMods.enemy(
+          scaleHp(cfg.hp, 0, night) * this.chapterCfg.statMult,
+          scaleAtk(cfg.atk, 0, night) * this.chapterCfg.statMult,
+        );
+        world.add(e, new Health(Math.round(mhp)));
+        world.add(e, new Stats(Math.round(matk), cfg.speed, 0, 1, cfg.def));
+        world.add(e, new Faction('enemy'));
+        const stag = new MidBossStag();
+        stag.spawnX = (balance.arena.widthM - 6) * M;
+        stag.spawnY = (balance.arena.heightM / 2) * M;
+        world.add(e, stag);
+        world.add(e, new ElementMarks());
+        world.add(e, new Buffs());
+        world.emit(new ToastEvent('🦌 苔冠巨鹿——鹿角压低,苔雾漫起', '#8fd45f'));
+        world.emit(new SfxEvent('ult'));
+        break;
+      }
       case 'boss': {
         this.pendingWaves = 0;
         const mul = this.chapterCfg.statMult;
@@ -196,7 +223,9 @@ export class RunManager {
 
     // 布局:按房间类型抽模板 → 模板摆位 → 过一遍摆放规则(出入口/交互净空/可穿行)
     const ctxKind: LayoutCtxKind =
-      kind === 'boss' ? 'boss' : kind === 'elite' ? 'elite' : kind === 'battle' ? 'battle' : 'calm';
+      kind === 'boss' ? 'boss'
+        : kind === 'elite' || kind === 'midboss' ? 'elite'
+        : kind === 'battle' ? 'battle' : 'calm';
     // 周常铁律「地脉」:战斗房地形被定死(精英房也让一步,免得两种规则打架)
     const forced = runMods.forcedLayout !== null && (kind === 'battle' || kind === 'elite')
       ? runMods.forcedLayout
@@ -232,7 +261,8 @@ export class RunManager {
         world.count(ToxinToad) + world.count(SnowPuff) + world.count(IceTurtle) +
         world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha) +
         world.count(CinderRat) + world.count(DuneBeetle) + world.count(FlameDancer) +
-        world.count(DustStinger) + world.count(BossKazra);
+        world.count(DustStinger) + world.count(BossKazra) +
+        world.count(MidBossStag);
       if (this.roomKind === 'boss') {
         if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) + world.count(BossKazra) === 0) return 'victory';
       } else if (enemiesLeft === 0 && this.pendingWaves === 0) {
@@ -273,6 +303,8 @@ export class RunManager {
   private nextKinds(): RoomKind[] {
     const next = this.depth + 1;
     if (next >= R.count) return ['boss'];
+    // 章节门控:二三章的中 Boss 还没做(10-FULL-PLAN 轮 13/21),到那里再开
+    if (next === R.midbossIndex && this.chapter === 1) return ['midboss'];
     if (next === this.eliteIndex) return ['elite'];
     const choiceIdx = (R.choiceAt as number[]).indexOf(next);
     if (choiceIdx === 0) return ['treasure', 'event']; // 稳定收益 vs 三选一赌局
@@ -442,6 +474,13 @@ export class RunManager {
       case 'dunebeetle': world.add(e, new DuneBeetle()); break;
       case 'flamedancer': world.add(e, new FlameDancer()); break;
       case 'duststinger': world.add(e, new DustStinger()); break;
+      case 'midboss_mossstag': {
+        const stag = new MidBossStag();
+        stag.spawnX = x;
+        stag.spawnY = y;
+        world.add(e, stag);
+        break;
+      }
     }
   }
 }

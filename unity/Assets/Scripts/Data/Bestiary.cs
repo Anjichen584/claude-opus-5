@@ -45,6 +45,7 @@ namespace StarfallKnights.Data
             { EnemyKind.FlameDancer, new Stat("火舞妖", 38f, 11f, 0f, 2.4f, 0.26f, 0.8f) },
             { EnemyKind.DustStinger, new Stat("岩尾蝎", 60f, 10f, 2f, 1.6f, 0.32f, 0.9f) },
             { EnemyKind.BossKazra, new Stat("熔核蝎皇·卡兹拉", 6400f, 18f, 4f, 2.2f, 0.6f, 0.8f) },
+            { EnemyKind.MidBossMossstag, new Stat("苔冠巨鹿", 1500f, 12f, 4f, 1.5f, 0.55f, 0.8f) },
             { EnemyKind.BossNanmir, new Stat("腐木巨像·南弥尔", 4200f, 18f, 8f, 1.2f, 0.7f, 0.8f) },
         };
 
@@ -593,6 +594,66 @@ namespace StarfallKnights.Data
         public const float BossKazraTrailMult = 0.35f;
         /// <summary>boss_kazra.contactCd</summary>
         public const float BossKazraContactCd = 0.8f;
+        /// <summary>midboss_mossstag.hp</summary>
+        public const float MidBossMossstagHp = 1500f;
+        /// <summary>midboss_mossstag.atk</summary>
+        public const float MidBossMossstagAtk = 12f;
+        /// <summary>midboss_mossstag.def</summary>
+        public const float MidBossMossstagDef = 4f;
+        /// <summary>midboss_mossstag.speed</summary>
+        public const float MidBossMossstagSpeed = 1.5f;
+        /// <summary>midboss_mossstag.bodyRadius</summary>
+        public const float MidBossMossstagBodyRadius = 0.55f;
+        /// <summary>midboss_mossstag.stalkM</summary>
+        public const float MidBossMossstagStalkM = 4.6f;
+        /// <summary>midboss_mossstag.charge.telegraphS</summary>
+        public const float MidBossMossstagChargeTelegraphS = 0.75f;
+        /// <summary>midboss_mossstag.charge.speedM</summary>
+        public const float MidBossMossstagChargeSpeedM = 6.4f;
+        /// <summary>midboss_mossstag.charge.durS</summary>
+        public const float MidBossMossstagChargeDurS = 0.85f;
+        /// <summary>midboss_mossstag.charge.recoverS</summary>
+        public const float MidBossMossstagChargeRecoverS = 1.2f;
+        /// <summary>midboss_mossstag.charge.mult</summary>
+        public const float MidBossMossstagChargeMult = 1.15f;
+        /// <summary>midboss_mossstag.charge.cdS</summary>
+        public const float MidBossMossstagChargeCdS = 3.6f;
+        /// <summary>midboss_mossstag.charge.wallStunS</summary>
+        public const float MidBossMossstagChargeWallStunS = 2.2f;
+        /// <summary>midboss_mossstag.charge.laneM</summary>
+        public const float MidBossMossstagChargeLaneM = 7f;
+        /// <summary>midboss_mossstag.volley.telegraphS</summary>
+        public const float MidBossMossstagVolleyTelegraphS = 0.55f;
+        /// <summary>midboss_mossstag.volley.count</summary>
+        public const float MidBossMossstagVolleyCount = 5f;
+        /// <summary>midboss_mossstag.volley.spreadDeg</summary>
+        public const float MidBossMossstagVolleySpreadDeg = 36f;
+        /// <summary>midboss_mossstag.volley.speedM</summary>
+        public const float MidBossMossstagVolleySpeedM = 4.4f;
+        /// <summary>midboss_mossstag.volley.lifeS</summary>
+        public const float MidBossMossstagVolleyLifeS = 1.5f;
+        /// <summary>midboss_mossstag.volley.radiusM</summary>
+        public const float MidBossMossstagVolleyRadiusM = 0.34f;
+        /// <summary>midboss_mossstag.volley.mult</summary>
+        public const float MidBossMossstagVolleyMult = 0.8f;
+        /// <summary>midboss_mossstag.volley.cdS</summary>
+        public const float MidBossMossstagVolleyCdS = 4.4f;
+        /// <summary>midboss_mossstag.spore.radiusM</summary>
+        public const float MidBossMossstagSporeRadiusM = 1f;
+        /// <summary>midboss_mossstag.spore.lifeS</summary>
+        public const float MidBossMossstagSporeLifeS = 3.2f;
+        /// <summary>midboss_mossstag.spore.intervalS</summary>
+        public const float MidBossMossstagSporeIntervalS = 0.6f;
+        /// <summary>midboss_mossstag.spore.mult</summary>
+        public const float MidBossMossstagSporeMult = 0.3f;
+        /// <summary>midboss_mossstag.phase2At</summary>
+        public const float MidBossMossstagPhase2At = 0.5f;
+        /// <summary>midboss_mossstag.enrageSpeedMul</summary>
+        public const float MidBossMossstagEnrageSpeedMul = 1.25f;
+        /// <summary>midboss_mossstag.enrageVolleyAdd</summary>
+        public const float MidBossMossstagEnrageVolleyAdd = 2f;
+        /// <summary>midboss_mossstag.runeDrop</summary>
+        public const float MidBossMossstagRuneDrop = 1f;
         /// <summary>boss_nanmir.hp</summary>
         public const float BossNanmirHp = 4200f;
         /// <summary>boss_nanmir.atk</summary>
@@ -683,6 +744,20 @@ namespace StarfallKnights.Data
         public const float Ch3LanternCost = 203f;
         /// <summary>chapters.3.unlockClears</summary>
         public const float Ch3UnlockClears = 2f;
+        /// <summary>arena.widthM</summary>
+        public const float ArenaWidthM = 28f;
+        /// <summary>arena.heightM</summary>
+        public const float ArenaHeightM = 16f;
+        /// <summary>arena.dummyCount</summary>
+        public const float ArenaDummyCount = 3f;
+        /// <summary>arena.shroomTarget</summary>
+        public const float ArenaShroomTarget = 8f;
+        /// <summary>arena.beeTarget</summary>
+        public const float ArenaBeeTarget = 5f;
+        /// <summary>arena.wolfTarget</summary>
+        public const float ArenaWolfTarget = 2f;
+        /// <summary>arena.spawnInterval</summary>
+        public const float ArenaSpawnInterval = 1.2f;
 
         /// <summary>与 balance.json 的逐键对照表(键 = JSON 路径;ParityTests 双向校验)。</summary>
         public static readonly Dictionary<string, float> Parity = new()
@@ -946,6 +1021,36 @@ namespace StarfallKnights.Data
             { "boss_kazra.trail.tickS", BossKazraTrailTickS },
             { "boss_kazra.trail.mult", BossKazraTrailMult },
             { "boss_kazra.contactCd", BossKazraContactCd },
+            { "midboss_mossstag.hp", MidBossMossstagHp },
+            { "midboss_mossstag.atk", MidBossMossstagAtk },
+            { "midboss_mossstag.def", MidBossMossstagDef },
+            { "midboss_mossstag.speed", MidBossMossstagSpeed },
+            { "midboss_mossstag.bodyRadius", MidBossMossstagBodyRadius },
+            { "midboss_mossstag.stalkM", MidBossMossstagStalkM },
+            { "midboss_mossstag.charge.telegraphS", MidBossMossstagChargeTelegraphS },
+            { "midboss_mossstag.charge.speedM", MidBossMossstagChargeSpeedM },
+            { "midboss_mossstag.charge.durS", MidBossMossstagChargeDurS },
+            { "midboss_mossstag.charge.recoverS", MidBossMossstagChargeRecoverS },
+            { "midboss_mossstag.charge.mult", MidBossMossstagChargeMult },
+            { "midboss_mossstag.charge.cdS", MidBossMossstagChargeCdS },
+            { "midboss_mossstag.charge.wallStunS", MidBossMossstagChargeWallStunS },
+            { "midboss_mossstag.charge.laneM", MidBossMossstagChargeLaneM },
+            { "midboss_mossstag.volley.telegraphS", MidBossMossstagVolleyTelegraphS },
+            { "midboss_mossstag.volley.count", MidBossMossstagVolleyCount },
+            { "midboss_mossstag.volley.spreadDeg", MidBossMossstagVolleySpreadDeg },
+            { "midboss_mossstag.volley.speedM", MidBossMossstagVolleySpeedM },
+            { "midboss_mossstag.volley.lifeS", MidBossMossstagVolleyLifeS },
+            { "midboss_mossstag.volley.radiusM", MidBossMossstagVolleyRadiusM },
+            { "midboss_mossstag.volley.mult", MidBossMossstagVolleyMult },
+            { "midboss_mossstag.volley.cdS", MidBossMossstagVolleyCdS },
+            { "midboss_mossstag.spore.radiusM", MidBossMossstagSporeRadiusM },
+            { "midboss_mossstag.spore.lifeS", MidBossMossstagSporeLifeS },
+            { "midboss_mossstag.spore.intervalS", MidBossMossstagSporeIntervalS },
+            { "midboss_mossstag.spore.mult", MidBossMossstagSporeMult },
+            { "midboss_mossstag.phase2At", MidBossMossstagPhase2At },
+            { "midboss_mossstag.enrageSpeedMul", MidBossMossstagEnrageSpeedMul },
+            { "midboss_mossstag.enrageVolleyAdd", MidBossMossstagEnrageVolleyAdd },
+            { "midboss_mossstag.runeDrop", MidBossMossstagRuneDrop },
             { "boss_nanmir.hp", BossNanmirHp },
             { "boss_nanmir.atk", BossNanmirAtk },
             { "boss_nanmir.def", BossNanmirDef },
@@ -991,6 +1096,13 @@ namespace StarfallKnights.Data
             { "chapters.3.lootMult", Ch3LootMult },
             { "chapters.3.lanternCost", Ch3LanternCost },
             { "chapters.3.unlockClears", Ch3UnlockClears },
+            { "arena.widthM", ArenaWidthM },
+            { "arena.heightM", ArenaHeightM },
+            { "arena.dummyCount", ArenaDummyCount },
+            { "arena.shroomTarget", ArenaShroomTarget },
+            { "arena.beeTarget", ArenaBeeTarget },
+            { "arena.wolfTarget", ArenaWolfTarget },
+            { "arena.spawnInterval", ArenaSpawnInterval },
         };
     }
 

@@ -46,6 +46,8 @@ TARGETS = {
     "prop_crystal": 40,
     "snowpuff": 26,
     "iceturtle": 40,
+    # M1 轮 5:第一章中 Boss 苔冠巨鹿(双帧:站立/冲锋)
+    "midboss_mossstag": 80,
     "blizzardhawk": 26,
     "frostmage": 32,
     "boss_velsha": 128,
@@ -190,6 +192,7 @@ def key_out(img: Image.Image) -> Image.Image:
 PAIRS = [
     "shroomling", "windbee", "blightwolf", "cinderrat", "oakgolem", "snowpuff",
     "iceturtle", "blizzardhawk", "frostmage", "dunebeetle", "flamedancer", "duststinger",
+    "midboss_mossstag",  # 中 Boss 也走帧对(站立/冲锋同画布对齐,否则两帧会"跳")
 ]
 MIN_ALPHA = 40
 

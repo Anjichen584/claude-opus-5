@@ -14,6 +14,8 @@ namespace StarfallKnights.Core
         SnowPuff, IceTurtle, BlizzardHawk, FrostMage,
         // 三章 烬语荒漠
         CinderRat, DuneBeetle, FlameDancer, DustStinger,
+        // 中 Boss(每章 1 只,推图第 6 房)
+        MidBossMossstag,
         // Boss
         BossNanmir, BossVelsha, BossKazra,
     }
@@ -33,6 +35,12 @@ namespace StarfallKnights.Core
 
         public static bool IsBoss(EnemyKind k)
             => k == EnemyKind.BossNanmir || k == EnemyKind.BossVelsha || k == EnemyKind.BossKazra;
+
+        /// <summary>中 Boss(推图中段的"半个 Boss")。</summary>
+        public static bool IsMidBoss(EnemyKind k) => k == EnemyKind.MidBossMossstag;
+
+        /// <summary>Boss 级(中 Boss + 章 Boss):图鉴带 ★、掉落保底符文。</summary>
+        public static bool IsBossTier(EnemyKind k) => IsBoss(k) || IsMidBoss(k);
 
         /// <summary>章节 Boss。</summary>
         public static EnemyKind BossOf(int chapter) => chapter switch

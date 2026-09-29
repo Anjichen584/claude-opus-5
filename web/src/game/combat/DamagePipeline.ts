@@ -4,7 +4,7 @@ import { M } from '@game/constants';
 import {
   BeamFxEvent, BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs,
   CinderRat, Dummy, DuneBeetle, DustStinger, Element, ElementMarks, EmberImp, Faction,
-  FlameDancer, FrostMage, FrostSlime, Health, HitEvent, IceTurtle, KillEvent, OakGolem,
+  FlameDancer, FrostMage, FrostSlime, Health, HitEvent, IceTurtle, KillEvent, MidBossStag, OakGolem,
   Player, ReactionEvent, RingFxEvent, Shroomling, SnowPuff, SparkLizard, StardustSprite,
   Stats, ThornVine, ToxinToad, Transform, Velocity, WindBee, Zone,
 } from '@game/components';
@@ -143,6 +143,7 @@ export function dealDamage(world: World, o: DealOpts): void {
       : world.has(o.target, BlightWolf) ? 'blightwolf'
       : world.has(o.target, ThornVine) ? 'thornvine'
       : golem ? 'oakgolem'
+      : world.has(o.target, MidBossStag) ? 'midboss_mossstag'
       : world.has(o.target, BossNanmir) ? 'boss_nanmir'
       : world.has(o.target, BossVelsha) ? 'boss_velsha'
       : world.has(o.target, BossKazra) ? 'boss_kazra'

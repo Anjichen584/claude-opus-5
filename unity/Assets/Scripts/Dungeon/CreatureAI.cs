@@ -19,6 +19,11 @@ namespace StarfallKnights.Dungeon
         public float ZigDir = 1f, CircleDir = 1f;
         public Vector2 Mark;           // 预警/抛掷落点
         public bool Split;             // 霜核史莱姆已分裂
+        // 中 Boss(苔冠巨鹿):招式冷却与"这次硬直是撞墙还是撞人"
+        public float ChargeCd, VolleyCd;
+        public bool WallStun;
+        /// <summary>上一招(true=冲撞,false=弹幕):两招各有独立冷却,只重置用掉的那个 → 自然轮换</summary>
+        public bool LastWasCharge = true;
     }
 
     /// <summary>
@@ -55,6 +60,8 @@ namespace StarfallKnights.Dungeon
                     st = new MobState
                     {
                         Cd = 0f,
+                        ChargeCd = 2.4f,   // 镜像 web:首次冲撞给玩家喘息
+                        VolleyCd = 3.2f,
                         CircleDir = (u(e) % 2 == 0) ? 1f : -1f,
                         ZigDir = (u(e) % 2 == 0) ? 1f : -1f,
                     };
@@ -100,6 +107,7 @@ namespace StarfallKnights.Dungeon
                         Bestiary.FrostMageBoltSpeedM, Bestiary.FrostMageBoltRadiusM,
                         Bestiary.FrostMageBoltMult, Bestiary.FrostMageBoltLifeS,
                         Element.Ice, 1); break;
+                    case EnemyKind.MidBossMossstag: MossStag(w, e, st, dt, slow); break;
                     case EnemyKind.CinderRat: CinderRat(w, e, st, dt, slow); break;
                     case EnemyKind.DuneBeetle: DuneBeetle(w, e, st, dt, slow); break;
                     case EnemyKind.FlameDancer: FlameDancer(w, e, st, dt, slow); break;
@@ -599,6 +607,179 @@ namespace StarfallKnights.Dungeon
         }
 
         /// <summary>冰壳龟:龟速爬行 → 抖壳预警 → 旋壳冲撞(接触 1.2 倍)。</summary>
+
+        // ---------- 第一章中 Boss:苔冠巨鹿(镜像 web MidBossSystem.ts) ----------
+        //
+        // 三招一博弈:冲撞(撞墙自晕 wallStunS = 玩家的输出窗口 / 撞人只晕一半)、
+        // 扇形孢子弹幕、玩家脚下孢子云(空间封锁)。半血狂怒:冲速 ×enrageSpeedMul、弹幕 +enrageVolleyAdd。
+        // 数值全部走 Bestiary(parity 逐键比对),这里只有状态机。
+        private static void MossStag(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, nx, ny) = ToPlayer(w, e);
+            float keepMin = Bestiary.MidBossMossstagStalkM * 0.7f;
+            float keepMax = Bestiary.MidBossMossstagStalkM * 1.4f;
+            bool enraged = e.Unit.Hp <= e.Unit.HpMax * Bestiary.MidBossMossstagPhase2At;
+            float cdMul = enraged ? 0.8f : 1f;
+            // 两招各有独立冷却:只重置用掉的那一招(镜像 web;踩过"弹幕被冲撞饿死")
+            st.ChargeCd -= dt;
+            st.VolleyCd -= dt;
+            float contact = (Bestiary.MidBossMossstagBodyRadius + PlayerRadiusM) + ContactPad;
+
+            switch (st.Phase)
+            {
+                case MobPhase.Telegraph:   // 冲撞预警:朝向已锁定,原地压低
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(st.DirY, st.DirX);
+                    st.T -= dt;
+                    if (st.T <= 0f) { st.Phase = MobPhase.Dash; st.T = Bestiary.MidBossMossstagChargeDurS; }
+                    break;
+                }
+                case MobPhase.Dash:        // 冲撞:撞玩家(半晕)或撞墙(满晕)
+                {
+                    float speed = Bestiary.MidBossMossstagChargeSpeedM
+                        * (enraged ? Bestiary.MidBossMossstagEnrageSpeedMul : 1f);
+                    e.Vel = new Vector2(st.DirX, st.DirY) * speed;
+                    st.T -= dt;
+                    if (dist < contact)
+                    {
+                        Touch(w, e, st, dist, Bestiary.MidBossMossstagChargeMult);
+                        e.Vel = Vector2.Zero;
+                        st.WallStun = false;
+                        st.Phase = MobPhase.Recover;
+                        st.T = Bestiary.MidBossMossstagChargeWallStunS * 0.5f;
+                        break;
+                    }
+                    if (HitsArenaWall(e.Pos))
+                    {
+                        e.Vel = Vector2.Zero;
+                        st.WallStun = true;   // 满硬直 = 奖励窗口
+                        st.Phase = MobPhase.Recover;
+                        st.T = Bestiary.MidBossMossstagChargeWallStunS;
+                    }
+                    else if (st.T <= 0f)
+                    {
+                        st.Phase = MobPhase.Recover;
+                        st.T = Bestiary.MidBossMossstagChargeRecoverS;
+                    }
+                    break;
+                }
+                case MobPhase.Aim:         // 弹幕蓄力:扇形孢子弹 + 玩家脚下孢子云
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(dy, dx);
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        int count = (int)Bestiary.MidBossMossstagVolleyCount
+                            + (enraged ? (int)Bestiary.MidBossMossstagEnrageVolleyAdd : 0);
+                        float spread = Bestiary.MidBossMossstagVolleySpreadDeg * MathF.PI / 180f;
+                        float baseAngle = MathF.Atan2(dy, dx);
+                        for (int i = 0; i < count; i++)
+                        {
+                            float a = baseAngle + (count == 1 ? 0f : (i / (float)(count - 1) - 0.5f) * spread);
+                            ShootAtPlayer(w, e, new Vector2(MathF.Cos(a), MathF.Sin(a)),
+                                Bestiary.MidBossMossstagVolleySpeedM, Bestiary.MidBossMossstagVolleyRadiusM,
+                                Bestiary.MidBossMossstagVolleyMult, Bestiary.MidBossMossstagVolleyLifeS,
+                                Element.Toxin);
+                        }
+                        w.Zones.Add(new Zone
+                        {
+                            Pos = w.Player.Pos, RadiusM = Bestiary.MidBossMossstagSporeRadiusM,
+                            LifeS = Bestiary.MidBossMossstagSporeLifeS, TickS = Bestiary.MidBossMossstagSporeIntervalS,
+                            Atk = e.Unit.Atk, Mult = Bestiary.MidBossMossstagSporeMult,
+                            Element = Element.Toxin, PlayerTeam = false,
+                        });
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.45f;
+                    }
+                    break;
+                }
+                case MobPhase.Recover:     // 招式后摇 / 硬直(撞墙时更长)
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.Phase = MobPhase.Chase;
+                        // 硬直结束后更快接招(惩罚没抓住窗口的玩家),镜像 web 的 ×0.7
+                        ResetUsedMove(st, cdMul * (st.WallStun ? 0.7f : 1f));
+                    }
+                    break;
+                }
+                default:                   // Chase = "stalk":保持 4~6m 为冲撞留助跑
+                {
+                    e.Face = MathF.Atan2(dy, dx);
+                    float side = MathF.Cos(st.AnimT * 0.8f) >= 0f ? 1f : -1f;
+                    Vector2 mv;
+                    if (dist < keepMin) mv = new Vector2(-nx, -ny);
+                    else if (dist > keepMax) mv = new Vector2(nx, ny);
+                    else mv = new Vector2(-ny * side, nx * side);
+                    mv += SteerToArena(e.Pos);
+                    if (mv.Length() > 0.0001f) mv = Vector2.Normalize(mv);
+                    e.Vel = mv * Bestiary.Of(e.Kind).Speed * slow;
+
+                    bool chargeReady = st.ChargeCd <= 0f;
+                    bool volleyReady = st.VolleyCd <= 0f;
+                    bool takeCharge = chargeReady && volleyReady
+                        ? st.ChargeCd <= st.VolleyCd        // 都就绪 → 谁过期更久谁先出
+                        : chargeReady;
+                    if (takeCharge)
+                    {
+                        st.LastWasCharge = true;
+                        st.Phase = MobPhase.Telegraph;
+                        st.T = Bestiary.MidBossMossstagChargeTelegraphS;
+                        st.DirX = nx;
+                        st.DirY = ny;
+                        e.Vel = Vector2.Zero;
+                        // 路径预警:沿锁定朝向亮 3 个圈(与 web 一致)
+                        for (int i = 0; i < 3; i++)
+                        {
+                            float d = Bestiary.MidBossMossstagChargeLaneM * (i + 1) / 3f;
+                            TelegraphSystem.Add(w, e.Pos + new Vector2(nx, ny) * d, 0.9f,
+                                Bestiary.MidBossMossstagChargeTelegraphS + i * 0.06f,
+                                e.Unit.Atk, Bestiary.MidBossMossstagChargeMult, null, true);
+                        }
+                    }
+                    else if (volleyReady)
+                    {
+                        st.LastWasCharge = false;
+                        st.Phase = MobPhase.Aim;
+                        st.T = Bestiary.MidBossMossstagVolleyTelegraphS;
+                        e.Vel = Vector2.Zero;
+                    }
+                    break;
+                }
+            }
+        }
+
+        /// <summary>收招:只把刚用掉的那一招放回冷却(另一招继续走,于是两招自然轮换)。</summary>
+        private static void ResetUsedMove(MobState st, float mul)
+        {
+            if (st.LastWasCharge) st.ChargeCd = Bestiary.MidBossMossstagChargeCdS * mul;
+            else st.VolleyCd = Bestiary.MidBossMossstagVolleyCdS * mul;
+        }
+
+        /// <summary>冲出竞技场边界 = 撞墙(中 Boss 拿硬边界当地形用)。</summary>
+        private static bool HitsArenaWall(Vector2 pos)
+        {
+            const float pad = 0.6f; // 镜像 web MIDBOSS_TUNING.wallPadM
+            return pos.X < pad || pos.Y < pad
+                || pos.X > Bestiary.ArenaWidthM - pad || pos.Y > Bestiary.ArenaHeightM - pad;
+        }
+
+        /// <summary>越靠边越朝场内回中(别被风筝到墙角打不着)。</summary>
+        private static Vector2 SteerToArena(Vector2 pos)
+        {
+            const float near = 2.5f;
+            var v = Vector2.Zero;
+            if (pos.X < near) v.X += (near - pos.X) / near;
+            if (pos.Y < near) v.Y += (near - pos.Y) / near;
+            if (pos.X > Bestiary.ArenaWidthM - near) v.X -= (pos.X - (Bestiary.ArenaWidthM - near)) / near;
+            if (pos.Y > Bestiary.ArenaHeightM - near) v.Y -= (pos.Y - (Bestiary.ArenaHeightM - near)) / near;
+            return v;
+        }
+
         private static void IceTurtle(LogicWorld w, Actor e, MobState st, float dt, float slow)
         {
             var s = Bestiary.Of(e.Kind);

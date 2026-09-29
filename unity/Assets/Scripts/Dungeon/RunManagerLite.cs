@@ -5,7 +5,7 @@ using StarfallKnights.Data;
 
 namespace StarfallKnights.Dungeon
 {
-    public enum RoomKind { Battle, Treasure, Elite, Boss }
+    public enum RoomKind { Battle, Treasure, Elite, MidBoss, Boss }
 
     /// <summary>
     /// 房间推进(镜像 web RunManager):8 房 + Boss。序列
@@ -89,6 +89,7 @@ namespace StarfallKnights.Dungeon
         private readonly Random _rng = new();
         private const int RoomCount = 8;      // 镜像 balance.rooms.count
         private const int EliteIndex = 4;     // 镜像 balance.rooms.eliteIndex
+        private const int MidBossIndex = 6;   // 镜像 balance.rooms.midbossIndex
         private const int BudgetBase = 6;     // 镜像 balance.rooms.waveBudgetBase
         private const int BudgetPerDepth = 2;
 
@@ -118,6 +119,7 @@ namespace StarfallKnights.Dungeon
             Depth++;
             if (Depth >= RoomCount) return false;
             Room = Depth == RoomCount - 1 ? RoomKind.Boss
+                : Depth == MidBossIndex && Chapter == 1 ? RoomKind.MidBoss   // 二三章中 Boss 未做(镜像 web 的章节门控)
                 : Depth == EliteIndex ? RoomKind.Elite
                 : Depth == 2 || Depth == 5 ? RoomKind.Treasure
                 : RoomKind.Battle;
@@ -156,6 +158,10 @@ namespace StarfallKnights.Dungeon
                     return;
                 case RoomKind.Boss:
                     Spawn(EnemyKinds.BossOf(Chapter));
+                    return;
+                case RoomKind.MidBoss:
+                    // 中 Boss 房:只刷一只(它自己就是这场战斗的压力)
+                    Spawn(EnemyKind.MidBossMossstag);
                     return;
                 case RoomKind.Elite:
                 {

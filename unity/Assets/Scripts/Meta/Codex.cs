@@ -19,7 +19,7 @@ namespace StarfallKnights.Meta
         /// <summary>符文 id → 获得次数。</summary>
         public readonly Dictionary<string, int> Runes = new();
 
-        /// <summary>图鉴条目总数(怪物 21 = 18 杂兵 + 3 Boss;符文 36)。</summary>
+        /// <summary>图鉴条目总数(怪物 22 = 18 杂兵 + 1 中 Boss + 3 章 Boss;符文 36)。</summary>
         public static int EnemyTotal => Bestiary.Stats.Count;
         public static int RuneTotal => RunePool.All().Count;
 

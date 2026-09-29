@@ -11,6 +11,7 @@ import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
+  MidBossStag,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
   ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
@@ -27,6 +28,7 @@ import { ShopSystem } from '@game/systems/ShopSystem';
 import { EventSystem } from '@game/systems/EventSystem';
 import { EnemySystem } from '@game/systems/EnemySystem';
 import { EliteSystem } from '@game/systems/EliteSystem';
+import { MidBossSystem } from '@game/systems/MidBossSystem';
 import { CritterSystem } from '@game/systems/CritterSystem';
 import { TundraSystem } from '@game/systems/TundraSystem';
 import { DesertSystem } from '@game/systems/DesertSystem';
@@ -66,6 +68,7 @@ const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
   battle: { color: '#dfe8f2', label: '战斗' },
   treasure: { color: '#F2A33C', label: '宝藏' },
   elite: { color: '#B067E8', label: '精英' },
+  midboss: { color: '#8fd45f', label: '中首领' },
   boss: { color: '#e05f5f', label: '首领' },
   shop: { color: '#8fd4c8', label: '商店' },
   event: { color: '#e8c07a', label: '秘境' },
@@ -175,6 +178,7 @@ export class GameScene {
       this.skills,
       new EnemySystem(),
       new EliteSystem(),
+      new MidBossSystem(),
       new CritterSystem(),
       new TundraSystem(),
       new DesertSystem(),
@@ -1214,6 +1218,38 @@ export class GameScene {
         } });
       }
 
+      // ---- 第一章中 Boss:苔冠巨鹿(站立/冲锋双帧) ----
+      for (const e of w.query(MidBossStag, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const st = w.mustGet(e, MidBossStag);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 26);
+          // 冲锋/预警时用第二帧(低头顶角),其余时候站立帧;慢走也换帧做"蹄步"节奏
+          const moving = st.state === 'stalk';
+          const frame = st.state === 'charge' || st.state === 'chargeWind'
+            ? 'midboss_mossstag_f2' : this.frame2('midboss_mossstag', e, moving);
+          const jit = st.state === 'chargeWind' ? (Math.random() - 0.5) * 0.12 : 0;
+          const lean = st.state === 'charge' ? (Math.cos(tr.face) < 0 ? 0.14 : -0.14) : 0;
+          const proud = st.phase === 2 ? 0.06 : 0;   // 狂怒:苔冠压低、身体前倾
+          if (!drawSprite(ctx, frame, ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: jit + lean + proud + (st.state === 'stagger' ? 0.22 : 0),
+          })) blob(ix, iy, 24, '#8fd45f');
+          // 狂怒苔雾:一层脉动的绿光,提示"它变强了"
+          if (st.phase === 2) {
+            ctx.save();
+            ctx.globalAlpha = 0.16 + Math.sin(st.animT * 5) * 0.06;
+            ctx.fillStyle = '#8fd45f';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy - 26, 40, 26, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        } });
+      }
+
       // ---- 第三章:荒漠怪 ----
       for (const e of w.query(CinderRat, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
@@ -1710,6 +1746,10 @@ export class GameScene {
       ctx.font = 'bold 11px monospace';
       ctx.fillText(`${name} · P${phase}`, width / 2, 57);
     };
+    for (const e of this.world.query(MidBossStag, Health)) {
+      const st = this.world.mustGet(e, MidBossStag);
+      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_mossstag.name, st.phase, false, '#8fd45f');
+    }
     for (const e of this.world.query(BossNanmir, Health)) {
       const boss = this.world.mustGet(e, BossNanmir);
       drawBossBar(this.world.mustGet(e, Health), balance.boss.nanmir.name, boss.phase, boss.state === 'stagger', '#b34747');

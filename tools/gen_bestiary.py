@@ -25,6 +25,7 @@ KIND = {
     'blizzardhawk': 'BlizzardHawk', 'frostmage': 'FrostMage', 'cinderrat': 'CinderRat',
     'dunebeetle': 'DuneBeetle', 'flamedancer': 'FlameDancer', 'duststinger': 'DustStinger',
     'boss_nanmir': 'BossNanmir', 'boss_velsha': 'BossVelsha', 'boss_kazra': 'BossKazra',
+    'midboss_mossstag': 'MidBossMossstag',
 }
 
 
@@ -82,6 +83,8 @@ def main() -> int:
         walk(pascal(KIND[kind]), data, json_path=kind, name_prefix='')
     for c, data in chapters.items():
         walk('Ch' + c, data, json_path=f'chapters.{c}', name_prefix='')
+    # 竞技场尺寸:中 Boss 的"撞墙自晕"要读它,顺手进 parity(此前 arena 一直是 parity 盲区)
+    walk('Arena', b['arena'], json_path='arena', name_prefix='')
 
     # 覆盖性自检:JSON 里的每个数值叶子都必须落到一个 C# 常量
     def leaves(o, path=''):
@@ -97,7 +100,8 @@ def main() -> int:
         elif isinstance(o, (int, float)):
             yield path
 
-    n_json = sum(1 for _ in leaves(enemies)) + sum(1 for _ in leaves(chapters))
+    n_json = (sum(1 for _ in leaves(enemies)) + sum(1 for _ in leaves(chapters))
+              + sum(1 for _ in leaves(b['arena'])))
     if n_json != len(consts):
         raise SystemExit(f'数值叶子数不符:JSON {n_json} vs C# {len(consts)}')
 
