@@ -76,4 +76,6 @@ export const SPRITE_NAMES = [
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',
   'elem_fire', 'elem_ice', 'elem_lightning', 'elem_poison',
   'ui_panel', 'icon_slash', 'icon_shot', 'icon_dash', 'icon_ult',
+  // 第三批之三:怪物第二帧(补齐一只登记一只,未登记的在 frame2 里自动回落第一帧)
+  'oakgolem_f2', 'snowpuff_f2',
 ] as const;

@@ -1,6 +1,6 @@
 # 04 — 美术规范与资源管线
 
-`最后更新: 2026-09-29` `状态: v1.0(规范定稿,资源 64/约90 项)`
+`最后更新: 2026-09-29` `状态: v1.0(规范定稿,资源 66/约90 项)`
 
 ---
 
@@ -54,4 +54,4 @@
 **UI**: ☑ 面板9slice(ui_panel,按 32×32 源图切 8px 边) ☐ 按钮四态 ☑ 技能图标×4(斩击/投射/突进/大招原型) ☐ 物品图标×30(宝箱/星尘/药剂/符文石已做) ☐ 符文图标×12 ☐ 数字字体
 **音频(Phase 2)**: ☐ 命中×3 ☐ 暴击 ☐ 翻滚 ☐ 拾取 ☐ 升级 ☐ BGM×2(程序化生成)
 
-> 当前总进度: **64 / 约 90 项**。规范:AI 原画 → tools/process_art.py 抠图降采样 → public/sprites;登记进 SPRITE_NAMES 后由 `src/game/gfx/__tests__/sprites.test.ts` 守卫(缺图即测试红)。
+> 当前总进度: **66 / 约 90 项**。规范:AI 原画 → tools/process_art.py 抠图降采样 → public/sprites;登记进 SPRITE_NAMES 后由 `src/game/gfx/__tests__/sprites.test.ts` 守卫(缺图即测试红)。

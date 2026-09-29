@@ -78,6 +78,15 @@ TARGETS = {
     "icon_shot": 26,
     "icon_dash": 26,
     "icon_ult": 26,
+    # 第三批之三:怪物第二帧(双帧动画;缺源图自动跳过,按补齐进度逐个生效)
+    "oakgolem_f2": 64,
+    "snowpuff_f2": 26,
+    "iceturtle_f2": 40,
+    "blizzardhawk_f2": 26,
+    "frostmage_f2": 32,
+    "dunebeetle_f2": 36,
+    "flamedancer_f2": 34,
+    "duststinger_f2": 32,
 }
 TILE = {"grass_tile": 96, "snow_tile": 96, "sand_tile": 96}
 
