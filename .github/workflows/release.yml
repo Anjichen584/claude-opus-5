@@ -1,0 +1,41 @@
+# 发布流水线(轮 46):打 tag → 构建 → 双工件(Pages 版 + itch 版)挂到 GitHub Release。
+# 用法:git tag v1.0.0 && git push origin v1.0.0 —— 剩下的这里全包。
+name: Release on Tag
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # 创建 Release + 传工件
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: 逻辑层测试(发布前最后一道闸)
+        run: bash unity/Tests/run.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: web 测试
+        run: cd web && npm ci && npx vitest run
+      - name: itch 包(相对 base,zip 根含 index.html)
+        run: bash tools/package_itch.sh
+      - name: Pages 包(绝对 base,归档留底)
+        run: |
+          cd web && npx vite build --base=/claude-opus-5/
+          cd dist && zip -qr ../../release/starfall-knights-pages.zip .
+      - name: 创建 Release 并挂工件
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/starfall-knights-itch.zip
+            release/starfall-knights-pages.zip
+          generate_release_notes: true
