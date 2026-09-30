@@ -462,8 +462,8 @@ namespace StarfallKnights.Tests
             // 秘术师(轮 28 下半场 + 收尾)六套齐编 —— 少一套 Unity 侧会静默回退待机
             foreach (var seq in new[] { "arcanist_walk", "arcanist_cast", "arcanist_dash", "arcanist_hurt", "arcanist_die" })
                 check(m.ContainsKey(seq), "清单含 " + seq);
-            // 守卫(轮 29 上半场):走路 + 重锤攻击(近战职业普攻走 atk,与剑士同口径)
-            foreach (var seq in new[] { "warden_walk", "warden_atk" })
+            // 守卫(轮 29):走路 + 重锤攻击 + 翻滚 + 受击 + 死亡(施法随下批;近战职业普攻走 atk,与剑士同口径)
+            foreach (var seq in new[] { "warden_walk", "warden_atk", "warden_dash", "warden_hurt", "warden_die" })
                 check(m.ContainsKey(seq), "清单含 " + seq);
         }
 

@@ -79,6 +79,9 @@ SEQUENCES: dict[str, Seq] = {
     # ---- 守卫(轮 29 动画批次 3:重锤三击风格 —— 蓄力 → 砸地命中 → 收锤连招窗)----
     "warden_walk": Seq(frames=4, target_h=46, anchor=1),   # 锚点:第 1 帧(接触姿势,躯干最直)
     "warden_atk": Seq(frames=3, target_h=46, anchor=3),    # 锚点:收锤起身那帧(1 蓄力后仰 / 2 砸地前倾都偏离站立)
+    "warden_dash": Seq(frames=3, target_h=46, anchor=3),   # 锚点:起身站直那帧(第 2 帧是抱盾团身,本来就该比站立矮)
+    "warden_hurt": Seq(frames=2, target_h=46, anchor=1),   # 锚点:中招瞬间(还站得直,第 2 帧是抬盾踉跄)
+    "warden_die": Seq(frames=4, target_h=46, anchor=1),    # 锚点:第 1 帧(受创但还站着,整套里最接近站立)
 }
 
 PAD = 2  # 画布四周留白
