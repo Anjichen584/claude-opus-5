@@ -70,6 +70,10 @@ SEQUENCES: dict[str, Seq] = {
     "ranger_dash": Seq(frames=3, target_h=46, anchor=3),   # 锚点:起身站直那帧(第 3 帧)
     "ranger_hurt": Seq(frames=2, target_h=46, anchor=1),   # 锚点:中招瞬间(还站得直,第 2 帧是踉跄后仰)
     "ranger_die": Seq(frames=4, target_h=46, anchor=1),    # 锚点:第 1 帧(受创但还站着,整套里最接近站立)
+    # ---- 秘术师(轮 28 下半场:法术吟唱风格 —— 起手聚元素 → 出手 → 收招)----
+    "arcanist_walk": Seq(frames=4, target_h=46, anchor=1),  # 锚点:第 1 帧(接触姿势,躯干最直)
+    "arcanist_cast": Seq(frames=3, target_h=46, anchor=3),  # 锚点:收招站直那帧(前两帧手掌前推/蓄力,身体姿态都偏离站立)
+    "arcanist_dash": Seq(frames=3, target_h=46, anchor=3),  # 锚点:起身站直那帧(第 2 帧是抱团,本来就该比站立矮)
 }
 
 PAD = 2  # 画布四周留白

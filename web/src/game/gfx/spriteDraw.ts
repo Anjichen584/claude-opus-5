@@ -81,6 +81,10 @@ export const SPRITE_NAMES = [
   'ranger_dash_1', 'ranger_dash_2', 'ranger_dash_3',
   'ranger_hurt_1', 'ranger_hurt_2',
   'ranger_die_1', 'ranger_die_2', 'ranger_die_3', 'ranger_die_4',
+  // 秘术师(轮 28 下半场):走路 4 + 施法 3 + 翻滚 3(受击/死亡随下一批;风格 = 法术吟唱:聚元素 → 出手 → 收招)
+  'arcanist_walk_1', 'arcanist_walk_2', 'arcanist_walk_3', 'arcanist_walk_4',
+  'arcanist_cast_1', 'arcanist_cast_2', 'arcanist_cast_3',
+  'arcanist_dash_1', 'arcanist_dash_2', 'arcanist_dash_3',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',

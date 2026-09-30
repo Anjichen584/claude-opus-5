@@ -1,4 +1,89 @@
 {
+  "arcanist_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        37,
+        45
+      ],
+      [
+        33,
+        46
+      ]
+    ],
+    "canvas": [
+      40,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "arcanist_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        34,
+        42
+      ],
+      [
+        33,
+        46
+      ]
+    ],
+    "canvas": [
+      38,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "arcanist_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        33,
+        45
+      ],
+      [
+        33,
+        46
+      ],
+      [
+        33,
+        46
+      ]
+    ],
+    "canvas": [
+      38,
+      48
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
   "knight_atk": {
     "anchor": 3,
     "anchorBody": [
@@ -168,21 +253,21 @@
   "ranger_cast": {
     "anchor": 3,
     "anchorBody": [
-      38,
-      46
+      39,
+      47
     ],
     "bodies": [
       [
-        40,
-        46
-      ],
-      [
-        37,
-        46
+        39,
+        45
       ],
       [
         38,
-        46
+        47
+      ],
+      [
+        39,
+        47
       ]
     ],
     "canvas": [
@@ -240,7 +325,7 @@
       ],
       [
         54,
-        27
+        28
       ]
     ],
     "canvas": [
@@ -277,20 +362,20 @@
     "anchor": 1,
     "anchorBody": [
       37,
-      46
+      47
     ],
     "bodies": [
       [
         37,
-        46
+        47
+      ],
+      [
+        37,
+        47
       ],
       [
         37,
         46
-      ],
-      [
-        37,
-        45
       ],
       [
         37,
