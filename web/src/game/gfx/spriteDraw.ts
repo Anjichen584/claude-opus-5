@@ -104,6 +104,9 @@ export const SPRITE_NAMES = [
   'midboss_sandreaper', 'midboss_sandreaper_f2',
   // 轮 11 补怪四件套(炮台/漂移/伏击/画线)
   'icespike', 'iceglider', 'mirageblossom', 'emberwhirl',
+  // 轮 31:双帧补齐(10 怪 ×_f2,全怪双帧齐编)
+  'leafwisp_f2', 'thornvine_f2', 'emberimp_f2', 'frostslime_f2', 'sparklizard_f2',
+  'toxintoad_f2', 'icespike_f2', 'iceglider_f2', 'mirageblossom_f2', 'emberwhirl_f2',
   'leafwisp',
   // 第三批:拾取物 / 传送门 / 元素图标
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',

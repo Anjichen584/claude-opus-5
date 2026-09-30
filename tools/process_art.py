@@ -203,6 +203,9 @@ PAIRS = [
     "midboss_mossstag",  # 中 Boss 也走帧对(站立/冲锋同画布对齐,否则两帧会"跳")
     "midboss_frosthuntress",  # 二章中 Boss 帧对(站立/引弓)
     "midboss_sandreaper",  # 三章中 Boss 帧对(站立/举刀)
+    # 轮 31(动画批次:双帧补齐 10 怪,2026-09-30)
+    "leafwisp", "thornvine", "emberimp", "frostslime", "sparklizard",
+    "toxintoad", "icespike", "iceglider", "mirageblossom", "emberwhirl",
 ]
 MIN_ALPHA = 40
 

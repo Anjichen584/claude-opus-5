@@ -1321,7 +1321,7 @@ export class GameScene {
         list.push({ y: tr.y, draw: () => {
           drawShadow(ctx, tr.x, tr.y, 12);
           const cast = v.state === 'telegraph';
-          if (!drawSprite(ctx, 'thornvine', tr.x, tr.y, {
+          if (!drawSprite(ctx, this.frame2('thornvine', e, false), tr.x, tr.y, {
             flash: h.flash, rot: Math.sin(v.animT * 2) * 0.05,
             sy: cast ? 1.08 + Math.sin(v.animT * 18) * 0.03 : 1,
           })) drawThornVine(ctx, tr.x, tr.y, v.animT, h.flash, cast);
@@ -1375,7 +1375,7 @@ export class GameScene {
           drawShadow(ctx, ix, iy, 8);
           const hover = Math.sin(imp.animT * 6) * 3 - 6;
           const jit = imp.state === 'aim' ? (Math.random() - 0.5) * 0.2 : 0;
-          if (!drawSprite(ctx, 'emberimp', ix, iy + hover, {
+          if (!drawSprite(ctx, this.frame2('emberimp', e, false), ix, iy + hover, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: jit + Math.sin(imp.animT * 3) * 0.06,
             sx: imp.state === 'aim' ? 1.12 : 1,
@@ -1391,7 +1391,7 @@ export class GameScene {
           const small = s.size === 1;
           drawShadow(ctx, ix, iy, small ? 7 : 11);
           const jump = s.hopT > 0;
-          if (!drawSprite(ctx, 'frostslime', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('frostslime', e, true), ix, iy, {
             flash: h.flash, scale: small ? 0.62 : 1,
             sy: jump ? 1.18 : 1 + Math.sin(s.animT * 5) * 0.08,
             sx: jump ? 0.88 : 1 - Math.sin(s.animT * 5) * 0.06,
@@ -1408,7 +1408,7 @@ export class GameScene {
           const faceLeft = Math.cos(tr.face) < 0;
           const jit = lz.state === 'telegraph' ? (Math.random() - 0.5) * 0.24 : 0;
           const lean = lz.state === 'dash' ? (faceLeft ? 0.18 : -0.18) : 0;
-          if (!drawSprite(ctx, 'sparklizard', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('sparklizard', e, true), ix, iy, {
             flash: h.flash, faceLeft, rot: jit + lean,
             sx: lz.state === 'dash' ? 1.15 : 1,
           })) blob(ix, iy, 10, '#ffe57a');
@@ -1421,7 +1421,7 @@ export class GameScene {
         const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 12);
-          if (!drawSprite(ctx, 'toxintoad', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('toxintoad', e, false), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             sx: td.state === 'aim' ? 1.18 : 1,
             sy: td.state === 'hop' ? 1.12 : 1 + Math.sin(td.animT * 3) * 0.04,
@@ -1462,7 +1462,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 8);
           const hover = Math.sin(wsp.animT * 3.2) * 3;
-          if (!drawSprite(ctx, 'leafwisp', ix, iy + hover, {
+          if (!drawSprite(ctx, this.frame2('leafwisp', e, false), ix, iy + hover, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: Math.sin(wsp.animT * 2.4) * 0.12,
           })) blob(ix, iy + hover, 9, '#a4cf7d');
@@ -1477,7 +1477,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 10);
           const charging = s.cd < 0.5;
-          if (!drawSprite(ctx, 'icespike', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('icespike', e, false), ix, iy, {
             flash: h.flash,
             rot: charging ? (Math.random() - 0.5) * 0.1 : 0,
             sy: 1 + Math.sin(s.animT * 2) * 0.03,
@@ -1502,7 +1502,7 @@ export class GameScene {
         const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 12);
-          if (!drawSprite(ctx, 'iceglider', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('iceglider', e, true), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(g.heading) < 0,
             rot: Math.sin(g.animT * 6) * 0.1,
           })) blob(ix, iy, 12, '#a8e4f0');
@@ -1791,7 +1791,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 10);
           const waking = b.state === 'wake';
-          if (!drawSprite(ctx, 'mirageblossom', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('mirageblossom', e, false), ix, iy, {
             flash: h.flash,
             rot: waking ? (Math.random() - 0.5) * 0.24 : 0,
             sy: b.state === 'dormant' ? 0.9 : 1 + Math.sin(b.animT * 5) * 0.05,
@@ -1809,7 +1809,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 12);
           const spin = wl.state === 'spinup' ? wl.animT * 14 : wl.state === 'rush' ? wl.animT * 22 : Math.sin(wl.animT * 3) * 0.1;
-          if (!drawSprite(ctx, 'emberwhirl', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('emberwhirl', e, false), ix, iy, {
             flash: h.flash, rot: spin,
           })) blob(ix, iy, 12, '#f08a4a');
         } });
