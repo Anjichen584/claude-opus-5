@@ -9,7 +9,7 @@ import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 const S_REAPER = balance.enemies.midboss_sandreaper;
-import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
+import { applyColorblind, FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
@@ -183,6 +183,7 @@ export class GameScene {
     this.campUI = new CampUI(input);
     this.settingsUI = new SettingsUI(input);
     // 应用已存音量(unlock 前设置也会在 unlock 时生效)
+    applyColorblind(meta.data.settings.colorblind); // 色盲调色板(轮 37):启动即生效
     sfx.setVolume(meta.data.settings.sfxVol);
     music.setVolume(meta.data.settings.musicVol);
     // 营地渲染依赖 run.chapter/loot 存在,先建默认实例(startRun 会重建)
@@ -840,6 +841,10 @@ export class GameScene {
     this.menuT += dt;
 
     this.input.pollGamepad(dt);
+    // 手柄虚拟光标(轮 38):任何"面板态"开启 —— 摇杆移光标,A = 点击,全部鼠标 UI 零改造复用
+    this.input.padCursorOn = this.state !== 'run'
+      || this.settingsUI.open || this.inventoryUI.open || this.campUI.panel !== 'none';
+    this.input.updatePadCursor(dt, this.renderer.width, this.renderer.height);
     this.input.tickTouch(dt);
 
     // ---- 界面缩放同步(设置里改动即时生效) ----
@@ -1074,6 +1079,31 @@ export class GameScene {
   // ---------- 渲染 ----------
 
   render(alpha: number, rawDt: number): void {
+    this.renderInner(alpha, rawDt);
+    // 手柄虚拟光标(轮 38):画在一切之上(含各面板的早退分支)
+    if (this.input.padCursorOn && this.input.padActive) {
+      const ctx = this.renderer.ctx;
+      const x = this.input.padCX;
+      const y = this.input.padCY;
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#0d0f1a';
+      ctx.beginPath();
+      ctx.arc(x, y, this.input.padClicked ? 5 : 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffd94f';
+      ctx.beginPath();
+      ctx.arc(x, y, this.input.padClicked ? 4 : 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd94f';
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  private renderInner(alpha: number, rawDt: number): void {
     if (rawDt > 0) this.fps = this.fps * 0.95 + (1 / rawDt) * 0.05;
     // 草地贴图解码完成后重烘焙地面
     if (!this.bgHasTile && sprites.get(this.run !== undefined && this.run.chapter === 3 ? 'sand_tile' : this.run !== undefined && this.run.chapter === 2 ? 'snow_tile' : 'grass_tile')) {

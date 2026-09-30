@@ -75,6 +75,38 @@ export class Input {
     this.padPrev = cur;
   }
 
+  // ---- 手柄虚拟光标(轮 38):菜单/面板期开启;摇杆移光标,A = 点击 ----
+  /** 宿主每帧设置:当前是否处于"该用光标"的 UI 态 */
+  padCursorOn = false;
+  padCX = 320;
+  padCY = 180;
+  /** 本帧是否由手柄光标合成了点击(渲染层画按下反馈用) */
+  padClicked = false;
+
+  /**
+   * 推进手柄光标:摇杆(左右皆可)移动,PadA 合成点击(写进 mouseX/Y + mousePressed)。
+   * 悬停也走 mouseX/Y —— 所有鼠标驱动的面板零改造获得手柄导航。
+   */
+  updatePadCursor(dt: number, viewW: number, viewH: number): void {
+    this.padClicked = false;
+    if (!this.padCursorOn || !this.padActive) return;
+    const sx = this.padLX + this.padRX;
+    const sy = this.padLY + this.padRY;
+    const speed = 560; // px/s(逻辑分辨率)
+    this.padCX = Math.min(viewW - 2, Math.max(2, this.padCX + sx * speed * dt));
+    this.padCY = Math.min(viewH - 2, Math.max(2, this.padCY + sy * speed * dt));
+    if (sx !== 0 || sy !== 0) {
+      this.mouseX = this.padCX;
+      this.mouseY = this.padCY;
+    }
+    if (this.pressed.has('PadA')) {
+      this.mouseX = this.padCX;
+      this.mouseY = this.padCY;
+      this.mousePressed = true;
+      this.padClicked = true;
+    }
+  }
+
   // ---- 触屏 ----
   /** 最近 3s 内有触摸(切换触屏 UI/自动瞄准) */
   touchActive = false;

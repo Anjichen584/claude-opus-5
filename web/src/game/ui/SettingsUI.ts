@@ -1,7 +1,7 @@
 import type { Input } from '@engine/input/Input';
 import { sfx } from '@engine/audio/Sfx';
 import { music } from '@engine/audio/Music';
-import { UI } from '@game/constants';
+import { COLORBLIND_NAMES, COLORBLIND_PALETTES, UI, applyColorblind } from '@game/constants';
 import { meta } from '@game/meta/Save';
 import { ACTIONS, bindOf, keyLabel, resetBinds } from '@game/meta/Bindings';
 import { drawPanel9 } from '@game/gfx/nineSlice';
@@ -27,6 +27,7 @@ export class SettingsUI {
   private scaleBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private shakeBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private stopBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private cbRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private bindRects: Array<{ rect: Rect; id: string }> = [];
   private resetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private closeRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -91,6 +92,12 @@ export class SettingsUI {
       s.uiScale = Math.round((0.5 + v * 1.5) * 20) / 20; // 0.05 步进
     })) return null;
 
+    if (inside(this.cbRect, mx, my)) {
+      s.colorblind = ((s.colorblind ?? 0) + 1) % COLORBLIND_PALETTES.length;
+      applyColorblind(s.colorblind);
+      meta.save();
+      return null;
+    }
     for (const b of this.bindRects) {
       if (inside(b.rect, mx, my)) {
         this.capturing = b.id;
@@ -162,6 +169,26 @@ export class SettingsUI {
     this.scaleBar = bar('🔍 界面缩放', py + 126, (s.uiScale - 0.5) / 1.5);
     this.shakeBar = bar('📳 屏震强度', py + 158, s.screenShake);
     this.stopBar = bar('⏱ 顿帧强度', py + 190, s.hitstop);
+    // 色盲模式(轮 37):点击循环 关→红弱→绿弱→蓝黄弱;右侧四色小样即时预览
+    ctx.textAlign = 'left';
+    ctx.fillStyle = UI.text;
+    ctx.font = '14px monospace';
+    ctx.fillText('🎨 色盲模式', px + 28, py + 227);
+    this.cbRect = { x: px + 150, y: py + 213, w: 120, h: 20 };
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(this.cbRect.x, this.cbRect.y, this.cbRect.w, this.cbRect.h);
+    ctx.strokeStyle = UI.dim;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(this.cbRect.x, this.cbRect.y, this.cbRect.w, this.cbRect.h);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.text;
+    ctx.font = '13px monospace';
+    ctx.fillText(COLORBLIND_NAMES[s.colorblind] ?? '关', this.cbRect.x + this.cbRect.w / 2, this.cbRect.y + 15);
+    const pal = COLORBLIND_PALETTES[s.colorblind] ?? COLORBLIND_PALETTES[0];
+    ([pal.fire, pal.ice, pal.bolt, pal.toxin]).forEach((c, i) => {
+      ctx.fillStyle = c;
+      ctx.fillRect(px + pw - 28 - (4 - i) * 18, py + 214, 14, 14);
+    });
     // 缩放条右侧显示倍率而非百分比
     ctx.fillStyle = 'rgba(19,23,36,1)';
     ctx.fillRect(px + pw - 88, py + 114, 62, 20);
@@ -174,13 +201,13 @@ export class SettingsUI {
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.dim;
     ctx.font = '12px monospace';
-    ctx.fillText('按键绑定(点击后按新键;与他键冲突自动互换;Esc 取消):', px + 28, py + 232);
+    ctx.fillText('按键绑定(点击后按新键;与他键冲突自动互换;Esc 取消):', px + 28, py + 252);
     this.bindRects = [];
     ACTIONS.forEach((a, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = px + 28 + col * (pw / 2 - 14);
-      const y = py + 250 + row * 46;
+      const y = py + 270 + row * 46;
       const keyR: Rect = { x: x + 128, y, w: 104, h: 32 };
       ctx.fillStyle = UI.text;
       ctx.font = '12px monospace';
