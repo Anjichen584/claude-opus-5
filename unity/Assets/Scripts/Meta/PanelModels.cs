@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using StarfallKnights.Core;
 using StarfallKnights.Data;
+using StarfallKnights.Loot;
 
 namespace StarfallKnights.Meta
 {
@@ -168,6 +169,49 @@ namespace StarfallKnights.Meta
                 rows.Add(n > 0 ? $"◈ {r.Name} ×{n}" : "?");
             }
             return rows;
+        }
+
+        // ================= 装备面板 =================
+
+        /// <summary>六槽部位名(zh;权威 = web i18n 表 slot.*)。</summary>
+        public static string SlotLabel(Slot s)
+        {
+            switch (s)
+            {
+                case Slot.Weapon: return "武器";
+                case Slot.Helmet: return "头盔";
+                case Slot.Chest: return "胸甲";
+                case Slot.Boots: return "靴子";
+                case Slot.Ring: return "戒指";
+                default: return "项链";
+            }
+        }
+
+        /// <summary>装备六槽行:"武器:Epic Weapon(atkPct+30)" / 空槽 "武器:—"。</summary>
+        public static List<string> EquipRows(Equip.Equipment eq)
+        {
+            var rows = new List<string>();
+            foreach (Slot s in Enum.GetValues(typeof(Slot)))
+            {
+                var it = eq.Of(s);
+                rows.Add(it == null
+                    ? $"{SlotLabel(s)}:—"
+                    : $"{SlotLabel(s)}:{it.Name}({string.Join(" · ", it.Affixes)})");
+            }
+            return rows;
+        }
+
+        /// <summary>面板属性行(镜像 web camp/inventory 的五行式)。</summary>
+        public static List<string> StatRows(in Equip.StatSheet sheet, float hp)
+        {
+            return new List<string>
+            {
+                $"生命  {(int)MathF.Ceiling(hp)}/{(int)sheet.HpMax}",
+                $"攻击  {(int)sheet.Atk}   防御  {(int)sheet.Def}",
+                $"暴击  {sheet.CritRate * 100:0}% / {sheet.CritDmg * 100:0}%",
+                $"移速  {sheet.MoveSpeed:0.0}m/s",
+                $"冷却  -{sheet.Cdr * 100:0}%  元素 +{sheet.ElemDmg * 100:0}%",
+            };
         }
 
         // ================= 排行榜面板 =================

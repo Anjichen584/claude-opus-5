@@ -34,6 +34,41 @@ namespace StarfallKnights.UnityLayer
         public Leaderboard.Boards4 Boards => _save.Boards;
         public Dictionary<string, long> AchvUnlocked => _save.AchvUnlocked;
         private const string SaveKey = "sk_save";
+        // ---- 局内装备(轮 44:U3 收尾;局内状态,不落 meta 档 —— web 同口径)----
+        public readonly Loot.Equip.Equipment Eq = new();
+        public readonly Loot.Equip.Inventory Inv = new();
+        /// <summary>当前面板属性(重算结果缓存;HUD/面板读它,不重复算)。</summary>
+        public Loot.Equip.StatSheet Sheet { get; private set; }
+
+        /// <summary>重算并回写战斗单元(镜像 web recompute → Stats/Health 回写)。</summary>
+        public void RecomputeStats()
+        {
+            if (Player == null) return;
+            var u = Player.Actor.Unit;
+            float oldMax = u.HpMax;
+            var sheet = Loot.Equip.Recompute(
+                BestiaryPlayer.PlayerAtk, BestiaryPlayer.PlayerHp, BestiaryPlayer.PlayerMoveSpeed,
+                BestiaryPlayer.PlayerCritRate, BestiaryPlayer.PlayerCritDmg,
+                Eq, Meta.altarAtk, Meta.altarHp);
+            Sheet = sheet;
+            u.Atk = sheet.Atk;
+            u.CritRate = sheet.CritRate;
+            u.CritDmg = sheet.CritDmg;
+            u.Def = sheet.Def;
+            u.HpMax = sheet.HpMax;
+            u.Hp = Loot.Equip.KeepHpRatio(u.Hp, oldMax, sheet.HpMax);
+            Player.Cdr = sheet.Cdr;
+        }
+
+        /// <summary>拾取装备:自动穿戴/进包,溢出转星尘(salvage 简化为固定 10✦/件)。</summary>
+        private void TakeItem(Loot.Item item)
+        {
+            var (taken, overflow) = Loot.Equip.AutoTake(Inv, Eq, item);
+            if (!taken) { Meta.stardust += 10; Debug.Log($"[Loot] 背包满 → 分解 {item.Name} (+10✦)"); }
+            else Debug.Log($"[Loot] 获得 {item.Name}");
+            if (overflow != null) { Meta.stardust += 10; Debug.Log($"[Loot] 旧件溢出 → 分解 {overflow.Name} (+10✦)"); }
+            RecomputeStats();
+        }
 
         /// <summary>读档(坏档/缺档 = 全新状态;三重清洗在 SaveCodec 里)。</summary>
         private void LoadSave() => _save = SaveCodec.Decode(PlayerPrefs.GetString(SaveKey, ""));
@@ -105,6 +140,7 @@ namespace StarfallKnights.UnityLayer
             };
             Meta.runs++;
             CheckAchievements();
+            RecomputeStats();
             Run.NextRoom(World);
         }
 
@@ -202,6 +238,10 @@ namespace StarfallKnights.UnityLayer
             _runKills++;
             Meta.stardust += 3 + (int)(a.Unit.HpMax / 30);
             if (Codex.MarkKill(a.Kind)) Debug.Log($"[Codex] 新条目:{a.Kind}");
+            // 掉宝(镜像 web balance.loot.dropEquip × 深渊/无尽掉落乘区;Boss 必掉)
+            bool isBoss = EnemyKinds.IsBoss(a.Kind);
+            if (isBoss || UnityEngine.Random.value < 0.18f * Run.LootMult)
+                TakeItem(Factory.Roll(luck: 0f));
             CheckAchievements();
             if (_views.TryGetValue(a, out var go))
             {

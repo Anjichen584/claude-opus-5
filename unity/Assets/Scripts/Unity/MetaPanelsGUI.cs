@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using StarfallKnights.Meta;
+using StarfallKnights.Loot;
 
 namespace StarfallKnights.UnityLayer
 {
@@ -24,7 +25,7 @@ namespace StarfallKnights.UnityLayer
         private int _achvCat;                    // 成就分类页签
         private int _board;                      // 排行榜页签
         private Vector2 _scroll;
-        private static readonly string[] Tabs = { "📖 图鉴", "🏆 成就", "🥇 排行榜" };
+        private static readonly string[] Tabs = { "📖 图鉴", "🏆 成就", "🥇 排行榜", "🎒 装备" };
         private static readonly string[] Cats = { "进度", "战斗", "极速", "图鉴", "局外" };
 
         private GameBootstrap Host => GameBootstrap.I;
@@ -48,7 +49,8 @@ namespace StarfallKnights.UnityLayer
             {
                 case 0: DrawCodex(); break;
                 case 1: DrawAchievements(); break;
-                default: DrawBoards(); break;
+                case 2: DrawBoards(); break;
+                default: DrawEquip(); break;
             }
             GUILayout.EndScrollView();
             GUILayout.Label($"[{ToggleKey}] 关闭", GUI.skin.box);
@@ -106,6 +108,31 @@ namespace StarfallKnights.UnityLayer
             var lines = PanelModels.BoardLines(Host.Boards, b, Host.KlassNames);
             if (lines.Count == 0) GUILayout.Label(PanelModels.BoardEmpty);
             foreach (var line in lines) GUILayout.Label(line);
+        }
+
+        private void DrawEquip()
+        {
+            foreach (var line in PanelModels.StatRows(Host.Sheet, Host.Player != null ? Host.Player.Actor.Unit.Hp : 0f))
+                GUILayout.Label(line);
+            GUILayout.Space(6);
+            GUILayout.Label("—— 装备 ——");
+            foreach (var row in PanelModels.EquipRows(Host.Eq)) GUILayout.Label(row);
+            GUILayout.Space(6);
+            GUILayout.Label($"—— 背包 {Host.Inv.Items.Count}/{Loot.Equip.InvSize} ——");
+            for (int i = 0; i < Host.Inv.Items.Count; i++)
+            {
+                var it = Host.Inv.Items[i];
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{it.Name}({string.Join(" · ", it.Affixes)})");
+                if (GUILayout.Button("穿戴", GUILayout.Width(60)))
+                {
+                    Loot.Equip.EquipFromInventory(Host.Inv, Host.Eq, i);
+                    Host.RecomputeStats();
+                    GUILayout.EndHorizontal();
+                    return;   // 列表已变,本帧收笔(IMGUI 惯例)
+                }
+                GUILayout.EndHorizontal();
+            }
         }
 
         /// <summary>聚合判定快照(图鉴/榜数从宿主实例现读;秘境/铸造等埋点宿主接好后自然生效)。</summary>

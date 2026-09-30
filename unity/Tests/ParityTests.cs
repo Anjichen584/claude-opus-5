@@ -47,6 +47,7 @@ namespace StarfallKnights.Tests
             CheckEndless(check, root);
             CheckAnimFrames(check, root);
             CheckAchievements(check, root);
+            CheckEquip(check, root);
         }
 
         /// <summary>
@@ -1588,6 +1589,24 @@ namespace StarfallKnights.Tests
                 if (Math.Abs(timeS - a.TimeS) > Tol) { bad++; check(false, $"{id}: timeS 一致(JSON={timeS} vs C#={a.TimeS})"); }
             }
             check(bad == 0, $"achievements.json ↔ Achievements.cs 逐条一致({n} 条 × 6 字段)");
+        }
+
+        /// <summary>装备/祭坛的镜像常量(轮 44):invSize + 祭坛每级加成,逐键对 balance.json。</summary>
+        private static void CheckEquip(Action<bool, string> check, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/balance.json");
+            if (!File.Exists(path)) { check(false, "存在 balance.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            int bad = 0;
+            foreach (var kv in Loot.Equip.Parity)
+            {
+                int dot = kv.Key.IndexOf('.');
+                var seg = MiniJson.Opt(doc, kv.Key.Substring(0, dot));
+                double json = seg == null ? double.NaN : MiniJson.Num(seg, kv.Key.Substring(dot + 1));
+                if (double.IsNaN(json)) { bad++; check(false, $"balance.json 缺键 {kv.Key}"); continue; }
+                if (Math.Abs(json - kv.Value) > Tol) { bad++; check(false, $"{kv.Key} 不一致(JSON={json} vs C#={kv.Value})"); }
+            }
+            check(bad == 0, $"Equip 镜像常量 ↔ balance.json 逐键一致({Loot.Equip.Parity.Count} 键)");
         }
     }
 }

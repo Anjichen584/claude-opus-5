@@ -626,6 +626,7 @@ namespace StarfallKnights.Tests
             TestPanelModels();
             TestChallengeWiring();
             TestSaveCodec();
+            TestEquip();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -2865,6 +2866,90 @@ namespace StarfallKnights.Tests
                 "负分/未知职业/非法章节的榜单条目全部被清洗");
             Check(clean.AchvUnlocked.Count == 1 && clean.AchvUnlocked.ContainsKey("first_run"),
                 "未知成就 id 被丢弃");
+        }
+
+        // ---------------- 装备穿戴 + 重算(轮 44:U3 收尾) ----------------
+
+        private static void TestEquip()
+        {
+            Suite("装备穿戴与属性重算(Equip)");
+
+            Item Mk(Loot.Slot slot, Loot.Rarity r, params (string k, float v)[] affixes)
+            {
+                var it = new Item { Slot = slot, Rarity = r, Name = $"{r} {slot}" };
+                foreach (var (k, v) in affixes) it.Affixes.Add(new Affix { Key = k, Value = v });
+                return it;
+            }
+
+            // 重算公式:基础 → 祭坛 → 平铺加法 → 百分比乘法(镜像 web recompute 骨架)
+            var eq = new Loot.Equip.Equipment();
+            eq.Put(Mk(Loot.Slot.Weapon, Loot.Rarity.Rare, ("atkPct", 20f)));
+            eq.Put(Mk(Loot.Slot.Chest, Loot.Rarity.Fine, ("hpFlat", 30f)));
+            var sheet = Loot.Equip.Recompute(14f, 120f, 4.2f, 0.05f, 1.5f, eq, altarAtkLvl: 0, altarHpLvl: 0);
+            Near(sheet.Atk, MathF.Round(14f * 1.2f), 1e-3f, "atkPct 词条:14 × 1.2 → 17");
+            Near(sheet.HpMax, 150f, 1e-3f, "hpFlat 平铺:120 + 30 = 150");
+
+            // 祭坛加成(3%/级)在词条之前
+            sheet = Loot.Equip.Recompute(14f, 120f, 4.2f, 0.05f, 1.5f, eq, altarAtkLvl: 5, altarHpLvl: 10);
+            Near(sheet.Atk, MathF.Round(14f * 1.15f * 1.2f), 1e-3f, "祭坛攻 5 级 × 词条 20%");
+            Near(sheet.HpMax, MathF.Round(120f * 1.3f + 30f), 1e-3f, "祭坛血 10 级后再加平铺");
+
+            // 三条上限:crit ≤ 1 / cdr ≤ 0.4 / def 平铺无上限
+            var eq2 = new Loot.Equip.Equipment();
+            eq2.Put(Mk(Loot.Slot.Ring, Loot.Rarity.Legendary, ("critRate", 200f), ("cdr", 90f)));
+            eq2.Put(Mk(Loot.Slot.Amulet, Loot.Rarity.Rare, ("defFlat", 7f), ("elemDmg", 15f)));
+            sheet = Loot.Equip.Recompute(14f, 120f, 4.2f, 0.05f, 1.5f, eq2);
+            Near(sheet.CritRate, 1f, 1e-3f, "暴击率夹到 100%");
+            Near(sheet.Cdr, 0.4f, 1e-3f, "冷却缩减夹到 40%(docs/03 §1)");
+            Near(sheet.Def, 7f, 1e-3f, "防御平铺");
+            Near(sheet.ElemDmg, 0.15f, 1e-3f, "元素伤 15% → 0.15");
+
+            // 未知词条静默忽略(数据扩表老档无害)
+            var eq3 = new Loot.Equip.Equipment();
+            eq3.Put(Mk(Loot.Slot.Boots, Loot.Rarity.Common, ("futureAffix", 999f)));
+            sheet = Loot.Equip.Recompute(14f, 120f, 4.2f, 0.05f, 1.5f, eq3);
+            Near(sheet.Atk, 14f, 1e-3f, "未知词条不影响任何数值");
+
+            // 换装血量按比例保持(不回血不凭空掉血,下限 1)
+            Near(Loot.Equip.KeepHpRatio(60f, 120f, 150f), 75f, 1e-3f, "50% 血换装后仍 50%");
+            Near(Loot.Equip.KeepHpRatio(1f, 120f, 80f), 1f, 1e-3f, "残血换低血上限装不打死自己");
+
+            // 穿卸循环:背包 ↔ 装备位
+            var inv = new Loot.Equip.Inventory();
+            var eqp = new Loot.Equip.Equipment();
+            var swordA = Mk(Loot.Slot.Weapon, Loot.Rarity.Fine, ("atkPct", 5f));
+            var swordB = Mk(Loot.Slot.Weapon, Loot.Rarity.Epic, ("atkPct", 30f));
+            inv.Add(swordA); inv.Add(swordB);
+            Check(Loot.Equip.EquipFromInventory(inv, eqp, 0), "穿上第 0 件");
+            Check(eqp.Of(Loot.Slot.Weapon) == swordA && inv.Items.Count == 1, "A 上身,包里剩 B");
+            Check(Loot.Equip.EquipFromInventory(inv, eqp, 0), "再穿 B");
+            Check(eqp.Of(Loot.Slot.Weapon) == swordB && inv.Items[0] == swordA, "B 上身,A 回包");
+            Check(Loot.Equip.UnequipSlot(inv, eqp, Loot.Slot.Weapon), "卸下武器");
+            Check(eqp.Of(Loot.Slot.Weapon) == null && inv.Items.Count == 2, "武器位空,包里两件");
+
+            // 背包满:卸不下来(镜像 web unequipSlot)
+            while (!inv.Full) inv.Add(Mk(Loot.Slot.Ring, Loot.Rarity.Common));
+            Loot.Equip.EquipFromInventory(inv, eqp, 0);   // 穿走一件 → 23/24
+            inv.Add(Mk(Loot.Slot.Ring, Loot.Rarity.Common));  // 再补满 → 24/24
+            Check(!Loot.Equip.UnequipSlot(inv, eqp, Loot.Slot.Weapon), "背包满时卸装被拒");
+
+            // 自动穿戴:空位穿 / 更高换 / 更低进包 / 溢出交还宿主
+            var inv2 = new Loot.Equip.Inventory();
+            var eqp2 = new Loot.Equip.Equipment();
+            var (taken, overflow) = Loot.Equip.AutoTake(inv2, eqp2, swordA);
+            Check(taken && overflow == null && eqp2.Of(Loot.Slot.Weapon) == swordA, "空位直接穿");
+            (taken, overflow) = Loot.Equip.AutoTake(inv2, eqp2, swordB);
+            Check(taken && eqp2.Of(Loot.Slot.Weapon) == swordB && inv2.Items.Contains(swordA),
+                "更高稀有度换上,旧件进包");
+            var swordC = Mk(Loot.Slot.Weapon, Loot.Rarity.Common);
+            (taken, overflow) = Loot.Equip.AutoTake(inv2, eqp2, swordC);
+            Check(taken && inv2.Items.Contains(swordC) && eqp2.Of(Loot.Slot.Weapon) == swordB,
+                "更低稀有度进包不上身");
+            while (!inv2.Full) inv2.Add(Mk(Loot.Slot.Ring, Loot.Rarity.Common));
+            (taken, overflow) = Loot.Equip.AutoTake(inv2, eqp2, Mk(Loot.Slot.Weapon, Loot.Rarity.Legendary));
+            Check(taken && overflow == swordB, "包满时换装:穿戴成功,被顶旧件交还宿主(转分解)");
+            (taken, overflow) = Loot.Equip.AutoTake(inv2, eqp2, swordC);
+            Check(!taken && overflow == null, "包满且不更高:拒收(宿主转分解)");
         }
     }
 }
