@@ -6,6 +6,7 @@ import { meta } from '@game/meta/Save';
 import { ACTIONS, bindOf, keyLabel, resetBinds } from '@game/meta/Bindings';
 import { drawPanel9 } from '@game/gfx/nineSlice';
 import { exportCode, importCode } from '@game/meta/SaveCode';
+import { LOCALES, LOCALE_NAMES, setLocale, t as tr } from '@game/i18n';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -37,6 +38,7 @@ export class SettingsUI {
   private cbRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private exportRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private importRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private langRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   /** 导出/导入的即时反馈文案(2.5s 自动消失) */
   private codeMsg = '';
   private codeMsgT = 0;
@@ -104,6 +106,13 @@ export class SettingsUI {
       s.uiScale = Math.round((0.5 + v * 1.5) * 20) / 20; // 0.05 步进
     })) return null;
 
+    if (inside(this.langRect, mx, my)) {
+      const i = LOCALES.indexOf((s.language as 'zh' | 'en') ?? 'zh');
+      s.language = LOCALES[(i + 1) % LOCALES.length];
+      setLocale(s.language);
+      meta.save();
+      return null;
+    }
     if (inside(this.cbRect, mx, my)) {
       s.colorblind = ((s.colorblind ?? 0) + 1) % COLORBLIND_PALETTES.length;
       applyColorblind(s.colorblind);
@@ -124,26 +133,26 @@ export class SettingsUI {
       const code = exportCode(meta.data);
       // 剪贴板优先;不可用(http/老浏览器)退 prompt 让玩家手动复制
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        void navigator.clipboard.writeText(code).catch(() => window.prompt('复制你的存档码:', code));
-        this.flash('已复制到剪贴板 ✓');
+        void navigator.clipboard.writeText(code).catch(() => window.prompt(tr('settings.code.copyPrompt'), code));
+        this.flash(tr('settings.code.copied'));
       } else {
-        window.prompt('复制你的存档码:', code);
-        this.flash('已生成存档码');
+        window.prompt(tr('settings.code.copyPrompt'), code);
+        this.flash(tr('settings.code.made'));
       }
       return null;
     }
     if (inside(this.importRect, mx, my)) {
-      const code = window.prompt('粘贴存档码(将覆盖当前存档):');
+      const code = window.prompt(tr('settings.code.pastePrompt'));
       if (code === null || code.trim() === '') return null;
       const res = importCode(code);
       if (!res.ok || !res.data) {
-        this.flash(res.fail === 'checksum' ? '存档码不完整(校验失败)' : '存档码格式不对');
+        this.flash(res.fail === 'checksum' ? tr('settings.code.badChecksum') : tr('settings.code.badFormat'));
         return null;
       }
       meta.data = res.data;
       meta.save();
       applyColorblind(meta.data.settings.colorblind);
-      this.flash('导入成功 ✓(部分改动重启后生效)');
+      this.flash(tr('settings.code.imported'));
       return null;
     }
     if (this.showQuitToTitle && inside(this.titleRect, mx, my)) {
@@ -202,16 +211,16 @@ export class SettingsUI {
       ctx.fillText(`${Math.round(val * 100)}%`, px + pw - 28, y + 5);
       return r;
     };
-    this.musicBar = bar('🎵 音乐', py + 62, s.musicVol);
-    this.sfxBar = bar('🔊 音效', py + 94, s.sfxVol);
-    this.scaleBar = bar('🔍 界面缩放', py + 126, (s.uiScale - 0.5) / 1.5);
-    this.shakeBar = bar('📳 屏震强度', py + 158, s.screenShake);
-    this.stopBar = bar('⏱ 顿帧强度', py + 190, s.hitstop);
+    this.musicBar = bar(tr('settings.music'), py + 62, s.musicVol);
+    this.sfxBar = bar(tr('settings.sfx'), py + 94, s.sfxVol);
+    this.scaleBar = bar(tr('settings.scale'), py + 126, (s.uiScale - 0.5) / 1.5);
+    this.shakeBar = bar(tr('settings.shake'), py + 158, s.screenShake);
+    this.stopBar = bar(tr('settings.hitstop'), py + 190, s.hitstop);
     // 色盲模式(轮 37):点击循环 关→红弱→绿弱→蓝黄弱;右侧四色小样即时预览
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.text;
     ctx.font = '14px monospace';
-    ctx.fillText('🎨 色盲模式', px + 28, py + 227);
+    ctx.fillText(tr('settings.colorblind'), px + 28, py + 227);
     this.cbRect = { x: px + 150, y: py + 213, w: 120, h: 20 };
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(this.cbRect.x, this.cbRect.y, this.cbRect.w, this.cbRect.h);
@@ -222,6 +231,20 @@ export class SettingsUI {
     ctx.fillStyle = UI.text;
     ctx.font = '13px monospace';
     ctx.fillText(COLORBLIND_NAMES[s.colorblind] ?? '关', this.cbRect.x + this.cbRect.w / 2, this.cbRect.y + 15);
+    // 语言切换(轮 39):点击循环 中文/English
+    ctx.textAlign = 'left';
+    ctx.fillStyle = UI.text;
+    ctx.font = '14px monospace';
+    ctx.fillText(tr('settings.language'), px + 300, py + 227);
+    this.langRect = { x: px + 388, y: py + 213, w: 96, h: 20 };
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(this.langRect.x, this.langRect.y, this.langRect.w, this.langRect.h);
+    ctx.strokeStyle = UI.dim;
+    ctx.strokeRect(this.langRect.x, this.langRect.y, this.langRect.w, this.langRect.h);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = UI.text;
+    ctx.font = '13px monospace';
+    ctx.fillText(LOCALE_NAMES[(s.language as 'zh' | 'en')] ?? '中文', this.langRect.x + this.langRect.w / 2, this.langRect.y + 15);
     const pal = COLORBLIND_PALETTES[s.colorblind] ?? COLORBLIND_PALETTES[0];
     ([pal.fire, pal.ice, pal.bolt, pal.toxin]).forEach((c, i) => {
       ctx.fillStyle = c;
@@ -239,7 +262,7 @@ export class SettingsUI {
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.dim;
     ctx.font = '12px monospace';
-    ctx.fillText('按键绑定(点击后按新键;与他键冲突自动互换;Esc 取消):', px + 28, py + 252);
+    ctx.fillText(tr('settings.binds'), px + 28, py + 252);
     this.bindRects = [];
     ACTIONS.forEach((a, i) => {
       const col = i % 2;
@@ -259,7 +282,7 @@ export class SettingsUI {
       ctx.textAlign = 'center';
       ctx.fillStyle = cap ? UI.gold : UI.text;
       ctx.font = cap ? 'bold 11px monospace' : 'bold 13px monospace';
-      ctx.fillText(cap ? '按任意键…' : keyLabel(bindOf(a.id)), keyR.x + keyR.w / 2, keyR.y + 21);
+      ctx.fillText(cap ? tr('settings.bind.waiting') : keyLabel(bindOf(a.id)), keyR.x + keyR.w / 2, keyR.y + 21);
       ctx.textAlign = 'left';
       this.bindRects.push({ rect: keyR, id: a.id });
     });
@@ -278,13 +301,13 @@ export class SettingsUI {
       ctx.fillText(label, r.x + r.w / 2, r.y + 24);
       return r;
     };
-    this.resetRect = btn('恢复默认键位', px + 28, 160, false);
-    this.exportRect = btn('导出存档码', px + 200, 120, false);
-    this.importRect = btn('导入存档码', px + 332, 120, false);
+    this.resetRect = btn(tr('settings.resetBinds'), px + 28, 160, false);
+    this.exportRect = btn(tr('settings.exportCode'), px + 200, 120, false);
+    this.importRect = btn(tr('settings.importCode'), px + 332, 120, false);
     if (this.showQuitToTitle) {
-      this.titleRect = btn('返回标题', px + pw / 2 - 60, 120, false);
+      this.titleRect = btn(tr('settings.toTitle'), px + pw / 2 - 60, 120, false);
     }
-    this.closeRect = btn('✓ 返回', px + pw - 28 - 140, 140, true);
+    this.closeRect = btn(tr('settings.close'), px + pw - 28 - 140, 140, true);
     if (this.codeMsgT > 0) {
       this.codeMsgT -= 1 / 60;
       ctx.textAlign = 'left';

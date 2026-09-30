@@ -10,6 +10,8 @@ import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 const S_REAPER = balance.enemies.midboss_sandreaper;
 import { applyColorblind, FOREST, M, RARITY_COLORS, UI } from '@game/constants';
+import { t as tr } from '@game/i18n';
+import { setLocale } from '@game/i18n';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
@@ -184,6 +186,7 @@ export class GameScene {
     this.settingsUI = new SettingsUI(input);
     // 应用已存音量(unlock 前设置也会在 unlock 时生效)
     applyColorblind(meta.data.settings.colorblind); // 色盲调色板(轮 37):启动即生效
+    setLocale(meta.data.settings.language); // 语言(轮 39):启动即生效
     sfx.setVolume(meta.data.settings.sfxVol);
     music.setVolume(meta.data.settings.musicVol);
     // 营地渲染依赖 run.chapter/loot 存在,先建默认实例(startRun 会重建)
@@ -1173,16 +1176,16 @@ export class GameScene {
       ctx.textAlign = 'center';
       ctx.fillStyle = UI.gold;
       ctx.font = 'bold 30px monospace';
-      ctx.fillText('⏸ 暂停', r.width / 2, r.height * 0.34);
+      ctx.fillText(tr('pause.title'), r.width / 2, r.height * 0.34);
       ctx.fillStyle = UI.text;
       ctx.font = '14px monospace';
       const kl = (a: string): string => keyLabel(bindOf(a));
       const lines = this.input.touchActive
-        ? ['点击屏幕任意处继续', '', '左半屏拖动=移动(自动瞄准)', '右下按钮=普攻/翻滚/技能']
+        ? [tr('pause.touch.resume'), '', tr('pause.touch.move'), tr('pause.touch.btns')]
         : [
-            '[Esc] 继续战斗',
-            `[M] 静音开关:${this.muted ? '已静音 🔇' : '开启 🔊'}`,
-            '[Backspace] 放弃本局(结算)',
+            tr('pause.resume'),
+            tr('pause.mute', { state: this.muted ? tr('pause.muted') : tr('pause.unmuted') }),
+            tr('pause.abandon'),
             '',
             `WASD移动 · 左键普攻 · ${kl('dash')}翻滚 · ${kl('q')}/${kl('e')}/${kl('r')}技能`,
             `${kl('bag')}背包/符文 · ${kl('potion')}药剂 · ${kl('interact')}交互 · ${kl('lantern')}星灯(夜)`,

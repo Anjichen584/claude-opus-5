@@ -1,4 +1,5 @@
 import type { Input } from '@engine/input/Input';
+import { t as tr } from '@game/i18n';
 import { UI } from '@game/constants';
 import { STAT_ICON, drawIconRow } from '@game/gfx/icons';
 import { meta } from '@game/meta/Save';
@@ -66,10 +67,10 @@ export class MenuUI {
     const pulse = 0.75 + 0.25 * Math.sin(t * 2);
     ctx.fillStyle = `rgba(242,163,60,${pulse})`;
     ctx.font = 'bold 48px monospace';
-    ctx.fillText('星陨骑士 · 序章', w / 2, h * 0.26);
+    ctx.fillText(tr('menu.title'), w / 2, h * 0.26);
     ctx.fillStyle = UI.dim;
     ctx.font = '14px monospace';
-    ctx.fillText('—— 元素连锁 · 符文改装 · 昼夜怪潮 ——', w / 2, h * 0.26 + 32);
+    ctx.fillText(tr('menu.tagline'), w / 2, h * 0.26 + 32);
 
     // 进入营地
     const bw = 280;
@@ -83,7 +84,7 @@ export class MenuUI {
     ctx.strokeRect(this.startRect.x, this.startRect.y, bw, bh);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🏕 进入星陨营地', w / 2, this.startRect.y + 35);
+    ctx.fillText(tr('menu.camp'), w / 2, this.startRect.y + 35);
 
     this.renderSlots(ctx, w, h);
 
@@ -96,7 +97,7 @@ export class MenuUI {
       (s.bestTimeS > 0 ? ` · 最速 ${fmtTime(s.bestTimeS)}` : ''),
       w / 2, h * 0.46 + 96,
     );
-    ctx.fillText('[Enter / 点击] 进入 · 营地内可换职业/升祭坛/铸装备/选章节出征', w / 2, h - 24);
+    ctx.fillText(tr('menu.enter'), w / 2, h - 24);
   }
 
   /** 3 个存档槽卡片:槽号 / 星尘 / 祭坛等级 / 通关 / 上次游玩 */
@@ -127,11 +128,11 @@ export class MenuUI {
       ctx.font = '11px monospace';
       ctx.fillStyle = UI.dim;
       if (!sl.exists) {
-        ctx.fillText('空槽 · 点击切换', x + cw / 2, y + 38);
-        ctx.fillText('(会新建一个档)', x + cw / 2, y + 52);
+        ctx.fillText(tr('menu.slot.empty1'), x + cw / 2, y + 38);
+        ctx.fillText(tr('menu.slot.empty2'), x + cw / 2, y + 52);
       } else if (!sl.summary) {
-        ctx.fillText('存档损坏/来自更新版本', x + cw / 2, y + 38);
-        ctx.fillText('需新版客户端打开', x + cw / 2, y + 52);
+        ctx.fillText(tr('menu.slot.broken1'), x + cw / 2, y + 38);
+        ctx.fillText(tr('menu.slot.broken2'), x + cw / 2, y + 52);
       } else {
         const sm = sl.summary;
         ctx.fillText(`✦${sm.stardust} · 祭坛 ${sm.altarLv} 级`, x + cw / 2, y + 36);
@@ -187,7 +188,7 @@ export class MenuUI {
 
     ctx.fillStyle = UI.dim;
     ctx.font = '13px monospace';
-    ctx.fillText('[Enter / 点击] 返回营地', w / 2, h * 0.42 + rows.length * 28 + 40);
+    ctx.fillText(tr('menu.back'), w / 2, h * 0.42 + rows.length * 28 + 40);
   }
 }
 

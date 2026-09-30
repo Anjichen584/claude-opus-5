@@ -27,6 +27,8 @@ export interface Settings {
   hitstop: number;
   /** 色盲模式(轮 37):0 关 / 1 红弱 / 2 绿弱 / 3 蓝黄弱 */
   colorblind: number;
+  /** 界面语言(轮 39):'zh' | 'en';未知值回 zh */
+  language: string;
   /**
    * 触屏:自动攻击(锁定目标进射程就自动开火)。默认取 balance.touch.autoAttack。
    * 加字段不升存档版本:老档缺这一项由逐层兜底补默认(见下方 normalizeSettings)。
@@ -130,6 +132,7 @@ export function defaultSave(): SaveData {
       musicVol: 0.8, sfxVol: 0.35, uiScale: 1,
       screenShake: 1, hitstop: 1,
       colorblind: 0,
+      language: 'zh',
       // 触屏自动攻击默认值写在 balance.touch(手感数值集中在一处)
       autoAttack: balance.touch.autoAttack,
       binds: { ...DEFAULT_BINDS },
@@ -268,6 +271,7 @@ export function migrateSave(raw: unknown): MigrateResult {
   s.screenShake = clamp(s.screenShake, 0, 1, d.settings.screenShake);
   s.hitstop = clamp(s.hitstop, 0, 1, d.settings.hitstop);
   s.colorblind = Math.floor(clamp(s.colorblind, 0, 3, 0));
+  s.language = s.language === 'en' ? 'en' : 'zh';
   // 老档没有 autoAttack(布尔)→ 取 balance 默认;只有真的 boolean 才认
   s.autoAttack = typeof s.autoAttack === 'boolean' ? s.autoAttack : d.settings.autoAttack;
   for (const k of Object.keys(s.binds)) {
