@@ -459,8 +459,8 @@ namespace StarfallKnights.Tests
             string scene = File.ReadAllText(Path.Combine(root, "web/src/game/gfx/spriteDraw.ts"));
             foreach (var cls in new[] { "knight", "ranger", "arcanist", "warden" })
                 check(scene.Contains("'" + cls + "'"), "web 精灵登记含职业 base:" + cls);
-            // 秘术师这批(轮 28 下半场)必须有走路/施法/翻滚三套 —— 少一套 Unity 侧会静默回退待机
-            foreach (var seq in new[] { "arcanist_walk", "arcanist_cast", "arcanist_dash" })
+            // 秘术师(轮 28 下半场 + 收尾)六套齐编 —— 少一套 Unity 侧会静默回退待机
+            foreach (var seq in new[] { "arcanist_walk", "arcanist_cast", "arcanist_dash", "arcanist_hurt", "arcanist_die" })
                 check(m.ContainsKey(seq), "清单含 " + seq);
         }
 

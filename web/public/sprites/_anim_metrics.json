@@ -53,6 +53,60 @@
     "frames": 3,
     "targetH": 46
   },
+  "arcanist_die": {
+    "anchor": 1,
+    "anchorBody": [
+      31,
+      46
+    ],
+    "bodies": [
+      [
+        31,
+        46
+      ],
+      [
+        33,
+        43
+      ],
+      [
+        35,
+        26
+      ],
+      [
+        34,
+        23
+      ]
+    ],
+    "canvas": [
+      40,
+      48
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "arcanist_hurt": {
+    "anchor": 1,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        35,
+        48
+      ]
+    ],
+    "canvas": [
+      40,
+      51
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
   "arcanist_walk": {
     "anchor": 1,
     "anchorBody": [
@@ -73,13 +127,13 @@
         46
       ],
       [
-        33,
-        46
+        32,
+        45
       ]
     ],
     "canvas": [
       38,
-      48
+      49
     ],
     "frames": 4,
     "targetH": 46
