@@ -45,6 +45,7 @@ namespace StarfallKnights.Tests
             CheckShop(check, root);
             CheckAbyss(check, root);
             CheckEndless(check, root);
+            CheckAnimFrames(check, root);
         }
 
         /// <summary>
@@ -388,6 +389,80 @@ namespace StarfallKnights.Tests
                 "夜战加成读数据表(不写死)");
         }
 
+
+
+        /// <summary>
+        /// 动作帧名的**跨端命名契约**(2026-09-30,轮 28 下半场补)。
+        ///
+        /// 先说清这条为什么必须存在:web 侧帧名是**登记制**(`SPRITE_NAMES` + 管线报的
+        /// `_anim_metrics.json`),而 C# 侧是**推导制**(`AnimRules.FrameName` 按 `base_action_i` 拼)。
+        /// 推导制不需要"登记",代价是**它永远拼得出一个名字,却没人保证那个文件真的存在** ——
+        /// 于是两端一旦在动作段拼写或编号起点上漂了(比如 web 改用 `attack` 而 C# 还是 `atk`),
+        /// Unity 侧会**静默指向不存在的帧**、回退到待机,而且所有测试照样全绿。
+        ///
+        /// 所以这里拿**管线自己报的清单**当权威,逐帧比 C# 拼出来的名字:两边对不上就红。
+        /// 清单里出现 C# 认不出的动作段也要红(数据加了新动作而规则没跟上)。
+        /// </summary>
+        private static void CheckAnimFrames(Action<bool, string> check, string root)
+        {
+            if (root == null) return;
+            string path = Path.Combine(root, "web/public/sprites/_anim_metrics.json");
+            if (!File.Exists(path)) { check(false, "存在 _anim_metrics.json(跑 tools/process_frames.py)"); return; }
+            var m = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            int seqCount = 0, frameCount = 0, badName = 0, badFrames = 0, badLoop = 0, badAction = 0;
+            string firstBad = "";
+            foreach (var kv in m)
+            {
+                string seq = kv.Key;
+                var info = MiniJson.Obj(kv.Value);
+                int frames = (int)MiniJson.Num(info, "frames");
+                int underscore = seq.LastIndexOf('_');
+                if (underscore <= 0) { badAction++; continue; }
+                string baseName = seq.Substring(0, underscore);
+                string actionKey = seq.Substring(underscore + 1);
+
+                // 动作段 → AnimAction(两端用同一套拼写:walk/atk/dash/cast/hurt/die/idle)
+                AnimAction action;
+                switch (actionKey)
+                {
+                    case "idle": action = AnimAction.Idle; break;
+                    case "walk": action = AnimAction.Walk; break;
+                    case "atk": action = AnimAction.Atk; break;
+                    case "dash": action = AnimAction.Dash; break;
+                    case "cast": action = AnimAction.Cast; break;
+                    case "hurt": action = AnimAction.Hurt; break;
+                    case "die": action = AnimAction.Die; break;
+                    default: badAction++; if (firstBad == "") firstBad = seq; continue;
+                }
+
+                seqCount++;
+                // 逐帧比名字:web 的 `{seq}_{i}` 必须等于 C# 拼的 `{base}_{actionKey}_{i}`
+                for (int i = 1; i <= frames; i++)
+                {
+                    frameCount++;
+                    string want = seq + "_" + i;
+                    string got = AnimRules.FrameName(baseName, action, i);
+                    if (want != got) { badName++; if (firstBad == "") firstBad = want + " vs " + got; }
+                }
+                // 帧数/循环口径必须与同一份清单一致(帧数漂了 = 播到不存在的帧)
+                if (AnimRules.Frames(action) != frames) { badFrames++; if (firstBad == "") firstBad = seq; }
+                bool shouldLoop = actionKey == "idle" || actionKey == "walk";
+                if (AnimRules.Loop(action) != shouldLoop) { badLoop++; if (firstBad == "") firstBad = seq; }
+            }
+            check(seqCount >= 12, $"清单里的序列都认得动作段({seqCount} 套)");
+            check(badAction == 0, $"没有 C# 认不出的动作段{(badAction > 0 ? ",首个:" + firstBad : "")}");
+            check(badName == 0, $"逐帧命名一致({frameCount} 帧){(badName > 0 ? ",首个不符:" + firstBad : "")}");
+            check(badFrames == 0, "帧数与 C# 规则一致(漂了就会播到不存在的帧)");
+            check(badLoop == 0, "只有待机/走路循环,其余是一次性动作");
+
+            // 反向:已入库序列的**职业**端 —— 四职业的 base 名必须和 web 的 SPRITE_NAMES 对得上
+            string scene = File.ReadAllText(Path.Combine(root, "web/src/game/gfx/spriteDraw.ts"));
+            foreach (var cls in new[] { "knight", "ranger", "arcanist", "warden" })
+                check(scene.Contains("'" + cls + "'"), "web 精灵登记含职业 base:" + cls);
+            // 秘术师这批(轮 28 下半场)必须有走路/施法/翻滚三套 —— 少一套 Unity 侧会静默回退待机
+            foreach (var seq in new[] { "arcanist_walk", "arcanist_cast", "arcanist_dash" })
+                check(m.ContainsKey(seq), "清单含 " + seq);
+        }
 
         /// <summary>
         /// 无尽模式 parity(2026-09-29,轮 24)。数值叶子已由生成器逐键比对(含两道闸门的**上限值**),
