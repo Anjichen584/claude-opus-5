@@ -4,6 +4,7 @@
  * 架构契约见 docs/02-ARCHITECTURE.md,进度见 docs/06-STATUS.md。
  */
 import { GameLoop } from '@engine/core/GameLoop';
+import { tryLockLandscape } from '@engine/core/Viewport';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import { sfx } from '@engine/audio/Sfx';
@@ -28,6 +29,8 @@ const unlockAudio = (): void => {
 window.addEventListener('mousedown', unlockAudio);
 window.addEventListener('keydown', unlockAudio);
 window.addEventListener('touchstart', unlockAudio);
+// 强制横屏:触摸手势里尽力真·锁横屏(Android 全屏+lock;iOS 静默失败,由画布 90° 旋转兜底)
+window.addEventListener('touchstart', () => tryLockLandscape());
 
 let scene: GameScene;
 let lastRender = performance.now();

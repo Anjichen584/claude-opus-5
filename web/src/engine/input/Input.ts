@@ -1,3 +1,5 @@
+import { mapClient, viewW } from '@engine/core/Viewport';
+
 /** 键鼠+手柄输入状态机。语义动作(移动/攻击/翻滚)在 game 层映射,这里只管原始状态。 */
 /** 摇杆落点区:左半屏 60%(右 40% 留给按钮簇,TouchControls.layoutOf 保证按钮都在右半屏) */
 const JOY_SCREEN_FRAC = 0.6;
@@ -122,7 +124,11 @@ export class Input {
 
   attach(target: HTMLElement): void {
     // ---- 触屏事件 ----
-    const touchPos = (t: Touch): { x: number; y: number } => ({ x: t.clientX * this.pointerScale, y: t.clientY * this.pointerScale });
+    // mapClient:竖屏旋转模式下把窗口坐标转回横屏坐标(见 Viewport.ts)
+    const touchPos = (t: Touch): { x: number; y: number } => {
+      const p = mapClient(t.clientX, t.clientY);
+      return { x: p.x * this.pointerScale, y: p.y * this.pointerScale };
+    };
     target.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.touchActiveT = 3;
@@ -169,8 +175,9 @@ export class Input {
       this.mouseDown = false;
     });
     target.addEventListener('mousemove', (e) => {
-      this.mouseX = e.clientX * this.pointerScale;
-      this.mouseY = e.clientY * this.pointerScale;
+      const p = mapClient(e.clientX, e.clientY);
+      this.mouseX = p.x * this.pointerScale;
+      this.mouseY = p.y * this.pointerScale;
     });
     target.addEventListener('contextmenu', (e) => e.preventDefault());
     target.addEventListener('mousedown', (e) => {
@@ -199,7 +206,7 @@ export class Input {
   private touchJoy(): { x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * this.pointerScale * JOY_SCREEN_FRAC) continue;
+      if (t.sx > viewW() * this.pointerScale * JOY_SCREEN_FRAC) continue;
       const dx = t.x - t.sx;
       const dy = t.y - t.sy;
       const d = Math.hypot(dx, dy);
@@ -214,7 +221,7 @@ export class Input {
   joyVisual(): { ax: number; ay: number; x: number; y: number } | null {
     for (const t of this.touchPts.values()) {
       if (t.claimed !== null) continue;
-      if (t.sx > window.innerWidth * this.pointerScale * JOY_SCREEN_FRAC) continue;
+      if (t.sx > viewW() * this.pointerScale * JOY_SCREEN_FRAC) continue;
       return { ax: t.sx, ay: t.sy, x: t.x, y: t.y };
     }
     return null;
