@@ -624,6 +624,8 @@ namespace StarfallKnights.Tests
             TestPlayerAnim();
             TestAchievements();
             TestPanelModels();
+            TestChallengeWiring();
+            TestSaveCodec();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -2744,6 +2746,125 @@ namespace StarfallKnights.Tests
                 $"更快的在前 + mm:ss + 职业中文 + 挑战徽标(实际:{lines[0]})");
             Check(lines[1] == "2. 4:32  狂澜剑士 · 第1章", $"普通局无徽标(实际:{lines[1]})");
             Check(Meta.PanelModels.BoardSubtitle(lb).Contains("3/4"), "速度/击杀/单伤三榜已开(无伤未开)");
+        }
+
+        // ---------------- 挑战乘区接入 RunManagerLite(轮 43:U3) ----------------
+
+        private static void TestChallengeWiring()
+        {
+            Suite("挑战乘区接入(RunManagerLite ← Challenges)");
+
+            var run = new RunManagerLite();
+            run.SetChapter(1);
+            var s = Bestiary.Of(EnemyKind.Shroomling);
+            var (hp0, atk0) = run.Scale(s, night: false, boss: false);
+
+            // 词条乘区:hp×1.3 / atk×1.2 → 出怪数值同倍率(镜像 web RunMods.enemy 的 eff 因子)
+            var eff = Challenges.Mods.Neutral;
+            eff.Hp = 1.3f; eff.Atk = 1.2f; eff.Drop = 1.5f;
+            run.SetChallenge(eff, Challenges.Structure.Neutral);
+            var (hp1, atk1) = run.Scale(s, night: false, boss: false);
+            // 期望值也过一遍数值闸门(SafeStat 四舍五入,web safeHp 同款口径)
+            Near(hp1, MathF.Round(hp0 * 1.3f, MidpointRounding.ToEven), 0.01f, "挑战 hp 乘区进 Scale(过闸取整)");
+            Near(atk1, MathF.Round(atk0 * 1.2f, MidpointRounding.ToEven), 0.01f, "挑战 atk 乘区进 Scale(过闸取整)");
+            Near(run.LootMult, 1.5f, 1e-3f, "挑战 drop 乘区进 LootMult");
+
+            // 全服同条件:挑战局锁深渊/无尽
+            run.SetAbyss(2);
+            Check(run.Abyss == AbyssRules.Normal, "挑战局 SetAbyss 被拒(全服同条件)");
+            run.SetEndless(true);
+            Check(!run.Endless, "挑战局 SetEndless 被拒");
+
+            // 先开深渊再进挑战 → 强制回普通
+            run.ClearChallenge();
+            run.SetAbyss(2);
+            Check(run.Abyss == 2, "非挑战局可选深渊 II");
+            run.SetChallenge(eff, Challenges.Structure.Neutral);
+            Check(run.Abyss == AbyssRules.Normal, "进挑战局强制回普通远征");
+            run.ClearChallenge();
+            var (hp2, atk2) = run.Scale(s, night: false, boss: false);
+            Near(hp2, hp0, 0.01f, "ClearChallenge 后 hp 乘区回中性");
+            Near(atk2, atk0, 0.01f, "ClearChallenge 后 atk 乘区回中性");
+
+            // 结构项:精英房移位(夹到 [1, MidBossIndex-1])
+            var st = Challenges.Structure.Neutral;
+            st.EliteShift = -1;
+            run.SetChallenge(Challenges.Mods.Neutral, st);
+            Check(run.EliteAt == 3, $"精英房提前 1 间:4 → 3(实际 {run.EliteAt})");
+            st.EliteShift = -99;
+            run.SetChallenge(Challenges.Mods.Neutral, st);
+            Check(run.EliteAt == 1, "极端负偏移夹到 1(不撞开局房)");
+            st.EliteShift = +99;
+            run.SetChallenge(Challenges.Mods.Neutral, st);
+            Check(run.EliteAt == 5, "极端正偏移夹到 5(不撞中 Boss 房)");
+
+            // 结构项:额外波(精英房加轮 + 战斗房预算放大在 SpawnWave 内部,这里验证转发口径)
+            st = Challenges.Structure.Neutral;
+            st.ExtraWaves = 2;
+            run.SetChallenge(Challenges.Mods.Neutral, st);
+            Check(run.EliteExtraWaves == 2, "周常额外波并进精英房加成(普通远征深渊为 0)");
+            run.ClearChallenge();
+            Check(run.EliteExtraWaves == 0, "清挑战后精英加成回 0");
+        }
+
+        // ---------------- 存档落盘(轮 43:U3,SaveCodec 往返 + 脏档) ----------------
+
+        private static void TestSaveCodec()
+        {
+            Suite("存档编解码(SaveCodec)");
+
+            // 造一份有内容的状态
+            var st = new Meta.SaveCodec.State();
+            st.Meta.stardust = 1234; st.Meta.altarHp = 3; st.Meta.clears = 7;
+            st.Meta.bestTimeS = 271.5f; st.Meta.crafts = 2; st.Meta.craftQueued = true;
+            st.Codex.MarkKill(EnemyKind.Shroomling);
+            st.Codex.MarkKill(EnemyKind.Shroomling);
+            st.Codex.MarkKill(EnemyKind.BossNanmir);
+            st.Codex.MarkRune("rune_emberseed");
+            Meta.Leaderboard.Submit(st.Boards, new Meta.Leaderboard.RunScore
+            { Cleared = true, TimeS = 271.5, Kills = 44, MaxHit = 512, Klass = "blade", Chapter = 1, At = 1000, Tag = "daily:2026-09-30" });
+            st.AchvUnlocked["first_clear"] = 1700000000000L;
+
+            // 往返:编码 → 解码 → 全字段一致
+            string json = Meta.SaveCodec.Encode(st);
+            var back = Meta.SaveCodec.Decode(json);
+            Check(back.Meta.stardust == 1234 && back.Meta.altarHp == 3 && back.Meta.clears == 7,
+                "meta 数值往返一致");
+            Check(System.Math.Abs(back.Meta.bestTimeS - 271.5f) < 1e-3f, "bestTimeS 浮点往返一致");
+            Check(back.Meta.craftQueued && back.Meta.crafts == 2, "布尔/计数往返一致");
+            Check(back.Codex.KillsOf(EnemyKind.Shroomling) == 2
+                && back.Codex.KillsOf(EnemyKind.BossNanmir) == 1, "图鉴击杀数往返一致");
+            Check(back.Codex.RunesOf("rune_emberseed") == 1, "图鉴符文往返一致");
+            var speed = back.Boards.Of(Meta.Leaderboard.Board.Speed);
+            Check(speed.Count == 1 && System.Math.Abs(speed[0].Score - 271.5) < 1e-6
+                && speed[0].Tag == "daily:2026-09-30", "榜单条目(含挑战徽标)往返一致");
+            Check(back.AchvUnlocked.TryGetValue("first_clear", out long ts) && ts == 1700000000000L,
+                "成就解锁时间戳往返一致");
+
+            // 再编码一次应逐字节相同(稳定序列化 → 好做变更审查)
+            Check(Meta.SaveCodec.Encode(back) == json, "二次编码逐字节稳定");
+
+            // 脏档:截断/非 JSON/null → 全新默认,绝不炸
+            Check(Meta.SaveCodec.Decode(json.Substring(0, json.Length / 2)).Meta.stardust == 0,
+                "截断档 → 默认状态");
+            Check(Meta.SaveCodec.Decode("not json at all").Meta.runs == 0, "非 JSON → 默认状态");
+            Check(Meta.SaveCodec.Decode(null).Codex.EnemyFound == 0, "null → 默认状态");
+
+            // 脏档:未知怪/未知成就/坏榜单条目 → 清洗后只剩合法部分
+            string dirty = "{\"v\":1,\"codex\":{\"enemies\":{\"NotAMonster\":5,\"Shroomling\":3},\"runes\":{\"fake_rune\":9}},"
+                + "\"boards\":{\"speed\":[{\"score\":-5,\"klass\":\"blade\",\"chapter\":1,\"at\":1,\"tag\":\"\"},"
+                + "{\"score\":200,\"klass\":\"hacker\",\"chapter\":1,\"at\":1,\"tag\":\"\"},"
+                + "{\"score\":200,\"klass\":\"blade\",\"chapter\":9,\"at\":1,\"tag\":\"\"},"
+                + "{\"score\":200,\"klass\":\"blade\",\"chapter\":2,\"at\":1,\"tag\":\"\"}]},"
+                + "\"achv\":{\"hack_all\":1,\"first_run\":123}}";
+            var clean = Meta.SaveCodec.Decode(dirty);
+            Check(clean.Codex.EnemyFound == 1 && clean.Codex.KillsOf(EnemyKind.Shroomling) == 3,
+                "未知怪被丢弃,合法怪保留");
+            Check(clean.Codex.RuneFound == 0, "未知符文被丢弃");
+            Check(clean.Boards.Of(Meta.Leaderboard.Board.Speed).Count == 1,
+                "负分/未知职业/非法章节的榜单条目全部被清洗");
+            Check(clean.AchvUnlocked.Count == 1 && clean.AchvUnlocked.ContainsKey("first_run"),
+                "未知成就 id 被丢弃");
         }
     }
 }

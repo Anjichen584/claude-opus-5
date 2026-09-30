@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="MiniJson.cs" />
     <Compile Include="ParityTests.cs" />
     <Compile Include="../Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../Assets/Scripts/Combat/**/*.cs" />

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace StarfallKnights.Tests
+namespace StarfallKnights.Core
 {
     /// <summary>
     /// 极简只读 JSON 解析器(零第三方依赖,避免给 Unity 侧引入 NuGet)。
-    /// 只为 parity 测试读取 web/src/data/*.json 使用:
+    /// parity 测试读 web/src/data/*.json + 生产侧 SaveCodec 读档共用(轮 43 从 Tests 挪进 Core):
     /// object→Dictionary&lt;string,object&gt;, array→List&lt;object&gt;, number→double, string→string,
     /// true/false→bool, null→null。
     /// </summary>

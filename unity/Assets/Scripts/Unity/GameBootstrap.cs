@@ -27,11 +27,24 @@ namespace StarfallKnights.UnityLayer
         public readonly StarfallKnights.Dungeon.CreatureAI Mobs = new();
         public readonly StarfallKnights.Dungeon.BossAI Bosses = new();
         public ItemFactory Factory { get; private set; }
-        public MetaSave Meta { get; private set; }
-        // ---- 局外状态(轮 42:U2 面板数据源;持久化时机归宿主,面板只读)----
-        public readonly Codex Codex = new();
-        public readonly Leaderboard.Boards4 Boards = new();
-        public readonly Dictionary<string, long> AchvUnlocked = new();
+        public MetaSave Meta => _save.Meta;
+        // ---- 局外状态(轮 42 面板数据源 / 轮 43 SaveCodec 落盘)----
+        private SaveCodec.State _save = new();
+        public Codex Codex => _save.Codex;
+        public Leaderboard.Boards4 Boards => _save.Boards;
+        public Dictionary<string, long> AchvUnlocked => _save.AchvUnlocked;
+        private const string SaveKey = "sk_save";
+
+        /// <summary>读档(坏档/缺档 = 全新状态;三重清洗在 SaveCodec 里)。</summary>
+        private void LoadSave() => _save = SaveCodec.Decode(PlayerPrefs.GetString(SaveKey, ""));
+
+        /// <summary>落盘(通关/解锁等关键节点调用;PlayerPrefs 只存一个字符串)。</summary>
+        public void Persist()
+        {
+            Meta.updatedAt = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            PlayerPrefs.SetString(SaveKey, SaveCodec.Encode(_save));
+            PlayerPrefs.Save();
+        }
         /// <summary>职业中文名(排行榜行用;权威在 balance.json classes 段,这里是宿主注入位)</summary>
         public Leaderboard.BalanceKlassNames KlassNames = new()
         { Blade = "狂澜剑士", Ranger = "星弓猎手", Arcanist = "元素秘术师", Warden = "岩铠守卫" };
@@ -50,7 +63,7 @@ namespace StarfallKnights.UnityLayer
         private void Awake()
         {
             I = this;
-            Meta = new MetaSave(); // 宿主可换 PlayerPrefs 读档
+            LoadSave();
             Factory = new ItemFactory((uint)System.Environment.TickCount);
             DamagePipeline.OnReaction = (r) => Debug.Log($"[Reaction] {r.Kind}");
             BuildArena();
@@ -86,6 +99,7 @@ namespace StarfallKnights.UnityLayer
                     At = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 });
                 CheckAchievements();
+                Persist();
                 Debug.Log("★ 章节通关!");
                 ShowPortal();
             };

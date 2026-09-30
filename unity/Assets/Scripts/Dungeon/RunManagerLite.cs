@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using StarfallKnights.Core;
 using StarfallKnights.Data;
+using StarfallKnights.Meta;
 
 namespace StarfallKnights.Dungeon
 {
@@ -89,6 +90,38 @@ namespace StarfallKnights.Dungeon
         /// <summary>无尽模式(轮 24)。挑战局请传 false:**挑战要全服同条件**(与深渊同款口径)。</summary>
         public bool Endless { get; private set; }
 
+        /// <summary>挑战词条乘区(轮 43;中性 = 普通远征)。镜像 web RunMods.eff。</summary>
+        public Challenges.Mods Eff { get; private set; } = Challenges.Mods.Neutral;
+
+        /// <summary>周常铁律结构项(轮 43;中性 = 无)。镜像 web RunMods.structure。</summary>
+        public Challenges.Structure Struct { get; private set; } = Challenges.Structure.Neutral;
+
+        /// <summary>挑战局进行中(镜像 web runMods.active)。</summary>
+        public bool ChallengeActive { get; private set; }
+
+        /// <summary>
+        /// 进入挑战局(每日 Merge 后的乘区 / 周常 rule 的乘区 + 结构)。
+        /// **强制回普通远征 + 关无尽**:挑战要全服同条件,这两档是个人难度选择,
+        /// 不能混进来(web GameScene.startRun 同款口径)。
+        /// </summary>
+        public void SetChallenge(Challenges.Mods eff, Challenges.Structure st)
+        {
+            Eff = eff;
+            Struct = st;
+            ChallengeActive = true;
+            Abyss = AbyssRules.Normal;
+            Endless = false;
+            Loop = 0;
+        }
+
+        /// <summary>回普通远征(乘区/结构全部回中性)。</summary>
+        public void ClearChallenge()
+        {
+            Eff = Challenges.Mods.Neutral;
+            Struct = Challenges.Structure.Neutral;
+            ChallengeActive = false;
+        }
+
         /// <summary>第几循环(0 = 第一遍三章)。乘区见 <see cref="EndlessRules.LoopMultsOf"/>。</summary>
         public int Loop { get; private set; }
 
@@ -127,6 +160,7 @@ namespace StarfallKnights.Dungeon
         /// </summary>
         public void SetAbyss(int idx)
         {
+            if (ChallengeActive) return;   // 挑战局锁难度(全服同条件)
             Abyss = idx < AbyssRules.Normal ? AbyssRules.Normal
                 : idx > AbyssRules.LevelCount ? AbyssRules.LevelCount : idx;
         }
@@ -142,6 +176,7 @@ namespace StarfallKnights.Dungeon
         /// </summary>
         public void SetEndless(bool on)
         {
+            if (ChallengeActive) return;   // 挑战局固定关无尽(web 源码守卫同款)
             Endless = on;
             Loop = 0;
         }
@@ -169,20 +204,33 @@ namespace StarfallKnights.Dungeon
             // 镜像 web:Boss 用 depth 0 缩放(它自己表里已按章调好),杂兵才吃房间深度
             int depth = boss ? 0 : (Depth < 0 ? 0 : Depth);
             var (hp, atk) = AbyssRules.Apply(Abyss,
-                Balance.ScaleHp(s.Hp, depth, night) * mul,
-                Balance.ScaleAtk(s.Atk, depth, night) * mul);
+                Balance.ScaleHp(s.Hp, depth, night) * mul * Eff.Hp,
+                Balance.ScaleAtk(s.Atk, depth, night) * mul * Eff.Atk);
             // 无尽乘区最后叠,并过数值闸门(镜像 web RunMods.enemy:所有出怪路径共用这一处闸门)
             return EndlessRules.Apply(Loop, hp, atk);
         }
 
         /// <summary>当前档的掉落乘区(镜像 web runMods.dropMult 里的深渊部分)</summary>
-        public float LootMult => EndlessRules.SafeMult(AbyssRules.LootMult(Abyss) * EndlessRules.LoopMultsOf(Loop).Loot);
+        public float LootMult => EndlessRules.SafeMult(Eff.Drop * AbyssRules.LootMult(Abyss) * EndlessRules.LoopMultsOf(Loop).Loot);
 
         /// <summary>当前档的星尘乘区(镜像 web runMods.dustMult)</summary>
         public float DustMult => EndlessRules.SafeMult(AbyssRules.DustMult(Abyss) * EndlessRules.LoopMultsOf(Loop).Dust);
 
-        /// <summary>精英房额外波次(镜像 web RunManager 的 pendingWaves 加成)</summary>
-        public int EliteExtraWaves => AbyssRules.EliteWaves(Abyss);
+        /// <summary>精英房额外波次(镜像 web RunManager 的 pendingWaves 加成;深渊 + 周常铁律)</summary>
+        public int EliteExtraWaves => AbyssRules.EliteWaves(Abyss) + Struct.ExtraWaves;
+
+        /// <summary>
+        /// 精英房实际位置(镜像 web eliteIndexOf:eliteIndex + 铁律偏移,夹到 [1, MidBossIndex-1] ——
+        /// 不许撞开局房,也不许撞中 Boss/Boss 房)。
+        /// </summary>
+        public int EliteAt
+        {
+            get
+            {
+                int at = EliteIndex + Struct.EliteShift;
+                return at < 1 ? 1 : at > MidBossIndex - 1 ? MidBossIndex - 1 : at;
+            }
+        }
 
         /// <summary>进入下一房。返回 false 表示已通关序列。</summary>
         public bool NextRoom(LogicWorld w)
@@ -192,7 +240,7 @@ namespace StarfallKnights.Dungeon
             if (Depth >= RoomCount) return false;
             Room = Depth == RoomCount - 1 ? RoomKind.Boss
                 : Depth == MidBossIndex ? RoomKind.MidBoss   // 三章中 Boss 齐编(轮 5/13/16;镜像 web)
-                : Depth == EliteIndex ? RoomKind.Elite
+                : Depth == EliteAt ? RoomKind.Elite          // 铁律可移位(轮 43;EliteAt 已夹取)
                 : Depth == 2 || Depth == 5 ? RoomKind.Treasure
                 : RoomKind.Battle;
             Cleared = Room == RoomKind.Treasure;
@@ -248,7 +296,9 @@ namespace StarfallKnights.Dungeon
                 default:
                 {
                     var pool = Chapter == 3 ? Ch3Pool : Chapter == 2 ? Ch2Pool : Ch1Pool;
-                    int budget = BudgetBase + Depth * BudgetPerDepth;
+                    // 周常「每房 +N 波」:Lite 没有波次制(web 是 pendingWaves),
+                    // 等效成"预算 ×(1+N) 一次出完" —— 总压力一致,节奏差异是已知口径差(见 07 §4.1)
+                    int budget = (BudgetBase + Depth * BudgetPerDepth) * (1 + Struct.ExtraWaves);
                     int total = 0;
                     foreach (var p in pool) if (Depth >= p.MinDepth) total += p.Weight;
                     int guard = 60;
