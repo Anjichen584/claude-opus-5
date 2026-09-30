@@ -1685,8 +1685,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 29 && Codex.RuneTotal == 36,
-                $"条目总数 29 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 30 && Codex.RuneTotal == 36,
+                $"条目总数 30 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1750,7 +1750,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 29, $"图鉴覆盖 29 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 30, $"图鉴覆盖 30 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {

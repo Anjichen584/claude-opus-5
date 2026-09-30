@@ -3,14 +3,15 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
-  BlizzardHawk, Body, Buffs, FrostMage, IceGlider, IceSpike, IceTurtle, Player, Projectile,
-  SfxEvent, SnowPuff, Stats, TelegraphStrike, Transform, Velocity,
+  BlizzardHawk, Body, Buffs, FrostMage, FrostMoth, IceGlider, IceSpike, IceTurtle, Player,
+  Projectile, SfxEvent, SnowPuff, Stats, TelegraphStrike, Transform, Velocity, Zone,
 } from '@game/components';
 import { PlayerSystem } from './PlayerSystem';
 
 const PUFF = balance.enemies.snowpuff;
 const SPIKE = balance.enemies.icespike;
 const GLIDER = balance.enemies.iceglider;
+const MOTH = balance.enemies.frostmoth;
 const TURTLE = balance.enemies.iceturtle;
 const HAWK = balance.enemies.blizzardhawk;
 const MAGE = balance.enemies.frostmage;
@@ -35,6 +36,47 @@ export class TundraSystem implements System {
     this.mages(world, dt, ptr, pAlive);
     this.spikes(world, dt, ptr, pAlive);
     this.gliders(world, dt, pe, ptr, pr, pAlive);
+    this.moths(world, dt, ptr, pAlive);
+  }
+
+  // ---- 霜尘蛾(图鉴 30):不追人,绕玩家附近漫游,身下周期洒冻雾 ----
+  private moths(world: World, dt: number, ptr: Transform, pAlive: boolean): void {
+    for (const e of world.query(FrostMoth, Transform, Velocity, Stats)) {
+      const mo = world.mustGet(e, FrostMoth);
+      const tr = world.mustGet(e, Transform);
+      const vel = world.mustGet(e, Velocity);
+      const stats = world.mustGet(e, Stats);
+      const buffs = world.get(e, Buffs);
+      mo.animT += dt;
+      if ((buffs && buffs.stunT > 0) || !pAlive) { vel.vx = 0; vel.vy = 0; continue; }
+      const slow = buffs && buffs.slowT > 0 ? 1 - buffs.slowPct : 1;
+
+      // 巡飞:周期性重选方向;离玩家太远就往回偏(保持在战场里捣乱)
+      mo.turnT -= dt;
+      if (mo.turnT <= 0) {
+        mo.turnT = MOTH.wander.turnS;
+        const dx = ptr.x - tr.x;
+        const dy = ptr.y - tr.y;
+        const far = Math.hypot(dx, dy) > MOTH.wander.nearM * M;
+        const toward = Math.atan2(dy, dx);
+        mo.heading = far ? toward + (Math.random() - 0.5) * 1.2 : Math.random() * Math.PI * 2;
+      }
+      tr.face = mo.heading;
+      vel.vx = Math.cos(mo.heading) * stats.moveSpeed * M * slow;
+      vel.vy = Math.sin(mo.heading) * stats.moveSpeed * M * slow;
+
+      // 身下洒冻雾:它自己毫无攻击性,雷区才是它的武器
+      mo.mistT -= dt;
+      if (mo.mistT <= 0) {
+        mo.mistT = MOTH.mist.intervalS;
+        const z = world.create();
+        world.add(z, new Transform(tr.x, tr.y + 6));
+        world.add(z, new Zone(
+          MOTH.mist.radiusM * M, MOTH.mist.lifeS, MOTH.mist.tickS,
+          stats.atk, MOTH.mist.mult, 'ice', 'enemy', elementColor('ice'),
+        ));
+      }
+    }
   }
 
   // ---- 冰锥笋(轮 11):炮台 —— 玩家进圈就在其脚下点冰锥,血薄,走过去拍碎它 ----

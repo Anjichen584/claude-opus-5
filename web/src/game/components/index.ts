@@ -595,6 +595,15 @@ export class LeafWisp {
   animT = Math.random() * 10;
 }
 
+/** 霜尘蛾:二章巡飞撒雾怪 —— 不追人,飞过的地方留冻雾(图鉴第 30 只) */
+export class FrostMoth {
+  /** 巡飞朝向(周期性重选,画"8"字) */
+  heading = Math.random() * Math.PI * 2;
+  turnT = 0;
+  mistT = 0.6;
+  animT = Math.random() * 10;
+}
+
 /** 冰锥笋:二章炮台怪 —— 不动,在玩家脚下点冰锥(轮 11) */
 export class IceSpike {
   cd = 1.2 + Math.random() * 0.8;

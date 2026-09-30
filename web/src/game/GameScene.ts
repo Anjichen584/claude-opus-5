@@ -21,6 +21,7 @@ import {
   IceGlider,
 
   IceSpike,
+  FrostMoth,
   LeafWisp,
   MidBossHuntress,
   MidBossReaper,
@@ -1492,6 +1493,21 @@ export class GameScene {
               ctx.fill();
             }
           }
+        } });
+      }
+      // ---- 霜尘蛾(图鉴 30):高飞漫游,翅膀用 sy 脉动 ----
+      for (const e of w.query(FrostMoth, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const mo = w.mustGet(e, FrostMoth);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 7);
+          const hover = Math.sin(mo.animT * 4.2) * 4 - 14;
+          if (!drawSprite(ctx, this.frame2('frostmoth', e, false), ix, iy + hover, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            sy: 1 + Math.sin(mo.animT * 8) * 0.12,
+          })) blob(ix, iy + hover, 8, '#cfe8f4');
         } });
       }
       // ---- 霜刃滑手(轮 11):永远在滑,倾斜入弯 ----

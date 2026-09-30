@@ -49,6 +49,7 @@ namespace StarfallKnights.Dungeon
             new(EnemyKind.IceTurtle, 14, 2, 2),
             new(EnemyKind.IceSpike, 12, 1, 1),
             new(EnemyKind.IceGlider, 14, 1, 2),
+            new(EnemyKind.FrostMoth, 12, 1, 1),
             new(EnemyKind.EmberImp, 10, 2, 3),
         };
 

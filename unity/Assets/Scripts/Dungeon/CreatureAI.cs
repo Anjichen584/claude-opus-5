@@ -123,6 +123,7 @@ namespace StarfallKnights.Dungeon
                         Bestiary.LeafWispBoltSpeedM, Bestiary.LeafWispBoltRadiusM,
                         Bestiary.LeafWispBoltMult, Bestiary.LeafWispBoltLifeS,
                         null, 1); break;
+                    case EnemyKind.FrostMoth: FrostMoth(w, e, st, dt, slow); break;
                     case EnemyKind.IceSpike: IceSpike(w, e, st, dt); break;
                     case EnemyKind.IceGlider: IceGlider(w, e, st, dt, slow); break;
                     case EnemyKind.FrostMage: Kiter(w, e, st, dt, slow,
@@ -1158,6 +1159,34 @@ namespace StarfallKnights.Dungeon
         }
 
         // ---------- 轮 11 补怪四件套(镜像 web TundraSystem/DesertSystem) ----------
+
+        /// <summary>霜尘蛾:巡飞撒雾 —— 不追人,身下周期洒冻雾(镜像 web TundraSystem.moths)。</summary>
+        private static void FrostMoth(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, _, _) = ToPlayer(w, e);
+            st.WanderT -= dt;
+            if (st.WanderT <= 0f)
+            {
+                st.WanderT = Bestiary.FrostMothWanderTurnS;
+                bool far = dist > Bestiary.FrostMothWanderNearM;
+                float toward = MathF.Atan2(dy, dx);
+                st.DirX = far ? toward + (Rnd() - 0.5f) * 1.2f : Rnd() * MathF.PI * 2f;
+            }
+            e.Face = st.DirX;
+            e.Vel = new Vector2(MathF.Cos(st.DirX), MathF.Sin(st.DirX)) * Bestiary.FrostMothSpeed * slow;
+            st.TrailT -= dt;
+            if (st.TrailT <= 0f)
+            {
+                st.TrailT = Bestiary.FrostMothMistIntervalS;
+                w.Zones.Add(new Zone
+                {
+                    Pos = e.Pos, RadiusM = Bestiary.FrostMothMistRadiusM,
+                    LifeS = Bestiary.FrostMothMistLifeS, TickS = Bestiary.FrostMothMistTickS,
+                    Atk = e.Unit.Atk, Mult = Bestiary.FrostMothMistMult,
+                    Element = Element.Ice, PlayerTeam = false,
+                });
+            }
+        }
 
         /// <summary>冰锥笋:炮台 —— 玩家进 rangeM 就在其脚下点冰锥,本体不动。</summary>
         private static void IceSpike(LogicWorld w, Actor e, MobState st, float dt)

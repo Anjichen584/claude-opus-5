@@ -1288,6 +1288,7 @@ namespace StarfallKnights.Tests
                 case "mirageblossom": return Core.EnemyKind.MirageBlossom;
                 case "emberwhirl": return Core.EnemyKind.EmberWhirl;
                 case "leafwisp": return Core.EnemyKind.LeafWisp;
+                case "frostmoth": return Core.EnemyKind.FrostMoth;
                 case "boss_velsha": return Core.EnemyKind.BossVelsha;
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;

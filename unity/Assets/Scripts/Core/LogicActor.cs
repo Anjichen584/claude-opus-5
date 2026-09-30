@@ -23,6 +23,7 @@ namespace StarfallKnights.Core
         MirageBlossom,
         EmberWhirl,
         LeafWisp,
+        FrostMoth,
         // Boss
         BossNanmir, BossVelsha, BossKazra,
     }
@@ -35,7 +36,7 @@ namespace StarfallKnights.Core
         {
             EnemyKind.SnowPuff or EnemyKind.IceTurtle or EnemyKind.BlizzardHawk
                 or EnemyKind.FrostMage or EnemyKind.BossVelsha or EnemyKind.MidBossFrosthuntress
-                or EnemyKind.IceSpike or EnemyKind.IceGlider => 2,
+                or EnemyKind.IceSpike or EnemyKind.IceGlider or EnemyKind.FrostMoth => 2,
             EnemyKind.CinderRat or EnemyKind.DuneBeetle or EnemyKind.FlameDancer
                 or EnemyKind.DustStinger or EnemyKind.BossKazra or EnemyKind.MidBossSandreaper
                 or EnemyKind.MirageBlossom or EnemyKind.EmberWhirl => 3,

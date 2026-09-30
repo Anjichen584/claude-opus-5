@@ -33,6 +33,7 @@ KIND = {
     'mirageblossom': 'MirageBlossom',
     'emberwhirl': 'EmberWhirl',
     'leafwisp': 'LeafWisp',
+    'frostmoth': 'FrostMoth',
 }
 
 

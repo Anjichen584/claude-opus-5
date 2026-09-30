@@ -19,6 +19,7 @@ TARGETS = {
     "ranger": 46,
     "arcanist": 46,
     "warden": 48,
+    "frostmoth": 22,      # 霜尘蛾(图鉴 30:小型飞虫)
     "npc_merchant": 44,  # 流浪商人(轮 29:微驼背设定,比英雄矮 2px)
     "leafwisp": 22,       # 风叶精(轮 17:小体型飘浮灵)
     "icespike": 26,       # 冰锥笋(轮 11:炮台,矮)
@@ -210,6 +211,7 @@ PAIRS = [
     "midboss_sandreaper",  # 三章中 Boss 帧对(站立/举刀)
     # 轮 31(动画批次:双帧补齐 10 怪,2026-09-30)
     "boss_velsha", "boss_kazra",  # 章 Boss 双帧(轮 31 下半场)
+    "frostmoth",  # 霜尘蛾帧对(图鉴 30)
     "leafwisp", "thornvine", "emberimp", "frostslime", "sparklizard",
     "toxintoad", "icespike", "iceglider", "mirageblossom", "emberwhirl",
 ]

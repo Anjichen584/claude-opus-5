@@ -42,6 +42,7 @@ namespace StarfallKnights.Data
             { EnemyKind.FrostMage, new Stat("霜语法师", 40f, 10f, 1f, 2.2f, 0.28f, 0.8f) },
             { EnemyKind.IceSpike, new Stat("冰锥笋", 30f, 9f, 0f, 0f, 0.35f, 0.8f) },
             { EnemyKind.IceGlider, new Stat("霜刃滑手", 55f, 11f, 1f, 4.6f, 0.4f, 0.8f) },
+            { EnemyKind.FrostMoth, new Stat("霜尘蛾", 34f, 7f, 0f, 2f, 0.3f, 0.8f) },
             { EnemyKind.BossVelsha, new Stat("霜语女妖·薇尔莎", 5200f, 16f, 3f, 2f, 0.55f, 0.8f) },
             { EnemyKind.CinderRat, new Stat("烬鼠", 26f, 10f, 0f, 3.8f, 0.22f, 0.7f) },
             { EnemyKind.DuneBeetle, new Stat("沙暴甲虫", 80f, 13f, 3f, 1.4f, 0.36f, 0.9f) },
@@ -459,6 +460,30 @@ namespace StarfallKnights.Data
         public const float IceGliderGlideTurnRadPerS = 1.6f;
         /// <summary>iceglider.glide.contactCd</summary>
         public const float IceGliderGlideContactCd = 0.8f;
+        /// <summary>frostmoth.hp</summary>
+        public const float FrostMothHp = 34f;
+        /// <summary>frostmoth.atk</summary>
+        public const float FrostMothAtk = 7f;
+        /// <summary>frostmoth.def</summary>
+        public const float FrostMothDef = 0f;
+        /// <summary>frostmoth.speed</summary>
+        public const float FrostMothSpeed = 2f;
+        /// <summary>frostmoth.bodyRadius</summary>
+        public const float FrostMothBodyRadius = 0.3f;
+        /// <summary>frostmoth.wander.turnS</summary>
+        public const float FrostMothWanderTurnS = 1.4f;
+        /// <summary>frostmoth.wander.nearM</summary>
+        public const float FrostMothWanderNearM = 6.5f;
+        /// <summary>frostmoth.mist.intervalS</summary>
+        public const float FrostMothMistIntervalS = 1.1f;
+        /// <summary>frostmoth.mist.radiusM</summary>
+        public const float FrostMothMistRadiusM = 0.7f;
+        /// <summary>frostmoth.mist.lifeS</summary>
+        public const float FrostMothMistLifeS = 2.6f;
+        /// <summary>frostmoth.mist.tickS</summary>
+        public const float FrostMothMistTickS = 0.5f;
+        /// <summary>frostmoth.mist.mult</summary>
+        public const float FrostMothMistMult = 0.3f;
         /// <summary>boss_velsha.hp</summary>
         public const float BossVelshaHp = 5200f;
         /// <summary>boss_velsha.atk</summary>
@@ -1577,6 +1602,18 @@ namespace StarfallKnights.Data
             { "iceglider.bodyRadius", IceGliderBodyRadius },
             { "iceglider.glide.turnRadPerS", IceGliderGlideTurnRadPerS },
             { "iceglider.glide.contactCd", IceGliderGlideContactCd },
+            { "frostmoth.hp", FrostMothHp },
+            { "frostmoth.atk", FrostMothAtk },
+            { "frostmoth.def", FrostMothDef },
+            { "frostmoth.speed", FrostMothSpeed },
+            { "frostmoth.bodyRadius", FrostMothBodyRadius },
+            { "frostmoth.wander.turnS", FrostMothWanderTurnS },
+            { "frostmoth.wander.nearM", FrostMothWanderNearM },
+            { "frostmoth.mist.intervalS", FrostMothMistIntervalS },
+            { "frostmoth.mist.radiusM", FrostMothMistRadiusM },
+            { "frostmoth.mist.lifeS", FrostMothMistLifeS },
+            { "frostmoth.mist.tickS", FrostMothMistTickS },
+            { "frostmoth.mist.mult", FrostMothMistMult },
             { "boss_velsha.hp", BossVelshaHp },
             { "boss_velsha.atk", BossVelshaAtk },
             { "boss_velsha.def", BossVelshaDef },

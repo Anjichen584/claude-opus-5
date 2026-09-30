@@ -76,6 +76,7 @@ export const ENEMY_HINT: Record<string, string> = {
   leafwisp: '乘风的射手:风带里跑得飞快,把它逼出风带',
   icespike: '不动的炮台:脚下会冒冰锥,走近拍碎它',
   iceglider: '高速滑行,转弯半径大 —— 急转甩开它',
+  frostmoth: '不咬人的画雾蛾:飞过的地方全是冻雾,先点掉它',
   cinderrat: 'Z 字高速贴脸',
   dunebeetle: '钻地接近 → 预警 → 钻出爆发',
   flamedancer: '瞬跳走位 + 双火球',

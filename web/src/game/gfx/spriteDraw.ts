@@ -113,6 +113,7 @@ export const SPRITE_NAMES = [
   'dunebeetle_atk', 'flamedancer_atk', 'duststinger_atk', 'snowpuff_atk',
   'iceturtle_atk', 'blizzardhawk_atk',
   'shroomling_atk', 'cinderrat_atk', 'leafwisp_atk',
+  'frostmoth', 'frostmoth_f2',
   // 轮 35:六元素反应爆点特效
   'fx_rx_steam', 'fx_rx_overload', 'fx_rx_miasma', 'fx_rx_chain', 'fx_rx_brittle', 'fx_rx_numb',
   'fx_nova', 'fx_blink',
