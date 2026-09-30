@@ -1293,7 +1293,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 7);
           const jitter = b.state === 'telegraph' ? (Math.random() - 0.5) * 0.3 : 0;
-          if (!drawSprite(ctx, this.frame2('windbee', e, false), ix, iy - 10 + Math.sin(b.animT * 9) * 3, {
+          if (!drawSprite(ctx, (b.state === 'dive' ? 'windbee_atk' : this.frame2('windbee', e, false)), ix, iy - 10 + Math.sin(b.animT * 9) * 3, {
             flash: h.flash, faceLeft: (vel?.vx ?? 0) < 0, rot: jitter + Math.sin(b.animT * 5) * 0.08,
           })) drawWindBee(ctx, ix, iy, b.animT, h.flash, b.state === 'telegraph');
         } });
@@ -1308,7 +1308,7 @@ export class GameScene {
           const faceLeft = Math.cos(tr.face) < 0;
           const lean = wf.state === 'pounce' ? (faceLeft ? 0.16 : -0.16) : 0;
           const growl = wf.state === 'growl' ? (Math.random() - 0.5) * 0.12 : 0;
-          if (!drawSprite(ctx, this.frame2('blightwolf', e, true), ix, iy, {
+          if (!drawSprite(ctx, (wf.state === 'pounce' ? 'blightwolf_atk' : this.frame2('blightwolf', e, true)), ix, iy, {
             flash: h.flash, faceLeft, rot: lean + growl,
             sy: 1 + Math.sin(wf.animT * 12) * 0.03,
           })) drawBlightWolf(ctx, ix, iy, wf.animT, h.flash, faceLeft, wf.state === 'growl', wf.state === 'pounce');
@@ -1336,7 +1336,7 @@ export class GameScene {
           drawShadow(ctx, ix, iy, 18);
           const faceLeft = Math.cos(tr.face) < 0;
           const windup = g.state === 'windup';
-          if (!drawSprite(ctx, 'oakgolem', ix, iy, {
+          if (!drawSprite(ctx, g.state === 'windup' ? 'oakgolem_atk' : this.frame2('oakgolem', e, true), ix, iy, {
             flash: h.flash, faceLeft,
             rot: windup ? (faceLeft ? 0.12 : -0.12) : Math.sin(g.animT * 4) * 0.03,
             sy: windup ? 1.06 : 1 + Math.sin(g.animT * 8) * 0.02,
@@ -1516,7 +1516,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 9);
           const rolling = s.rollT > 0;
-          if (!drawSprite(ctx, 'snowpuff', ix, iy, {
+          if (!drawSprite(ctx, rolling ? 'snowpuff_atk' : 'snowpuff', ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: rolling ? s.animT * 9 : Math.sin(s.animT * 4) * 0.08,
             sy: rolling ? 1 : 1 + Math.sin(s.animT * 5) * 0.06,
@@ -1562,7 +1562,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 9);
           const jit = mg.state === 'aim' ? (Math.random() - 0.5) * 0.16 : 0;
-          if (!drawSprite(ctx, 'frostmage', ix, iy, {
+          if (!drawSprite(ctx, mg.state === 'aim' ? 'frostmage_atk' : this.frame2('frostmage', e, true), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: jit + Math.sin(mg.animT * 3) * 0.05,
             sx: mg.state === 'aim' ? 1.1 : 1,
@@ -1579,7 +1579,7 @@ export class GameScene {
           const hover = Math.sin(boss.animT * 2.2) * 5 - 8;
           const jit = boss.state === 'chargeTele' ? (Math.random() - 0.5) * 0.14 : 0;
           const lean = boss.state === 'charge' ? (Math.cos(tr.face) < 0 ? 0.16 : -0.16) : 0;
-          if (!drawSprite(ctx, 'boss_velsha', ix, iy + hover, {
+          if (!drawSprite(ctx, this.frame2('boss_velsha', e, false), ix, iy + hover, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: jit + lean + Math.sin(boss.animT * 1.4) * 0.03,
             sy: 1 + Math.sin(boss.animT * 2.8) * 0.02 + (boss.phase === 3 ? 0.03 : 0),
@@ -1760,7 +1760,7 @@ export class GameScene {
           }
           drawShadow(ctx, ix, iy, 14);
           const jit = b.state === 'telegraph' ? (Math.random() - 0.5) * 0.24 : 0;
-          if (!drawSprite(ctx, 'dunebeetle', ix, iy, {
+          if (!drawSprite(ctx, b.state === 'telegraph' ? 'dunebeetle_atk' : this.frame2('dunebeetle', e, true), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0, rot: jit,
             sy: 1 + Math.sin(b.animT * 3) * 0.04,
           })) blob(ix, iy, 14, '#c9a063');
@@ -1775,7 +1775,7 @@ export class GameScene {
           drawShadow(ctx, ix, iy, 8);
           const hover = Math.sin(d.animT * 5) * 3 - 8;
           const jit = d.state === 'aim' ? (Math.random() - 0.5) * 0.18 : 0;
-          if (!drawSprite(ctx, 'flamedancer', ix, iy + hover, {
+          if (!drawSprite(ctx, d.state === 'aim' ? 'flamedancer_atk' : this.frame2('flamedancer', e, false), ix, iy + hover, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: jit + Math.sin(d.animT * 4) * 0.1,
             sx: d.state === 'aim' ? 1.12 : 1,
@@ -1821,7 +1821,7 @@ export class GameScene {
         const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 12);
-          if (!drawSprite(ctx, 'duststinger', ix, iy, {
+          if (!drawSprite(ctx, s.state === 'aim' ? 'duststinger_atk' : this.frame2('duststinger', e, true), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             sx: s.state === 'aim' ? 1.15 : 1,
             sy: s.state === 'hop' ? 1.1 : 1 + Math.sin(s.animT * 3) * 0.04,
@@ -1848,7 +1848,7 @@ export class GameScene {
             return;
           }
           drawShadow(ctx, ix, iy, 30);
-          if (!drawSprite(ctx, 'boss_kazra', ix, iy, {
+          if (!drawSprite(ctx, this.frame2('boss_kazra', e, false), ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: Math.sin(boss.animT * 1.6) * 0.03,
             sy: 1 + Math.sin(boss.animT * 2.6) * 0.025 + (boss.phase === 3 ? 0.03 : 0),

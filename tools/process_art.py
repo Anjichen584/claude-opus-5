@@ -204,6 +204,7 @@ PAIRS = [
     "midboss_frosthuntress",  # 二章中 Boss 帧对(站立/引弓)
     "midboss_sandreaper",  # 三章中 Boss 帧对(站立/举刀)
     # 轮 31(动画批次:双帧补齐 10 怪,2026-09-30)
+    "boss_velsha", "boss_kazra",  # 章 Boss 双帧(轮 31 下半场)
     "leafwisp", "thornvine", "emberimp", "frostslime", "sparklizard",
     "toxintoad", "icespike", "iceglider", "mirageblossom", "emberwhirl",
 ]
