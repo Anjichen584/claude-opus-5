@@ -1,4 +1,5 @@
 import type { System, World } from '@engine/ecs/World';
+import { Pool, reapInto } from '@engine/core/Pool';
 import type { GameLoop } from '@engine/core/GameLoop';
 import type { Camera } from '@engine/render/Camera';
 import { sfx } from '@engine/audio/Sfx';
@@ -16,6 +17,8 @@ import { sprites } from '@engine/render/Sprites';
 
 interface Floater { x: number; y: number; vy: number; t: number; life: number; text: string; color: string; scale: number }
 interface Particle { x: number; y: number; vx: number; vy: number; t: number; life: number; color: string; size: number }
+
+const PARTICLE_CAP = 600; // 高峰保底:超过就不再生成(视觉上根本看不出少了)
 interface Slash { x: number; y: number; angle: number; stage: number; t: number; dur: number; rangePx: number; arcRad: number }
 interface Ghost { x: number; y: number; face: number; t: number; life: number }
 interface Beam { x: number; y: number; color: string; t: number; life: number; sprite: string | null }
@@ -28,6 +31,17 @@ interface Ring { x: number; y: number; radius: number; color: string; t: number;
 export class FeedbackSystem implements System {
   private floaters: Floater[] = [];
   private particles: Particle[] = [];
+  private particlePool = new Pool<Particle>(
+    () => ({ x: 0, y: 0, vx: 0, vy: 0, t: 0, life: 0, color: '', size: 0 }), PARTICLE_CAP,
+  );
+
+  /** 从池借一个粒子并填字段(超过上限直接不生成 —— 性能护栏) */
+  private spawnParticle(x: number, y: number, vx: number, vy: number, life: number, color: string, size: number): void {
+    if (this.particles.length >= PARTICLE_CAP) return;
+    const p = this.particlePool.acquire();
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.t = 0; p.life = life; p.color = color; p.size = size;
+    this.particles.push(p);
+  }
   private slashes: Slash[] = [];
   private ghosts: Ghost[] = [];
   private beams: Beam[] = [];
@@ -93,13 +107,8 @@ export class FeedbackSystem implements System {
       for (let i = 0; i < n; i++) {
         const a = hit.angle + (Math.random() - 0.5) * 1.6;
         const sp = 90 + Math.random() * 160;
-        this.particles.push({
-          x: hit.x, y: hit.y + 10,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
-          t: 0, life: 0.25 + Math.random() * 0.2,
-          color: elColor ?? (hit.crit ? '#ffd94f' : '#ffffff'),
-          size: 2 + Math.random() * 2,
-        });
+        this.spawnParticle(hit.x, hit.y + 10, Math.cos(a) * sp, Math.sin(a) * sp - 40,
+          0.25 + Math.random() * 0.2, elColor ?? (hit.crit ? '#ffd94f' : '#ffffff'), 2 + Math.random() * 2);
       }
     }
 
@@ -108,13 +117,8 @@ export class FeedbackSystem implements System {
       for (let i = 0; i < 14; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = 40 + Math.random() * 140;
-        this.particles.push({
-          x: kill.x, y: kill.y - 10,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
-          t: 0, life: 0.35 + Math.random() * 0.3,
-          color: Math.random() < 0.5 ? '#5fd068' : '#e8dcc0',
-          size: 2 + Math.random() * 3,
-        });
+        this.spawnParticle(kill.x, kill.y - 10, Math.cos(a) * sp, Math.sin(a) * sp - 60,
+          0.35 + Math.random() * 0.3, Math.random() < 0.5 ? '#5fd068' : '#e8dcc0', 2 + Math.random() * 3);
       }
     }
 
@@ -136,12 +140,8 @@ export class FeedbackSystem implements System {
       for (let i = 0; i < 16; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = 60 + Math.random() * 200;
-        this.particles.push({
-          x: rx.x, y: rx.y + 16,
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-          t: 0, life: 0.3 + Math.random() * 0.25,
-          color: rx.color, size: 2 + Math.random() * 3,
-        });
+        this.spawnParticle(rx.x, rx.y + 16, Math.cos(a) * sp, Math.sin(a) * sp,
+          0.3 + Math.random() * 0.25, rx.color, 2 + Math.random() * 3);
       }
     }
 
@@ -152,10 +152,8 @@ export class FeedbackSystem implements System {
       for (let i = 0; i < 6; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = 50 + Math.random() * 120;
-        this.particles.push({
-          x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
-          t: 0, life: 0.25 + Math.random() * 0.2, color: b.color, size: 2 + Math.random() * 2,
-        });
+        this.spawnParticle(b.x, b.y, Math.cos(a) * sp, Math.sin(a) * sp - 60,
+          0.25 + Math.random() * 0.2, b.color, 2 + Math.random() * 2);
       }
     }
 
@@ -218,7 +216,7 @@ export class FeedbackSystem implements System {
     for (const bu of this.bursts) bu.t += dt;
     for (const r of this.reactions) r.t += dt;
     this.floaters = this.floaters.filter((f) => f.t < f.life);
-    this.particles = this.particles.filter((p) => p.t < p.life);
+    reapInto(this.particles, (p) => p.t >= p.life, this.particlePool); // 池化:零分配淘汰
     this.slashes = this.slashes.filter((s) => s.t < s.dur);
     this.ghosts = this.ghosts.filter((g) => g.t < g.life);
     this.beams = this.beams.filter((b) => b.t < b.life);

@@ -5,6 +5,7 @@ import { COLORBLIND_NAMES, COLORBLIND_PALETTES, UI, applyColorblind } from '@gam
 import { meta } from '@game/meta/Save';
 import { ACTIONS, bindOf, keyLabel, resetBinds } from '@game/meta/Bindings';
 import { drawPanel9 } from '@game/gfx/nineSlice';
+import { exportCode, importCode } from '@game/meta/SaveCode';
 
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -16,6 +17,12 @@ const inside = (r: Rect, x: number, y: number): boolean =>
  * 所有改动即时生效并写入存档。
  */
 export class SettingsUI {
+  /** 底部即时反馈(导出/导入结果) */
+  private flash(msg: string): void {
+    this.codeMsg = msg;
+    this.codeMsgT = 2.5;
+  }
+
   open = false;
   /** 营地/标题打开时显示"返回标题"按钮(战斗中用暂停面板自己的放弃) */
   showQuitToTitle = false;
@@ -28,6 +35,11 @@ export class SettingsUI {
   private shakeBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private stopBar: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private cbRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private exportRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private importRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  /** 导出/导入的即时反馈文案(2.5s 自动消失) */
+  private codeMsg = '';
+  private codeMsgT = 0;
   private bindRects: Array<{ rect: Rect; id: string }> = [];
   private resetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private closeRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -106,6 +118,32 @@ export class SettingsUI {
     }
     if (inside(this.resetRect, mx, my)) {
       resetBinds();
+      return null;
+    }
+    if (inside(this.exportRect, mx, my)) {
+      const code = exportCode(meta.data);
+      // 剪贴板优先;不可用(http/老浏览器)退 prompt 让玩家手动复制
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        void navigator.clipboard.writeText(code).catch(() => window.prompt('复制你的存档码:', code));
+        this.flash('已复制到剪贴板 ✓');
+      } else {
+        window.prompt('复制你的存档码:', code);
+        this.flash('已生成存档码');
+      }
+      return null;
+    }
+    if (inside(this.importRect, mx, my)) {
+      const code = window.prompt('粘贴存档码(将覆盖当前存档):');
+      if (code === null || code.trim() === '') return null;
+      const res = importCode(code);
+      if (!res.ok || !res.data) {
+        this.flash(res.fail === 'checksum' ? '存档码不完整(校验失败)' : '存档码格式不对');
+        return null;
+      }
+      meta.data = res.data;
+      meta.save();
+      applyColorblind(meta.data.settings.colorblind);
+      this.flash('导入成功 ✓(部分改动重启后生效)');
       return null;
     }
     if (this.showQuitToTitle && inside(this.titleRect, mx, my)) {
@@ -241,10 +279,19 @@ export class SettingsUI {
       return r;
     };
     this.resetRect = btn('恢复默认键位', px + 28, 160, false);
+    this.exportRect = btn('导出存档码', px + 200, 120, false);
+    this.importRect = btn('导入存档码', px + 332, 120, false);
     if (this.showQuitToTitle) {
       this.titleRect = btn('返回标题', px + pw / 2 - 60, 120, false);
     }
     this.closeRect = btn('✓ 返回', px + pw - 28 - 140, 140, true);
+    if (this.codeMsgT > 0) {
+      this.codeMsgT -= 1 / 60;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = UI.gold;
+      ctx.font = '12px monospace';
+      ctx.fillText(this.codeMsg, px + 28, py + ph - 66);
+    }
     ctx.restore();
   }
 }
