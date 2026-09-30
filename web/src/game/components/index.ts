@@ -586,6 +586,15 @@ export class MidBossReaper {
   spawnY = 0;
 }
 
+/** 风叶精:一章第 9 怪 —— 乘风的风筝射手,风带里移速翻倍(轮 17) */
+export class LeafWisp {
+  state: 'drift' | 'aim' = 'drift';
+  t = 0;
+  cd = 1.2 + Math.random();
+  strafeDir = Math.random() < 0.5 ? 1 : -1;
+  animT = Math.random() * 10;
+}
+
 /** 冰锥笋:二章炮台怪 —— 不动,在玩家脚下点冰锥(轮 11) */
 export class IceSpike {
   cd = 1.2 + Math.random() * 0.8;

@@ -73,6 +73,7 @@ export const ENEMY_HINT: Record<string, string> = {
   iceturtle: '旋壳冲撞;正面减伤 50%,打背后',
   blizzardhawk: '环绕盘旋 → 定住 → 俯冲',
   frostmage: '保持距离,吟唱冰弹',
+  leafwisp: '乘风的射手:风带里跑得飞快,把它逼出风带',
   icespike: '不动的炮台:脚下会冒冰锥,走近拍碎它',
   iceglider: '高速滑行,转弯半径大 —— 急转甩开它',
   cinderrat: 'Z 字高速贴脸',

@@ -117,6 +117,12 @@ namespace StarfallKnights.Dungeon
                     case EnemyKind.SnowPuff: SnowPuff(w, e, st, dt, slow); break;
                     case EnemyKind.IceTurtle: IceTurtle(w, e, st, dt, slow); break;
                     case EnemyKind.BlizzardHawk: BlizzardHawk(w, e, st, dt, slow); break;
+                    case EnemyKind.LeafWisp: Kiter(w, e, st, dt, slow,
+                        Bestiary.LeafWispKeepMinM, Bestiary.LeafWispKeepMaxM,
+                        Bestiary.LeafWispBoltCd, Bestiary.LeafWispBoltAimS,
+                        Bestiary.LeafWispBoltSpeedM, Bestiary.LeafWispBoltRadiusM,
+                        Bestiary.LeafWispBoltMult, Bestiary.LeafWispBoltLifeS,
+                        null, 1); break;
                     case EnemyKind.IceSpike: IceSpike(w, e, st, dt); break;
                     case EnemyKind.IceGlider: IceGlider(w, e, st, dt, slow); break;
                     case EnemyKind.FrostMage: Kiter(w, e, st, dt, slow,
@@ -417,7 +423,7 @@ namespace StarfallKnights.Dungeon
         /// <summary>风筝型(烬火小鬼/霜语法师):保持距离 + 蓄力弹。</summary>
         private static void Kiter(LogicWorld w, Actor e, MobState st, float dt, float slow,
             float keepMin, float keepMax, float cd, float aimS, float speedM, float radiusM,
-            float mult, float lifeS, Element element, int shots)
+            float mult, float lifeS, Element? element, int shots)
         {
             var s = Bestiary.Of(e.Kind);
             var (dx, dy, dist, nx, ny) = ToPlayer(w, e);

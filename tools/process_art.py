@@ -20,6 +20,7 @@ TARGETS = {
     "arcanist": 46,
     "warden": 48,
     "npc_merchant": 44,  # 流浪商人(轮 29:微驼背设定,比英雄矮 2px)
+    "leafwisp": 22,       # 风叶精(轮 17:小体型飘浮灵)
     "icespike": 26,       # 冰锥笋(轮 11:炮台,矮)
     "iceglider": 30,      # 霜刃滑手(轮 11:低伏的速度体)
     "mirageblossom": 30,  # 沙蜃花(轮 11:伏击花)

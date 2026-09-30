@@ -17,7 +17,7 @@
 
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
-import { insideIce, insideWater, type FloorFeature, type LayoutResult } from '@game/dungeon/RoomLayouts';
+import { insideIce, insideWater, insideWind, type FloorFeature, type LayoutResult } from '@game/dungeon/RoomLayouts';
 
 const T = balance.layouts.terrain;
 
@@ -40,7 +40,7 @@ class TerrainState {
   setFromLayout(layout: LayoutResult | null): void {
     const f = layout?.floor ?? null;
     // 机制地形认水/冰/沙;其余(苔/土路)仍是纯观感,不进状态
-    this.floor = f !== null && (f.kind === 'water' || f.kind === 'ice' || f.kind === 'sand') ? f : null;
+    this.floor = f !== null && (f.kind === 'water' || f.kind === 'ice' || f.kind === 'sand' || f.kind === 'wind') ? f : null;
     this.hasWater = this.floor !== null && this.floor.kind === 'water';
     this.hasIce = this.floor !== null && this.floor.kind === 'ice';
     // 沙暴默认关:沙地板一二章也有(石柱阵/环形),只有三章由 RunManager 开
@@ -109,6 +109,17 @@ class TerrainState {
   }
 
   /** 像素坐标是否在冰面上(轮 12:冰面只改"手感",不改速度上限与元素) */
+  /** 像素坐标是否在风带里(轮 17:带内所有实体吃 +x 方向推力) */
+  isWind(xPx: number, yPx: number): boolean {
+    if (this.floor === null) return false;
+    return insideWind(this.floor, xPx / M, yPx / M);
+  }
+
+  /** 风带推力(米/秒,方向 +x;不在风带 = 0) */
+  windPush(xPx: number, yPx: number): number {
+    return this.isWind(xPx, yPx) ? T.windPushM : 0;
+  }
+
   isIce(xPx: number, yPx: number): boolean {
     if (this.floor === null) return false;
     return insideIce(this.floor, xPx / M, yPx / M);

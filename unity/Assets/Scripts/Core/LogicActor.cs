@@ -22,6 +22,7 @@ namespace StarfallKnights.Core
         IceGlider,
         MirageBlossom,
         EmberWhirl,
+        LeafWisp,
         // Boss
         BossNanmir, BossVelsha, BossKazra,
     }

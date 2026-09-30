@@ -28,6 +28,7 @@ namespace StarfallKnights.Dungeon
         public const float StormActiveS = 4.0f;    // 沙暴循环:暴的时长
         public const float StormProjAgeMul = 1.6f; // 暴中投射物衰老乘区(射程缩短,双方公平)
         public const float StormNoticeS = 2.5f;    // 起暴提示的冷却
+        public const float WindPushM = 1.6f;       // 风带推力(米/秒,方向 +x;轮 17)
         public const float TreeHp = 80f;
         public const float RockHp = 120f;
 
@@ -44,6 +45,7 @@ namespace StarfallKnights.Dungeon
             { "layouts.terrain.stormActiveS", StormActiveS },
             { "layouts.terrain.stormProjAgeMul", StormProjAgeMul },
             { "layouts.terrain.stormNoticeS", StormNoticeS },
+            { "layouts.terrain.windPushM", WindPushM },
             { "props.tree.hp", TreeHp },
             { "props.rock.hp", RockHp },
         };

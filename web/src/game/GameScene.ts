@@ -15,7 +15,9 @@ import {
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
   EmberWhirl,
   IceGlider,
+
   IceSpike,
+  LeafWisp,
   MidBossHuntress,
   MidBossReaper,
   MidBossStag,
@@ -1404,6 +1406,21 @@ export class GameScene {
       }
 
       // ---- 第二章:冰原怪 ----
+      // ---- 风叶精(轮 17):乘风射手,飘 ----
+      for (const e of w.query(LeafWisp, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const wsp = w.mustGet(e, LeafWisp);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 8);
+          const hover = Math.sin(wsp.animT * 3.2) * 3;
+          if (!drawSprite(ctx, 'leafwisp', ix, iy + hover, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: Math.sin(wsp.animT * 2.4) * 0.12,
+          })) blob(ix, iy + hover, 9, '#a4cf7d');
+        } });
+      }
       // ---- 冰锥笋(轮 11):炮台,蓄冰时微颤 ----
       for (const e of w.query(IceSpike, Transform, Health)) {
         const tr = w.mustGet(e, Transform);

@@ -1,14 +1,16 @@
 import type { System, World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
+import { terrain } from '@game/dungeon/Terrain';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
-  Body, Buffs, EmberImp, FrostSlime, Player, Projectile, SfxEvent, SparkLizard,
+  Body, Buffs, EmberImp, Faction, FrostSlime, LeafWisp, Player, Projectile, SfxEvent, SparkLizard,
   StardustSprite, Stats, ToxinToad, Transform, Velocity, Zone,
 } from '@game/components';
 import { PlayerSystem } from './PlayerSystem';
 
 const IMP = balance.enemies.emberimp;
+const WISP = balance.enemies.leafwisp;
 const SLIME = balance.enemies.frostslime;
 const LIZ = balance.enemies.sparklizard;
 const TOAD = balance.enemies.toxintoad;
@@ -30,6 +32,7 @@ export class CritterSystem implements System {
     const pr = (pBody?.radius ?? 0.3) * M;
 
     this.imps(world, dt, ptr, pAlive);
+    this.wisps(world, dt, ptr, pAlive);
     this.slimes(world, dt, pe, ptr, pr, pAlive);
     this.lizards(world, dt, pe, ptr, pr, pAlive);
     this.toads(world, dt, pe, ptr, pr, pAlive);
@@ -37,6 +40,59 @@ export class CritterSystem implements System {
   }
 
   // ---- 烬火小鬼:保持射程带,漂移扫射 ----
+  // ---- 风叶精(轮 17):风筝射手;站在风带里移速 ×windBoostMul(教玩家读风带) ----
+  private wisps(world: World, dt: number, ptr: Transform, pAlive: boolean): void {
+    for (const e of world.query(LeafWisp, Transform, Velocity, Stats)) {
+      const wsp = world.mustGet(e, LeafWisp);
+      const tr = world.mustGet(e, Transform);
+      const vel = world.mustGet(e, Velocity);
+      const stats = world.mustGet(e, Stats);
+      const buffs = world.get(e, Buffs);
+      wsp.animT += dt;
+      vel.vx = 0;
+      vel.vy = 0;
+      if ((buffs && buffs.stunT > 0) || !pAlive) continue;
+      const slow = buffs && buffs.slowT > 0 ? 1 - buffs.slowPct : 1;
+      const dx = ptr.x - tr.x;
+      const dy = ptr.y - tr.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      tr.face = Math.atan2(dy, dx);
+      const boost = terrain.isWind(tr.x, tr.y) ? WISP.windBoostMul : 1;
+
+      if (wsp.state === 'aim') {
+        wsp.t -= dt;
+        if (wsp.t <= 0) {
+          const p = world.create();
+          world.add(p, new Transform(tr.x + nx * 10, tr.y - 10 + ny * 10));
+          const pv = new Velocity();
+          pv.vx = nx * WISP.bolt.speedM * M;
+          pv.vy = ny * WISP.bolt.speedM * M;
+          world.add(p, pv);
+          world.add(p, new Faction('enemy'));
+          world.add(p, new Projectile('enemy', stats.atk, WISP.bolt.mult, null, WISP.bolt.radiusM * M, WISP.bolt.lifeS, '#a4cf7d'));
+          world.emit(new SfxEvent('shot'));
+          wsp.state = 'drift';
+          wsp.cd = WISP.bolt.cd;
+        }
+        continue;
+      }
+      let mx = 0;
+      let my = 0;
+      if (dist < WISP.keepMinM * M) { mx = -nx; my = -ny; }
+      else if (dist > WISP.keepMaxM * M) { mx = nx; my = ny; }
+      else { mx = -ny * wsp.strafeDir; my = nx * wsp.strafeDir; }
+      vel.vx = mx * stats.moveSpeed * boost * M * slow;
+      vel.vy = my * stats.moveSpeed * boost * M * slow;
+      wsp.cd -= dt;
+      if (wsp.cd <= 0 && dist < (WISP.keepMaxM + 1.5) * M) {
+        wsp.state = 'aim';
+        wsp.t = WISP.bolt.aimS;
+      }
+    }
+  }
+
   private imps(world: World, dt: number, ptr: Transform, pAlive: boolean): void {
     for (const e of world.query(EmberImp, Transform, Velocity, Stats)) {
       const imp = world.mustGet(e, EmberImp);

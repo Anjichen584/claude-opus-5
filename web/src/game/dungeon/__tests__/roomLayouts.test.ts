@@ -26,9 +26,9 @@ const minPairDist = (props: readonly PlacedProp[]): number => {
 };
 
 describe('房间布局模板', () => {
-  it('14 个模板都有中文名,且都能摆出东西', () => {
-    expect(LAYOUT_IDS).toHaveLength(14);
-    expect(new Set(LAYOUT_IDS).size).toBe(14);
+  it('15 个模板都有中文名,且都能摆出东西', () => {
+    expect(LAYOUT_IDS).toHaveLength(15);
+    expect(new Set(LAYOUT_IDS).size).toBe(15);
     for (const id of LAYOUT_IDS) {
       expect(LAYOUT_LABELS[id]).toBeTruthy();
       const res = buildLayout(id, ctxOf(7));
@@ -259,7 +259,7 @@ describe('房间类型 → 模板', () => {
 });
 
 describe('地面装饰', () => {
-  it('14 个模板都有地面定义,band/blob 尺寸合法', () => {
+  it('15 个模板都有地面定义,band/blob 尺寸合法', () => {
     for (const id of LAYOUT_IDS) {
       const f = floorOf(id, W, H);
       expect(f.shape === 'band' || f.shape === 'blob').toBe(true);

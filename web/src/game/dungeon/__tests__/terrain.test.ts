@@ -425,3 +425,116 @@ describe('沙暴视野 · 飞行物射程缩短(双方公平)', () => {
     expect(w2.count(Projectile), '晴天同帧数它还活着').toBe(1);
   });
 });
+
+/* ================= 风带推力(轮 17) ================= */
+
+import { LeafWisp } from '@game/components';
+import { CritterSystem } from '@game/systems/CritterSystem';
+import { insideWind } from '@game/dungeon/RoomLayouts';
+
+const WIND_FLOOR = { kind: 'wind', shape: 'band', xM: 13, yM: 8, wM: 22, hM: 4.5 } as const;
+const windLayout = { id: 'windrun', label: '风走廊', props: [], floor: WIND_FLOOR } as never;
+const WISP = balance.enemies.leafwisp;
+
+describe('风带推力 · 数据与几何', () => {
+  it('balance 有 windPushM;风走廊入模板池(一章战斗房可抽)', () => {
+    expect(T.windPushM).toBeGreaterThan(0);
+    expect(balance.layouts.byKind.battle).toContain('windrun');
+    expect((balance.layouts.chapterWeights as Record<string, Record<string, number>>)['1'].windrun).toBeGreaterThan(0);
+  });
+  it('insideWind 带状判定;buildLayout(windrun) 不再回退 scatter', () => {
+    expect(insideWind(WIND_FLOOR, 13, 8)).toBe(true);
+    expect(insideWind(WIND_FLOOR, 13, 8 + 3)).toBe(false);
+    const built = buildLayout('windrun', ctxOf(3));
+    expect(built.id).toBe('windrun');
+    expect(built.floor.kind).toBe('wind');
+  });
+});
+
+describe('风带推力 · 物理(所有实体一起被吹)', () => {
+  it('带内实体被 +x 匀速推;带外不吹;速度归零也会漂', () => {
+    terrain.setFromLayout(windLayout);
+    const w = new World();
+    const e = w.create();
+    w.add(e, new Transform(13 * M, 8 * M));
+    w.add(e, new Velocity());
+    w.add(e, new Body(0.3));
+    const phys = new PhysicsSystem();
+    for (let i = 0; i < 60; i++) phys.update(w, 1 / 60);
+    const drift = w.mustGet(e, Transform).x - 13 * M;
+    expect(drift, '1s 被吹 ≈ windPushM 米').toBeGreaterThan(T.windPushM * M * 0.9);
+
+    const e2 = w.create();
+    w.add(e2, new Transform(13 * M, 14 * M)); // 带外
+    w.add(e2, new Velocity());
+    w.add(e2, new Body(0.3));
+    for (let i = 0; i < 60; i++) phys.update(w, 1 / 60);
+    expect(w.mustGet(e2, Transform).x, '带外纹丝不动').toBeCloseTo(13 * M, 3);
+    terrain.clear();
+  });
+});
+
+describe('风叶精(一章第 9 怪)', () => {
+  it('风带里移速 ×windBoostMul(它教玩家读风带)', () => {
+    expect(WISP.windBoostMul).toBeGreaterThan(1);
+    terrain.setFromLayout(windLayout);
+    const mk = (y: number) => {
+      const w = new World();
+      const pe = w.create();
+      w.add(pe, new Transform(20 * M, y));
+      w.add(pe, new Velocity());
+      w.add(pe, new Body(0.3));
+      w.add(pe, new Health(200));
+      w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+      w.add(pe, new Faction('player'));
+      w.add(pe, new Player());
+      const e = w.create();
+      w.add(e, new Transform(2 * M, y));
+      w.add(e, new Velocity());
+      w.add(e, new Body(WISP.bodyRadius));
+      w.add(e, new Health(WISP.hp));
+      w.add(e, new Stats(WISP.atk, WISP.speed, 0, 1, 0));
+      w.add(e, new Faction('enemy'));
+      const c = new LeafWisp();
+      c.cd = 99;
+      w.add(e, c);
+      return { w, e };
+    };
+    const sys = new CritterSystem();
+    const inWind = mk(8 * M);   // 带内(远离玩家 → 直线逼近)
+    const outWind = mk(14 * M); // 带外
+    for (let i = 0; i < 60; i++) {
+      sys.update(inWind.w, 1 / 60);
+      sys.update(outWind.w, 1 / 60);
+    }
+    const vIn = Math.hypot(inWind.w.mustGet(inWind.e, Velocity).vx, inWind.w.mustGet(inWind.e, Velocity).vy);
+    const vOut = Math.hypot(outWind.w.mustGet(outWind.e, Velocity).vx, outWind.w.mustGet(outWind.e, Velocity).vy);
+    expect(vIn / vOut, '带内速度 ≈ ×boost').toBeCloseTo(WISP.windBoostMul, 1);
+    terrain.clear();
+  });
+
+  it('风筝射手:冷却到了会瞄准并射一发叶刃', () => {
+    const w = new World();
+    const pe = w.create();
+    w.add(pe, new Transform(300 + 4 * M, 300));
+    w.add(pe, new Velocity());
+    w.add(pe, new Body(0.3));
+    w.add(pe, new Health(200));
+    w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+    w.add(pe, new Faction('player'));
+    w.add(pe, new Player());
+    const e = w.create();
+    w.add(e, new Transform(300, 300));
+    w.add(e, new Velocity());
+    w.add(e, new Body(WISP.bodyRadius));
+    w.add(e, new Health(WISP.hp));
+    w.add(e, new Stats(WISP.atk, WISP.speed, 0, 1, 0));
+    w.add(e, new Faction('enemy'));
+    const c = new LeafWisp();
+    c.cd = 0.05;
+    w.add(e, c);
+    const sys = new CritterSystem();
+    for (let i = 0; i < 60; i++) sys.update(w, 1 / 60);
+    expect(w.count(Projectile), '叶刃射出来了').toBeGreaterThanOrEqual(1);
+  });
+});

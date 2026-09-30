@@ -90,7 +90,7 @@ namespace StarfallKnights.Tests
             all.AddRange(RoomLayouts.Combat);
             all.AddRange(RoomLayouts.BossRoom);
             all.AddRange(RoomLayouts.Calm);
-            Check(all.Count == 14, $"14 个模板(战斗 12 + Boss + 静谧,实际 {all.Count})");
+            Check(all.Count == 15, $"15 个模板(战斗 13 + Boss + 静谧,实际 {all.Count})");
             Check(new HashSet<string>(all).Count == all.Count, "模板名无重复");
             Check(RoomLayouts.IsKnown("narrow") && RoomLayouts.IsKnown("boss") && RoomLayouts.IsKnown("calm"), "IsKnown 认得出已知模板");
             Check(!RoomLayouts.IsKnown("volcano") && !RoomLayouts.IsKnown(""), "IsKnown 拒绝未知模板(运行时不留 undefined)");
@@ -161,7 +161,7 @@ namespace StarfallKnights.Tests
             Check(RoomLayouts.EntryClearXM > 2.5f && RoomLayouts.ExitClearXM > 2.5f, "出入口净空盖住玩家落点/传送门");
             Check(RoomLayouts.MaxLooseSolids < RoomLayouts.MaxProps && RoomLayouts.MaxProps >= RoomLayouts.MaxWallProps,
                 "物件上限自洽(散件 < 总数,Boss 场留白不超上限)");
-            Check(RoomLayouts.Parity.Count == 40, $"layouts 段镜像 40 个数值键(实际 {RoomLayouts.Parity.Count})");
+            Check(RoomLayouts.Parity.Count == 42, $"layouts 段镜像 42 个数值键(实际 {RoomLayouts.Parity.Count})");
             Check(RoomLayouts.DoorM > 2f * (Balance.RockBodyRadius + BestiaryPlayer.PlayerBodyRadius)
                   || RoomLayouts.DoorM > 1.44f, "门洞净宽能过玩家");
             Check(RoomLayouts.CenterFreeM > BestiaryPlayer.PlayerBodyRadius * 2f, "中央净空容得下走位");
@@ -1685,8 +1685,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 28 && Codex.RuneTotal == 36,
-                $"条目总数 28 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 29 && Codex.RuneTotal == 36,
+                $"条目总数 29 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1750,7 +1750,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 28, $"图鉴覆盖 28 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 29, $"图鉴覆盖 29 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {

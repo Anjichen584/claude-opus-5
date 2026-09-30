@@ -9,10 +9,10 @@ import {
 import { defaultSave, migrateSave } from '../migrations';
 
 describe('图鉴条目表', () => {
-  it('怪物条目 = balance.enemies + boss.nanmir,共 28 条(22 杂兵 + 3 中 Boss + 3 章 Boss)', () => {
+  it('怪物条目 = balance.enemies + boss.nanmir,共 29 条(23 杂兵 + 3 中 Boss + 3 章 Boss)', () => {
     const jsonCount = Object.keys(balance.enemies).length + 1; // + boss.nanmir
     expect(ENEMY_TOTAL).toBe(jsonCount);
-    expect(ENEMY_TOTAL).toBe(28);
+    expect(ENEMY_TOTAL).toBe(29);
   });
 
   it('符文条目 = pool.json 全量,共 36 条', () => {
@@ -61,7 +61,7 @@ describe('收录与进度', () => {
   it('空图鉴:一条都没收录,收录率 0', () => {
     const c = emptyCodex();
     const p = codexProgress(c);
-    expect(p).toEqual({ enemyFound: 0, enemyTotal: 28, runeFound: 0, runeTotal: 36 });
+    expect(p).toEqual({ enemyFound: 0, enemyTotal: 29, runeFound: 0, runeTotal: 36 });
     expect(codexPct(c)).toBe(0);
   });
 

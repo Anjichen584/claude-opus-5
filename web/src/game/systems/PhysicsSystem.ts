@@ -51,6 +51,8 @@ export class PhysicsSystem implements System {
         tr.x += vel.vx * t * dt;
         tr.y += vel.vy * t * dt;
       }
+      // 风带推力(轮 17):带内所有实体一起被吹(+x;顺风快逆风慢是涌现,不另写规则)
+      tr.x += terrain.windPush(tr.x, tr.y) * M * dt;
     }
 
     // 重建哈希

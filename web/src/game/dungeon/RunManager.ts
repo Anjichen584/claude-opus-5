@@ -5,7 +5,7 @@ import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
   DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
-  EmberWhirl, FrostMage, FrostSlime, Health, IceGlider, IceSpike, IceTurtle, MidBossHuntress,
+  EmberWhirl, FrostMage, FrostSlime, Health, IceGlider, IceSpike, IceTurtle, LeafWisp, MidBossHuntress,
   MidBossReaper, MidBossStag, MirageBlossom, SnowPuff,
   OakGolem, Merchant, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
@@ -29,6 +29,7 @@ export type RoomKind = 'battle' | 'treasure' | 'elite' | 'midboss' | 'boss' | 's
 
 type SpawnKind =
   | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem' | 'midboss_mossstag' | 'midboss_frosthuntress' | 'midboss_sandreaper'
+  | 'leafwisp'
   | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite'
   | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage' | 'icespike' | 'iceglider'
   | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger' | 'mirageblossom' | 'emberwhirl';
@@ -330,6 +331,7 @@ export class RunManager {
         world.count(EmberImp) + world.count(FrostSlime) + world.count(SparkLizard) +
         world.count(ToxinToad) + world.count(SnowPuff) + world.count(IceTurtle) +
         world.count(IceSpike) + world.count(IceGlider) + world.count(MirageBlossom) + world.count(EmberWhirl) +
+        world.count(LeafWisp) +
         world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha) +
         world.count(CinderRat) + world.count(DuneBeetle) + world.count(FlameDancer) +
         world.count(DustStinger) + world.count(BossKazra) +
@@ -452,6 +454,7 @@ export class RunManager {
       : [
           ['shroomling', 30, 1, 0],
           ['windbee', 22, 1, 0],
+          ['leafwisp', 16, 1, 1], // 风叶精(乘风射手,轮 17)
           ['frostslime', 16, 2, 1],
           ['sparklizard', 14, 1, 1],
           ['emberimp', 14, 2, 2],
@@ -539,6 +542,7 @@ export class RunManager {
       case 'blightwolf': world.add(e, new BlightWolf()); break;
       case 'thornvine': world.add(e, new ThornVine()); break;
       case 'oakgolem': world.add(e, new OakGolem()); break;
+      case 'leafwisp': world.add(e, new LeafWisp()); break;
       case 'emberimp': world.add(e, new EmberImp()); break;
       case 'frostslime': world.add(e, new FrostSlime()); break;
       case 'sparklizard': world.add(e, new SparkLizard()); break;

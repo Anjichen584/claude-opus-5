@@ -16,7 +16,7 @@ namespace StarfallKnights.Dungeon
         public static readonly string[] Combat =
         {
             "scatter", "pillars", "grove", "lane", "narrow", "ring", "shore",
-            "icefield", "drift", "crystal", "dunes", "ruins",
+            "icefield", "drift", "crystal", "dunes", "ruins", "windrun",
         };
 
         /// <summary>精英房偏好有地形的模板(不出散布/沙丘带这类"平场")</summary>
@@ -110,6 +110,7 @@ namespace StarfallKnights.Dungeon
             { "layouts.doorM", DoorM },
             { "layouts.centerFreeM", CenterFreeM },
             { "layouts.ruinsWallSpacingM", RuinsWallSpacingM },
+            { "layouts.combatWeights.windrun", 12f },
             { "layouts.combatWeights.scatter", 20f },
             { "layouts.combatWeights.pillars", 16f },
             { "layouts.combatWeights.grove", 14f },
@@ -125,6 +126,7 @@ namespace StarfallKnights.Dungeon
             { "layouts.chapterWeights.1.narrow", 14f },
             { "layouts.chapterWeights.1.ring", 12f },
             { "layouts.chapterWeights.1.shore", 10f },
+            { "layouts.chapterWeights.1.windrun", 12f },
             { "layouts.chapterWeights.2.icefield", 18f },
             { "layouts.chapterWeights.2.drift", 16f },
             { "layouts.chapterWeights.2.crystal", 14f },

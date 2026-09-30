@@ -28,6 +28,7 @@ namespace StarfallKnights.Data
             { EnemyKind.Shroomling, new Stat("shroomling", 45f, 8f, 2f, 2f, 0.28f, 0.8f) },
             { EnemyKind.WindBee, new Stat("windbee", 18f, 6f, 0f, 5.5f, 0.18f, 0.8f) },
             { EnemyKind.BlightWolf, new Stat("blightwolf", 90f, 14f, 4f, 4.8f, 0.34f, 0.8f) },
+            { EnemyKind.LeafWisp, new Stat("风叶精", 26f, 8f, 0f, 2.4f, 0.28f, 0.8f) },
             { EnemyKind.ThornVine, new Stat("thornvine", 70f, 12f, 3f, 0f, 0.3f, 0.8f) },
             { EnemyKind.OakGolem, new Stat("oakgolem", 320f, 18f, 8f, 1.6f, 0.5f, 0.8f) },
             { EnemyKind.EmberImp, new Stat("烬火小鬼", 34f, 9f, 0f, 2.6f, 0.28f, 0.8f) },
@@ -156,6 +157,34 @@ namespace StarfallKnights.Data
         public const float BlightWolfRecoverS = 0.8f;
         /// <summary>blightwolf.touchCooldown</summary>
         public const float BlightWolfTouchCooldown = 1.2f;
+        /// <summary>leafwisp.hp</summary>
+        public const float LeafWispHp = 26f;
+        /// <summary>leafwisp.atk</summary>
+        public const float LeafWispAtk = 8f;
+        /// <summary>leafwisp.def</summary>
+        public const float LeafWispDef = 0f;
+        /// <summary>leafwisp.speed</summary>
+        public const float LeafWispSpeed = 2.4f;
+        /// <summary>leafwisp.bodyRadius</summary>
+        public const float LeafWispBodyRadius = 0.28f;
+        /// <summary>leafwisp.keepMinM</summary>
+        public const float LeafWispKeepMinM = 3f;
+        /// <summary>leafwisp.keepMaxM</summary>
+        public const float LeafWispKeepMaxM = 5.5f;
+        /// <summary>leafwisp.bolt.cd</summary>
+        public const float LeafWispBoltCd = 2.2f;
+        /// <summary>leafwisp.bolt.aimS</summary>
+        public const float LeafWispBoltAimS = 0.4f;
+        /// <summary>leafwisp.bolt.speedM</summary>
+        public const float LeafWispBoltSpeedM = 5.6f;
+        /// <summary>leafwisp.bolt.radiusM</summary>
+        public const float LeafWispBoltRadiusM = 0.26f;
+        /// <summary>leafwisp.bolt.lifeS</summary>
+        public const float LeafWispBoltLifeS = 1.3f;
+        /// <summary>leafwisp.bolt.mult</summary>
+        public const float LeafWispBoltMult = 0.8f;
+        /// <summary>leafwisp.windBoostMul</summary>
+        public const float LeafWispWindBoostMul = 1.8f;
         /// <summary>thornvine.hp</summary>
         public const float ThornVineHp = 70f;
         /// <summary>thornvine.atk</summary>
@@ -1397,6 +1426,20 @@ namespace StarfallKnights.Data
             { "blightwolf.pounceDur", BlightWolfPounceDur },
             { "blightwolf.recoverS", BlightWolfRecoverS },
             { "blightwolf.touchCooldown", BlightWolfTouchCooldown },
+            { "leafwisp.hp", LeafWispHp },
+            { "leafwisp.atk", LeafWispAtk },
+            { "leafwisp.def", LeafWispDef },
+            { "leafwisp.speed", LeafWispSpeed },
+            { "leafwisp.bodyRadius", LeafWispBodyRadius },
+            { "leafwisp.keepMinM", LeafWispKeepMinM },
+            { "leafwisp.keepMaxM", LeafWispKeepMaxM },
+            { "leafwisp.bolt.cd", LeafWispBoltCd },
+            { "leafwisp.bolt.aimS", LeafWispBoltAimS },
+            { "leafwisp.bolt.speedM", LeafWispBoltSpeedM },
+            { "leafwisp.bolt.radiusM", LeafWispBoltRadiusM },
+            { "leafwisp.bolt.lifeS", LeafWispBoltLifeS },
+            { "leafwisp.bolt.mult", LeafWispBoltMult },
+            { "leafwisp.windBoostMul", LeafWispWindBoostMul },
             { "thornvine.hp", ThornVineHp },
             { "thornvine.atk", ThornVineAtk },
             { "thornvine.def", ThornVineDef },

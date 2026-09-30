@@ -994,7 +994,7 @@ namespace StarfallKnights.Tests
                     if (Math.Abs(TerrainRules.PropHp(kind) - json) > Tol) { mechBad++; check(false, $"障碍耐久不一致:{kind}(JSON={json} vs C#={TerrainRules.PropHp(kind)})"); }
                 }
             }
-            check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(12 个键)");
+            check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(13 个键)");
 
             // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
             near(BestiaryPlayer.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");
@@ -1287,6 +1287,7 @@ namespace StarfallKnights.Tests
                 case "iceglider": return Core.EnemyKind.IceGlider;
                 case "mirageblossom": return Core.EnemyKind.MirageBlossom;
                 case "emberwhirl": return Core.EnemyKind.EmberWhirl;
+                case "leafwisp": return Core.EnemyKind.LeafWisp;
                 case "boss_velsha": return Core.EnemyKind.BossVelsha;
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;

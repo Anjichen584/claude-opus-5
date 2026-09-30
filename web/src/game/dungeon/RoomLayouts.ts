@@ -39,7 +39,7 @@ export interface Reserved {
 
 export const LAYOUT_IDS = [
   // 第一章(翠语林地)
-  'scatter', 'pillars', 'grove', 'lane', 'narrow', 'ring', 'shore',
+  'scatter', 'pillars', 'grove', 'lane', 'narrow', 'ring', 'shore', 'windrun',
   // 第二章(霜语冰原)
   'icefield', 'drift', 'crystal',
   // 第三章(烬语荒漠)
@@ -63,11 +63,12 @@ export const LAYOUT_LABELS: Record<LayoutId, string> = {
   drift: '雪丘夹道',
   crystal: '晶簇洞',
   dunes: '沙丘起伏',
+  windrun: '风走廊',
   ruins: '荒漠废墟',
 };
 
 /** 地面装饰:只影响背景烘焙,不参与碰撞(浅滩是可以趟过去的) */
-export type FloorKind = 'none' | 'water' | 'moss' | 'sand' | 'path' | 'ice';
+export type FloorKind = 'none' | 'water' | 'moss' | 'sand' | 'path' | 'ice' | 'wind';
 export interface FloorFeature {
   readonly kind: FloorKind;
   readonly shape: 'band' | 'blob';
@@ -136,6 +137,15 @@ export function insideIce(floor: FloorFeature, xM: number, yM: number): boolean 
   const dx = (xM - floor.xM) / rx;
   const dy = (yM - floor.yM) / ry;
   return dx * dx + dy * dy <= 1;
+}
+
+/** 该点是否落在"风带"里(带状,方向 = +x;轮 17 推力地形) */
+export function insideWind(floor: FloorFeature, xM: number, yM: number): boolean {
+  if (floor.kind !== 'wind' || floor.shape !== 'band') return false;
+  return (
+    Math.abs(xM - floor.xM) <= floor.wM / 2 &&
+    Math.abs(yM - floor.yM) <= floor.hM / 2
+  );
 }
 
 /** 该点是否落在"浅滩"水面里(水面不立树/石) */
@@ -280,6 +290,20 @@ const tmplRing = (ctx: LayoutCtx): Prop[] => {
   }
   const inner = dust(ctx, 'bush', 3, cx - rad * 0.4, cx + rad * 0.4, cy - rad * 0.4, cy + rad * 0.4);
   return [...out, ...inner];
+};
+
+/** 风走廊(轮 17):中央一条横贯的风带(推力地形),带内净空,树石只在上下岸 */
+const tmplWindrun = (ctx: LayoutCtx): Prop[] => {
+  const [W, H] = [ctx.widthM, ctx.heightM];
+  const bandH = 4.5;
+  const top = H / 2 - bandH / 2;
+  const bot = H / 2 + bandH / 2;
+  return [
+    ...dust(ctx, 'bush', 4, 6, W - 5, top - 0.8, top - 0.3),
+    ...dust(ctx, 'bush', 4, 6, W - 5, bot + 0.3, bot + 0.8),
+    ...dust(ctx, 'tree', 3, 6, W - 5, 2, top - 1.2),
+    ...dust(ctx, 'rock', 3, 6, W - 5, bot + 1.2, H - 2),
+  ];
 };
 
 /** 溪畔浅滩:一条横穿房间的水带(可趟过),两岸芦苇,树石只长在陆上 */
@@ -445,6 +469,7 @@ const TEMPLATES: Record<LayoutId, (ctx: LayoutCtx) => Prop[]> = {
   narrow: tmplNarrow,
   ring: tmplRing,
   shore: tmplShore,
+  windrun: tmplWindrun,
   icefield: tmplIcefield,
   drift: tmplDrift,
   crystal: tmplCrystal,
@@ -464,6 +489,9 @@ export function floorOf(id: LayoutId, widthM: number, heightM: number): FloorFea
   switch (id) {
     case 'shore':
       return { kind: 'water', shape: 'band', xM: W / 2, yM: H * 0.62, wM: W - 6, hM: Math.max(2.2, H * 0.16) };
+    case 'windrun':
+      // 风带:横贯房间的推力走廊(方向 = +x;PhysicsSystem 施加 windPushM)
+      return { kind: 'wind', shape: 'band', xM: W / 2, yM: H / 2, wM: W - 4, hM: 4.5 };
     case 'narrow':
       return { kind: 'path', shape: 'band', xM: W / 2, yM: H / 2, wM: W - 7.5, hM: 3.0 };
     case 'lane':
@@ -511,6 +539,11 @@ export function floorPalette(kind: FloorKind, chapter: 1 | 2 | 3): FloorPalette 
       forest: { base: '#5f8f42', edge: '#78a84f', spark: '#9cc46a' },
       snow: { base: '#83988a', edge: '#a9bcae', spark: '#cfe0d4' },
       desert: { base: '#9aa15c', edge: '#b3b974', spark: '#cfd39b' },
+    },
+    wind: {
+      forest: { base: '#7fae5d', edge: '#a4cf7d', spark: '#e0f0c0' },
+      snow: { base: '#8fb3b8', edge: '#b6d5d8', spark: '#e6f6f6' },
+      desert: { base: '#c0a468', edge: '#dcc084', spark: '#f2e2ae' },
     },
     sand: {
       forest: { base: '#c2ae7c', edge: '#d8c48c', spark: '#efe0b0' },

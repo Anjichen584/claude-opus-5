@@ -31,6 +31,7 @@ namespace StarfallKnights.Dungeon
         {
             new(EnemyKind.Shroomling, 30, 1, 0),
             new(EnemyKind.WindBee, 22, 1, 0),
+            new(EnemyKind.LeafWisp, 16, 1, 1),
             new(EnemyKind.FrostSlime, 16, 2, 1),
             new(EnemyKind.SparkLizard, 14, 1, 1),
             new(EnemyKind.EmberImp, 14, 2, 2),
