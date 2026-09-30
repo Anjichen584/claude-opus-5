@@ -307,6 +307,7 @@ export class RunManager {
     });
     this.layoutKey = `${this.layout.id}#${this.layoutSeq++}`;
     terrain.setFromLayout(this.layout); // 地形效果(浅滩减速/导电)随房生效
+    if (this.chapter === 3) terrain.enableStorm(); // 轮 15:三章沙地房才有沙暴循环(一二章的沙地是观感)
     this.spawnProps(world);
   }
 

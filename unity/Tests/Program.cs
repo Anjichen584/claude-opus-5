@@ -1622,6 +1622,18 @@ namespace StarfallKnights.Tests
             // 章归属
             Check(EnemyKinds.ChapterOf(EnemyKind.IceGlider) == 2 && EnemyKinds.ChapterOf(EnemyKind.EmberWhirl) == 3,
                 "新怪各归各章");
+
+            Suite("沙暴视野(轮 15:循环节拍 / 射程缩短)");
+            {
+                Check(!TerrainRules.StormActive(0f), "开局是晴");
+                Check(!TerrainRules.StormActive(TerrainRules.StormClearS - 0.1f), "晴段末尾还是晴");
+                Check(TerrainRules.StormActive(TerrainRules.StormClearS + 0.1f), "晴够了起暴");
+                Check(!TerrainRules.StormActive(TerrainRules.StormClearS + TerrainRules.StormActiveS + 0.1f), "暴完回晴(循环)");
+                Check(TerrainRules.StormActive(TerrainRules.StormClearS * 2 + TerrainRules.StormActiveS + 1.1f) ==
+                      TerrainRules.StormActive(TerrainRules.StormClearS + 1.1f), "循环周期一致");
+                Check(TerrainRules.ProjAgeMul(TerrainRules.StormClearS + 1f) == TerrainRules.StormProjAgeMul, "暴中投射物加速衰老");
+                Check(TerrainRules.ProjAgeMul(1f) == 1f, "晴天无惩罚");
+            }
         }
 
 

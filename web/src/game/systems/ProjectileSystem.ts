@@ -4,7 +4,7 @@ import { M } from '@game/constants';
 import {
   Body, Faction, Health, Player, Projectile, PropObstacle, RingFxEvent, SfxEvent, Transform, Velocity,
 } from '@game/components';
-import { damageProp, propHp } from '@game/dungeon/Terrain';
+import { damageProp, propHp, terrain } from '@game/dungeon/Terrain';
 import { dealDamage } from '@game/combat/DamagePipeline';
 import { PlayerSystem } from './PlayerSystem';
 
@@ -50,7 +50,7 @@ export class ProjectileSystem implements System {
 
       tr.x += vel.vx * dt;
       tr.y += vel.vy * dt;
-      pr.lifeS -= dt;
+      pr.lifeS -= dt * terrain.projAgeMul; // 沙暴(轮 15):飞行物射程缩短,双方公平
 
       if (pr.lifeS <= 0 || tr.x < 0 || tr.y < 0 || tr.x > maxX || tr.y > maxY) {
         world.destroy(e);

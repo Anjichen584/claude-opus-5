@@ -24,6 +24,10 @@ namespace StarfallKnights.Dungeon
         public const float SplashNoticeS = 2.5f;   // "踏入浅滩"提示的冷却
         public const float IceGripPerS = 3.0f;     // 冰面滑行:实际速度向意图速度的收敛速率(轮 12)
         public const float IceNoticeS = 2.5f;      // "踏上冰面"提示的冷却
+        public const float StormClearS = 6.0f;     // 沙暴循环:晴的时长(轮 15)
+        public const float StormActiveS = 4.0f;    // 沙暴循环:暴的时长
+        public const float StormProjAgeMul = 1.6f; // 暴中投射物衰老乘区(射程缩短,双方公平)
+        public const float StormNoticeS = 2.5f;    // 起暴提示的冷却
         public const float TreeHp = 80f;
         public const float RockHp = 120f;
 
@@ -36,6 +40,10 @@ namespace StarfallKnights.Dungeon
             { "layouts.terrain.splashNoticeS", SplashNoticeS },
             { "layouts.terrain.iceGripPerS", IceGripPerS },
             { "layouts.terrain.iceNoticeS", IceNoticeS },
+            { "layouts.terrain.stormClearS", StormClearS },
+            { "layouts.terrain.stormActiveS", StormActiveS },
+            { "layouts.terrain.stormProjAgeMul", StormProjAgeMul },
+            { "layouts.terrain.stormNoticeS", StormNoticeS },
             { "props.tree.hp", TreeHp },
             { "props.rock.hp", RockHp },
         };
@@ -153,6 +161,23 @@ namespace StarfallKnights.Dungeon
 
         /// <summary>窄道墙由岩柱砌成:一排要砍几下才开得了口(给策划看的手感数字)</summary>
         public static int WallOpenSwings(float perHit) => HitsToBreak("rock", perHit);
+
+        // ---- 沙暴视野(轮 15;镜像 web Terrain 的沙暴循环)----
+        //
+        // 三章沙地房独有:循环 = 先晴 StormClearS 秒,后暴 StormActiveS 秒。
+        // 暴中投射物按 StormProjAgeMul 加速衰老(射程缩短,双方公平 —— 反制就是近身打)。
+
+        /// <summary>沙暴循环:t(自进房起的秒数)当前是否在暴中。</summary>
+        public static bool StormActive(float t)
+        {
+            float cycle = StormClearS + StormActiveS;
+            float m = t % cycle;
+            if (m < 0f) m += cycle;
+            return m >= StormClearS;
+        }
+
+        /// <summary>暴中投射物衰老乘区(晴 = 1)。</summary>
+        public static float ProjAgeMul(float t) => StormActive(t) ? StormProjAgeMul : 1f;
 
         // ---- 冰面滑行(轮 12;镜像 web PhysicsSystem 的滑行积分)----
         //

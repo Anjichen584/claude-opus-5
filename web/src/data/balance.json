@@ -718,7 +718,11 @@
       "waterStunS": 0.5,
       "splashNoticeS": 2.5,
       "iceGripPerS": 3.0,
-      "iceNoticeS": 2.5
+      "iceNoticeS": 2.5,
+      "stormClearS": 6.0,
+      "stormActiveS": 4.0,
+      "stormProjAgeMul": 1.6,
+      "stormNoticeS": 2.5
     },
     "byKind": {
       "battle": [

@@ -994,7 +994,7 @@ namespace StarfallKnights.Tests
                     if (Math.Abs(TerrainRules.PropHp(kind) - json) > Tol) { mechBad++; check(false, $"障碍耐久不一致:{kind}(JSON={json} vs C#={TerrainRules.PropHp(kind)})"); }
                 }
             }
-            check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(8 个键)");
+            check(mechBad == 0, "地形机制 + 障碍耐久与 JSON 一致(12 个键)");
 
             // 摆放规则要用到体型(间距是否容得下玩家),这两个也得对得上
             near(BestiaryPlayer.PlayerBodyRadius, (float)MiniJson.Num(MiniJson.Obj(MiniJson.Opt(doc, "player")), "bodyRadius"), Tol, "玩家体型");

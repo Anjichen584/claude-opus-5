@@ -32,18 +32,57 @@ class TerrainState {
     return this.floor === null ? null : this.floor.kind;
   }
 
+  /** 本房是否有沙暴循环(轮 15:三章沙地房独有;由 RunManager 按章开闸) */
+  hasStorm = false;
+  /** 沙暴循环计时(从晴开始;tick() 推进) */
+  private stormT = 0;
+
   setFromLayout(layout: LayoutResult | null): void {
     const f = layout?.floor ?? null;
-    // 机制地形只认水与冰;其余(苔/沙/土路)仍是纯观感,不进状态
-    this.floor = f !== null && (f.kind === 'water' || f.kind === 'ice') ? f : null;
+    // 机制地形认水/冰/沙;其余(苔/土路)仍是纯观感,不进状态
+    this.floor = f !== null && (f.kind === 'water' || f.kind === 'ice' || f.kind === 'sand') ? f : null;
     this.hasWater = this.floor !== null && this.floor.kind === 'water';
     this.hasIce = this.floor !== null && this.floor.kind === 'ice';
+    // 沙暴默认关:沙地板一二章也有(石柱阵/环形),只有三章由 RunManager 开
+    this.hasStorm = false;
+    this.stormT = 0;
+  }
+
+  /** 三章沙地房开沙暴(章节归属只有 RunManager 知道,Terrain 不猜) */
+  enableStorm(): void {
+    this.hasStorm = this.floor !== null && this.floor.kind === 'sand';
+    this.stormT = 0;
+  }
+
+  /** 推进沙暴循环(GameScene 每帧调;无沙暴时零开销) */
+  tick(dt: number): void {
+    if (this.hasStorm) this.stormT = (this.stormT + dt) % (T.stormClearS + T.stormActiveS);
+  }
+
+  /** 当前是否在沙暴中(循环 = 先晴 stormClearS 秒,后暴 stormActiveS 秒) */
+  get stormActive(): boolean {
+    return this.hasStorm && this.stormT >= T.stormClearS;
+  }
+
+  /** 沙暴强度 0~1(渲染渐入渐出用;边缘 0.6s 缓坡) */
+  get stormIntensity(): number {
+    if (!this.stormActive) return 0;
+    const into = this.stormT - T.stormClearS;
+    const left = T.stormClearS + T.stormActiveS - this.stormT;
+    return Math.min(1, into / 0.6, left / 0.6);
+  }
+
+  /** 投射物衰老乘区:沙暴里飞行物射程缩短(双方公平 —— 反制就是近身打) */
+  get projAgeMul(): number {
+    return this.stormActive ? T.stormProjAgeMul : 1;
   }
 
   clear(): void {
     this.floor = null;
     this.hasWater = false;
     this.hasIce = false;
+    this.hasStorm = false;
+    this.stormT = 0;
   }
 
   /** 像素坐标是否在水里(浅滩是可趟过的:这里只影响手感与元素,不影响通行) */

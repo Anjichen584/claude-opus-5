@@ -157,6 +157,7 @@ export class GameScene {
   /** 上帧玩家是否站在浅滩里(只提示一次,不刷屏) */
   private wasInWater = false;
   private wasOnIce = false;
+  private wasInStorm = false;
 
   constructor(
     private readonly renderer: Renderer,
@@ -985,6 +986,16 @@ export class GameScene {
       this.wasInWater = inWater;
     } else {
       this.wasInWater = false;
+    }
+    // 沙暴循环(轮 15):推进计时;起暴那一刻提示一次
+    terrain.tick(dt);
+    if (terrain.hasStorm) {
+      if (terrain.stormActive && !this.wasInStorm) {
+        this.world.emit(new ToastEvent('🌪 沙暴来了:飞行物射程缩短 —— 近身,或等它过去', '#d4a45f'));
+      }
+      this.wasInStorm = terrain.stormActive;
+    } else {
+      this.wasInStorm = false;
     }
     // 冰面提示:第一次踏冰时教一次(轮 12:滑行是手感机制,不提示会被当成运气差)
     if (terrain.hasIce) {
@@ -2211,6 +2222,29 @@ export class GameScene {
       const { ctx, width, height } = r;
       ctx.fillStyle = 'rgba(20, 28, 62, 0.34)';
       ctx.fillRect(0, 0, width, height);
+    }
+
+    // 沙暴滤镜(轮 15,屏幕空间):土金色沙幕 + 横掠沙线;强度带 0.6s 缓坡,不致盲
+    if (this.state === 'run' && terrain.stormIntensity > 0) {
+      const { ctx, width, height } = r;
+      const k = terrain.stormIntensity;
+      ctx.fillStyle = `rgba(178, 138, 74, ${(0.22 * k).toFixed(3)})`;
+      ctx.fillRect(0, 0, width, height);
+      // 横掠的沙线(廉价粒子:按时间取伪随机相位)
+      ctx.save();
+      ctx.globalAlpha = 0.35 * k;
+      ctx.strokeStyle = '#e8cf9a';
+      ctx.lineWidth = 1;
+      const tSec = performance.now() / 1000;
+      for (let i = 0; i < 26; i++) {
+        const y = ((i * 97 + Math.floor(tSec * 2) * 31) % (height + 40)) - 20;
+        const x = width - (((tSec * (420 + (i % 5) * 90)) + i * 173) % (width + 120)) + 60;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 26 - (i % 4) * 8, y + 3);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
   }
 

@@ -346,3 +346,82 @@ describe('冰面滑行 · 惯性(单测钉住手感边界)', () => {
     terrain.clear();
   });
 });
+
+/* ================= 沙暴视野(轮 15) ================= */
+
+import { Projectile } from '@game/components';
+import { ProjectileSystem } from '@game/systems/ProjectileSystem';
+
+const SAND_FLOOR = { kind: 'sand', shape: 'blob', xM: 13, yM: 8, wM: 12, hM: 8.5 } as const;
+const sandLayout = { id: 'dunes', label: '沙丘起伏', props: [], floor: SAND_FLOOR } as never;
+
+describe('沙暴视野 · 循环与开闸', () => {
+  it('balance 有沙暴参数(先晴后暴,乘区>1)', () => {
+    expect(T.stormClearS).toBeGreaterThan(0);
+    expect(T.stormActiveS).toBeGreaterThan(0);
+    expect(T.stormProjAgeMul).toBeGreaterThan(1);
+  });
+
+  it('沙地房默认不开沙暴(一二章的沙地是观感);enableStorm 后才有循环', () => {
+    terrain.setFromLayout(sandLayout);
+    expect(terrain.hasStorm, '默认关(章节归属只有 RunManager 知道)').toBe(false);
+    terrain.enableStorm();
+    expect(terrain.hasStorm).toBe(true);
+    terrain.clear();
+  });
+
+  it('循环节拍:先晴 stormClearS 秒 → 暴 stormActiveS 秒 → 回晴;强度有缓坡', () => {
+    terrain.setFromLayout(sandLayout);
+    terrain.enableStorm();
+    expect(terrain.stormActive, '开局是晴').toBe(false);
+    terrain.tick(T.stormClearS + 0.1);
+    expect(terrain.stormActive, '晴够了起暴').toBe(true);
+    expect(terrain.stormIntensity, '刚起暴强度在缓坡上').toBeLessThan(1);
+    terrain.tick(T.stormActiveS / 2);
+    expect(terrain.stormIntensity, '暴中强度拉满').toBe(1);
+    terrain.tick(T.stormActiveS / 2);
+    expect(terrain.stormActive, '暴完回晴(循环)').toBe(false);
+    terrain.clear();
+  });
+
+  it('水房/冰房没有沙暴(enableStorm 只认沙地板)', () => {
+    terrain.setFromLayout(iceLayout);
+    terrain.enableStorm();
+    expect(terrain.hasStorm).toBe(false);
+    terrain.clear();
+  });
+});
+
+describe('沙暴视野 · 飞行物射程缩短(双方公平)', () => {
+  const mkProj = (w: World) => {
+    const e = w.create();
+    w.add(e, new Transform(300, 300));
+    const v = new Velocity();
+    v.vx = 4 * M;
+    w.add(e, v);
+    w.add(e, new Faction('enemy'));
+    w.add(e, new Projectile('enemy', 10, 1, null, 10, 1.0, '#fff'));
+    return e;
+  };
+
+  it('沙暴中投射物按 stormProjAgeMul 加速衰老 → 同一发弹活得更短', () => {
+    terrain.setFromLayout(sandLayout);
+    terrain.enableStorm();
+    terrain.tick(T.stormClearS + T.stormActiveS / 2);   // 推进到暴中
+    expect(terrain.projAgeMul).toBe(T.stormProjAgeMul);
+
+    const w1 = new World();
+    mkProj(w1);
+    const sys = new ProjectileSystem();
+    for (let i = 0; i < Math.ceil(60 / T.stormProjAgeMul) + 2; i++) sys.update(w1, 1 / 60);
+    w1.flushDestroyed();   // World 是延迟销毁
+    expect(w1.count(Projectile), '暴中 1s 寿命的弹提前没了').toBe(0);
+
+    terrain.clear();                                     // 晴天对照
+    const w2 = new World();
+    mkProj(w2);
+    for (let i = 0; i < Math.ceil(60 / T.stormProjAgeMul) + 2; i++) sys.update(w2, 1 / 60);
+    w2.flushDestroyed();
+    expect(w2.count(Projectile), '晴天同帧数它还活着').toBe(1);
+  });
+});
