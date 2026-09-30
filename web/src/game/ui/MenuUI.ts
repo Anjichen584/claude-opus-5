@@ -93,8 +93,8 @@ export class MenuUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '12px monospace';
     ctx.fillText(
-      `✦ ${meta.data.stardust} · 通关 ${s.clears} 次 · 出击 ${s.runs} 次 · 总击杀 ${s.totalKills}` +
-      (s.bestTimeS > 0 ? ` · 最速 ${fmtTime(s.bestTimeS)}` : ''),
+      tr('stats.line', { dust: meta.data.stardust, clears: s.clears, runs: s.runs, kills: s.totalKills }) +
+      (s.bestTimeS > 0 ? tr('stats.fastest', { time: fmtTime(s.bestTimeS) }) : ''),
       w / 2, h * 0.46 + 96,
     );
     ctx.fillText(tr('menu.enter'), w / 2, h - 24);
@@ -124,7 +124,7 @@ export class MenuUI {
 
       ctx.font = 'bold 12px monospace';
       ctx.fillStyle = sl.active ? UI.gold : UI.text;
-      ctx.fillText(`存档 ${i + 1}${sl.active ? ' · 使用中' : ''}`, x + cw / 2, y + 17);
+      ctx.fillText(tr('slot.label', { n: i + 1, cur: sl.active ? tr('slot.current') : '' }), x + cw / 2, y + 17);
       ctx.font = '11px monospace';
       ctx.fillStyle = UI.dim;
       if (!sl.exists) {
@@ -135,13 +135,13 @@ export class MenuUI {
         ctx.fillText(tr('menu.slot.broken2'), x + cw / 2, y + 52);
       } else {
         const sm = sl.summary;
-        ctx.fillText(`✦${sm.stardust} · 祭坛 ${sm.altarLv} 级`, x + cw / 2, y + 36);
-        ctx.fillText(`通关 ${sm.clears} · 出击 ${sm.runs}`, x + cw / 2, y + 50);
+        ctx.fillText(tr('slot.meta1', { dust: sm.stardust, lv: sm.altarLv }), x + cw / 2, y + 36);
+        ctx.fillText(tr('slot.meta2', { clears: sm.clears, runs: sm.runs }), x + cw / 2, y + 50);
       }
     });
     ctx.fillStyle = UI.dim;
     ctx.font = '10px monospace';
-    ctx.fillText(`存档槽:切槽即刻生效(每个槽独立:星尘/祭坛/图鉴/进度)`, w / 2, y + ch + 14);
+    ctx.fillText(tr('slot.hint'), w / 2, y + ch + 14);
   }
 
   /** 结算页。返回 'menu' | null */
@@ -158,26 +158,26 @@ export class MenuUI {
     ctx.font = 'bold 40px monospace';
     // 无尽模式没有"胜利":标题按层数说话(这个模式唯一的成就感就是撑得更远)
     const title = rs.endlessFloor > 0
-      ? (rs.endlessRecord ? `♾ 新纪录:第 ${rs.endlessFloor} 层!` : `♾ 无尽 · 第 ${rs.endlessFloor} 层`)
-      : rs.victory ? '✦ 章节通关 ✦' : '骑士倒下了…';
+      ? (rs.endlessRecord ? tr('results.endless.record', { n: rs.endlessFloor }) : tr('results.endless.floor', { n: rs.endlessFloor }))
+      : rs.victory ? tr('results.clear') : tr('results.dead');
     ctx.fillText(title, w / 2, h * 0.32);
     if (rs.endlessFloor > 0) {
       ctx.fillStyle = UI.dim;
       ctx.font = '14px monospace';
-      ctx.fillText(`循环 ${rs.endlessLoop + 1}(每循环更硬、掉落更好) · 历史最高 ${meta.data.endlessBest} 层`,
+      ctx.fillText(tr('results.endless.loop', { loop: rs.endlessLoop + 1, best: meta.data.endlessBest }),
         w / 2, h * 0.32 + 26);
     }
 
     // 统计行:图标 + 左对齐文字(图标未就绪时自动只画文字,布局不塌)
     const rows: Array<[string, string]> = [
-      [STAT_ICON.kill, `击杀  ${rs.kills}`],
-      [STAT_ICON.taken, `受击  ${rs.hitsTaken} 次${rs.hitsTaken === 0 ? '(无伤!)' : ''}`],
-      [STAT_ICON.dps, `最高单次伤害  ${Math.round(rs.maxHit)}`],
+      [STAT_ICON.kill, tr('results.kills', { n: rs.kills })],
+      [STAT_ICON.taken, tr('results.hits', { n: rs.hitsTaken, nohit: rs.hitsTaken === 0 ? tr('results.nohit') : '' })],
+      [STAT_ICON.dps, tr('results.maxhit', { n: Math.round(rs.maxHit) })],
       [STAT_ICON.chest, rs.endlessFloor > 0
-        ? `推进房间  ${rs.rooms}(无尽跨循环连续计数)`
-        : `推进房间  ${rs.rooms} / ${balance.rooms.count + 1}`],
-      [STAT_ICON.time, `用时  ${fmtTime(rs.timeS)}`],
-      [STAT_ICON.stardust, `星尘收入  ✦${rs.stardustGained}(已存入钱包)`],
+        ? tr('results.rooms.endless', { n: rs.rooms })
+        : tr('results.rooms', { n: rs.rooms, total: balance.rooms.count + 1 })],
+      [STAT_ICON.time, tr('results.time', { t: fmtTime(rs.timeS) })],
+      [STAT_ICON.stardust, tr('results.dust', { n: rs.stardustGained })],
     ];
     const rowW = 360;
     const rx = w / 2 - rowW / 2;

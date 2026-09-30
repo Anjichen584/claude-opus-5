@@ -35,7 +35,7 @@ describe('i18n 棘轮(硬编码中文只许降不许升)', () => {
     for (const name of readdirSync(dir)) {
       const p = join(dir, name);
       if (statSync(p).isDirectory()) {
-        if (name !== '__tests__') walk(p, out);
+        if (name !== '__tests__' && name !== 'i18n') walk(p, out); // 字典本体豁免(它就该长中文)
       } else if (p.endsWith('.ts') && !p.endsWith('.test.ts')) out.push(p);
     }
   };

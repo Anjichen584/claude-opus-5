@@ -1,5 +1,5 @@
 {
- "__total__": 1326,
+ "__total__": 1253,
  "src/engine/audio/Ambience.ts": 13,
  "src/engine/audio/Music.ts": 17,
  "src/engine/core/Pool.ts": 4,
@@ -26,7 +26,6 @@
  "src/game/gfx/pixelFont.ts": 19,
  "src/game/gfx/skillFx.ts": 19,
  "src/game/gfx/spriteDraw.ts": 2,
- "src/game/i18n/index.ts": 53,
  "src/game/input/AimAssist.ts": 12,
  "src/game/loot/AffixRules.ts": 8,
  "src/game/loot/Blueprint.ts": 28,
@@ -62,7 +61,7 @@
  "src/game/systems/VelshaSystem.ts": 7,
  "src/game/ui/CampUI.ts": 156,
  "src/game/ui/InventoryUI.ts": 28,
- "src/game/ui/MenuUI.ts": 27,
+ "src/game/ui/MenuUI.ts": 7,
  "src/game/ui/SettingsUI.ts": 6,
  "src/game/ui/TouchControls.ts": 29
 }
