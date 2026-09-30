@@ -213,16 +213,16 @@ export class SettingsUI {
       return r;
     };
     this.musicBar = bar(tr('settings.music'), py + 62, s.musicVol);
-    this.sfxBar = bar(tr('settings.sfx'), py + 94, s.sfxVol);
-    this.scaleBar = bar(tr('settings.scale'), py + 126, (s.uiScale - 0.5) / 1.5);
-    this.shakeBar = bar(tr('settings.shake'), py + 158, s.screenShake);
-    this.stopBar = bar(tr('settings.hitstop'), py + 190, s.hitstop);
+    this.sfxBar = bar(tr('settings.sfx'), py + 90, s.sfxVol);
+    this.scaleBar = bar(tr('settings.scale'), py + 118, (s.uiScale - 0.5) / 1.5);
+    this.shakeBar = bar(tr('settings.shake'), py + 146, s.screenShake);
+    this.stopBar = bar(tr('settings.hitstop'), py + 174, s.hitstop);
     // 色盲模式(轮 37):点击循环 关→红弱→绿弱→蓝黄弱;右侧四色小样即时预览
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.text;
     ctx.font = '14px monospace';
-    ctx.fillText(tr('settings.colorblind'), px + 28, py + 227);
-    this.cbRect = { x: px + 150, y: py + 213, w: 120, h: 20 };
+    ctx.fillText(tr('settings.colorblind'), px + 28, py + 206);
+    this.cbRect = { x: px + 150, y: py + 192, w: 120, h: 20 };
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(this.cbRect.x, this.cbRect.y, this.cbRect.w, this.cbRect.h);
     ctx.strokeStyle = UI.dim;
@@ -236,8 +236,8 @@ export class SettingsUI {
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.text;
     ctx.font = '14px monospace';
-    ctx.fillText(tr('settings.language'), px + 300, py + 227);
-    this.langRect = { x: px + 388, y: py + 213, w: 96, h: 20 };
+    ctx.fillText(tr('settings.language'), px + 300, py + 206);
+    this.langRect = { x: px + 388, y: py + 192, w: 96, h: 20 };
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(this.langRect.x, this.langRect.y, this.langRect.w, this.langRect.h);
     ctx.strokeStyle = UI.dim;
@@ -249,27 +249,27 @@ export class SettingsUI {
     const pal = COLORBLIND_PALETTES[s.colorblind] ?? COLORBLIND_PALETTES[0];
     ([pal.fire, pal.ice, pal.bolt, pal.toxin]).forEach((c, i) => {
       ctx.fillStyle = c;
-      ctx.fillRect(px + pw - 28 - (4 - i) * 18, py + 214, 14, 14);
+      ctx.fillRect(px + pw - 28 - (4 - i) * 18, py + 193, 14, 14);
     });
     // 缩放条右侧显示倍率而非百分比
     ctx.fillStyle = 'rgba(19,23,36,1)';
-    ctx.fillRect(px + pw - 88, py + 114, 62, 20);
+    ctx.fillRect(px + pw - 88, py + 106, 62, 20);
     ctx.textAlign = 'right';
     ctx.fillStyle = UI.dim;
     ctx.font = '13px monospace';
-    ctx.fillText(`${s.uiScale.toFixed(2)}×`, px + pw - 28, py + 131);
+    ctx.fillText(`${s.uiScale.toFixed(2)}×`, px + pw - 28, py + 123);
 
     // ---- 按键绑定(两列) ----
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.dim;
     ctx.font = '12px monospace';
-    ctx.fillText(tr('settings.binds'), px + 28, py + 252);
+    ctx.fillText(tr('settings.binds'), px + 28, py + 230);
     this.bindRects = [];
     ACTIONS.forEach((a, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = px + 28 + col * (pw / 2 - 14);
-      const y = py + 270 + row * 46;
+      const y = py + 248 + row * 42;
       const keyR: Rect = { x: x + 128, y, w: 104, h: 32 };
       ctx.fillStyle = UI.text;
       ctx.font = '12px monospace';
@@ -290,8 +290,8 @@ export class SettingsUI {
 
     // ---- 底部按钮 ----
     ctx.textAlign = 'center';
-    const btn = (label: string, x: number, wid: number, gold: boolean): Rect => {
-      const r: Rect = { x, y: py + ph - 56, w: wid, h: 36 };
+    const btn = (label: string, x: number, y: number, wid: number, gold: boolean): Rect => {
+      const r: Rect = { x, y, w: wid, h: 36 };
       ctx.fillStyle = '#1a1f30';
       ctx.fillRect(r.x, r.y, r.w, r.h);
       ctx.strokeStyle = gold ? UI.gold : '#3a4154';
@@ -302,19 +302,23 @@ export class SettingsUI {
       ctx.fillText(label, r.x + r.w / 2, r.y + 24);
       return r;
     };
-    this.resetRect = btn(tr('settings.resetBinds'), px + 28, 160, false);
-    this.exportRect = btn(tr('settings.exportCode'), px + 200, 120, false);
-    this.importRect = btn(tr('settings.importCode'), px + 332, 120, false);
+    // 两行布局(轮 46 修复:此前五钮同行互相压盖,EN 文案更是必然溢出)
+    const row1 = py + ph - 92;
+    const row2 = py + ph - 48;
+    this.resetRect = btn(tr('settings.resetBinds'), px + 28, row1, 160, false);
+    this.exportRect = btn(tr('settings.exportCode'), px + 200, row1, 150, false);
+    this.importRect = btn(tr('settings.importCode'), px + 362, row1, 150, false);
+    this.titleRect = { x: 0, y: 0, w: 0, h: 0 };   // 不显示时清区(残留会吃到点击)
     if (this.showQuitToTitle) {
-      this.titleRect = btn(tr('settings.toTitle'), px + pw / 2 - 60, 120, false);
+      this.titleRect = btn(tr('settings.toTitle'), px + 28, row2, 160, false);
     }
-    this.closeRect = btn(tr('settings.close'), px + pw - 28 - 140, 140, true);
+    this.closeRect = btn(tr('settings.close'), px + pw - 28 - 150, row2, 150, true);
     if (this.codeMsgT > 0) {
       this.codeMsgT -= 1 / 60;
       ctx.textAlign = 'left';
       ctx.fillStyle = UI.gold;
       ctx.font = '12px monospace';
-      ctx.fillText(this.codeMsg, px + 28, py + ph - 66);
+      ctx.fillText(this.codeMsg, px + 28, py + ph - 102);
     }
     ctx.restore();
   }
