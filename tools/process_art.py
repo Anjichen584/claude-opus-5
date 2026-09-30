@@ -19,6 +19,7 @@ TARGETS = {
     "ranger": 46,
     "arcanist": 46,
     "warden": 48,
+    "npc_merchant": 44,  # 流浪商人(轮 29:微驼背设定,比英雄矮 2px)
     "shroomling": 30,
     "windbee": 24,
     "blightwolf": 36,

@@ -87,12 +87,15 @@ export const SPRITE_NAMES = [
   'arcanist_dash_1', 'arcanist_dash_2', 'arcanist_dash_3',
   'arcanist_hurt_1', 'arcanist_hurt_2',
   'arcanist_die_1', 'arcanist_die_2', 'arcanist_die_3', 'arcanist_die_4',
-  // 守卫(轮 29):走路 4 + 重锤攻击 3(蓄力→砸地命中→收锤)+ 翻滚 3 + 受击 2 + 死亡 4 = 5/6 动作 16 帧(施法随下批)
+  // 守卫(轮 29):走路 4 + 重锤攻击 3(蓄力→砸地命中→收锤)+ 翻滚 3 + 受击 2 + 死亡 4 + 施法 3(岩震击杵锤) = 6/6 动作 19 帧
   'warden_walk_1', 'warden_walk_2', 'warden_walk_3', 'warden_walk_4',
   'warden_atk_1', 'warden_atk_2', 'warden_atk_3',
   'warden_dash_1', 'warden_dash_2', 'warden_dash_3',
   'warden_hurt_1', 'warden_hurt_2',
   'warden_die_1', 'warden_die_2', 'warden_die_3', 'warden_die_4',
+  'warden_cast_1', 'warden_cast_2', 'warden_cast_3',
+  // 营地 NPC(轮 29 收官):流浪商人贴图(GameScene 兜帽人形回退保留)
+  'npc_merchant',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',

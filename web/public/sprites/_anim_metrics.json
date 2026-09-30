@@ -470,6 +470,33 @@
     "frames": 3,
     "targetH": 46
   },
+  "warden_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      49,
+      46
+    ],
+    "bodies": [
+      [
+        46,
+        46
+      ],
+      [
+        45,
+        45
+      ],
+      [
+        49,
+        46
+      ]
+    ],
+    "canvas": [
+      54,
+      50
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
   "warden_dash": {
     "anchor": 3,
     "anchorBody": [
@@ -571,8 +598,8 @@
         46
       ],
       [
-        50,
-        46
+        49,
+        44
       ]
     ],
     "canvas": [
