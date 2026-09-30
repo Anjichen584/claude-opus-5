@@ -18,6 +18,10 @@ namespace StarfallKnights.Core
         MidBossMossstag,
         MidBossFrosthuntress,
         MidBossSandreaper,
+        IceSpike,
+        IceGlider,
+        MirageBlossom,
+        EmberWhirl,
         // Boss
         BossNanmir, BossVelsha, BossKazra,
     }
@@ -29,9 +33,11 @@ namespace StarfallKnights.Core
         public static int ChapterOf(EnemyKind k) => k switch
         {
             EnemyKind.SnowPuff or EnemyKind.IceTurtle or EnemyKind.BlizzardHawk
-                or EnemyKind.FrostMage or EnemyKind.BossVelsha or EnemyKind.MidBossFrosthuntress => 2,
+                or EnemyKind.FrostMage or EnemyKind.BossVelsha or EnemyKind.MidBossFrosthuntress
+                or EnemyKind.IceSpike or EnemyKind.IceGlider => 2,
             EnemyKind.CinderRat or EnemyKind.DuneBeetle or EnemyKind.FlameDancer
-                or EnemyKind.DustStinger or EnemyKind.BossKazra or EnemyKind.MidBossSandreaper => 3,
+                or EnemyKind.DustStinger or EnemyKind.BossKazra or EnemyKind.MidBossSandreaper
+                or EnemyKind.MirageBlossom or EnemyKind.EmberWhirl => 3,
             _ => 1,
         };
 

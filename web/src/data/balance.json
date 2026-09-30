@@ -282,6 +282,35 @@
         "lifeS": 2.5
       }
     },
+    "icespike": {
+      "name": "冰锥笋",
+      "hp": 30,
+      "atk": 9,
+      "def": 0,
+      "speed": 0,
+      "bodyRadius": 0.35,
+      "spike": {
+        "telegraphS": 0.8,
+        "radiusM": 0.9,
+        "mult": 1.1,
+        "cdS": 2.6,
+        "rangeM": 8.0
+      },
+      "$doc": "二章炮台怪(轮 11):不动,玩家进 rangeM 就在其脚下亮冰锥预警(telegraphS 后结算)。原型 = 固定炮台/区域封锁:站桩输出的玩家会被持续点名,解法是走过去拍碎它(血极薄)。"
+    },
+    "iceglider": {
+      "name": "霜刃滑手",
+      "hp": 55,
+      "atk": 11,
+      "def": 1,
+      "speed": 4.6,
+      "bodyRadius": 0.4,
+      "glide": {
+        "turnRadPerS": 1.6,
+        "contactCd": 0.8
+      },
+      "$doc": "二章漂移冲撞怪(轮 11):永远在滑行,朝向以 turnRadPerS 缓慢转向玩家 —— 追不上急转的人,会冲过头再兜回来(与冰面滑行地形同一套语言:惯性)。原型 = 漂移体,速度快但转弯半径大,横向变向就是解法。"
+    },
     "boss_velsha": {
       "name": "霜语女妖·薇尔莎",
       "hp": 5200,
@@ -387,6 +416,45 @@
         "speedM": 2.8
       },
       "contactCd": 0.9
+    },
+    "mirageblossom": {
+      "name": "沙蜃花",
+      "hp": 45,
+      "atk": 10,
+      "def": 2,
+      "speed": 0,
+      "bodyRadius": 0.38,
+      "burst": {
+        "triggerM": 3.2,
+        "firstDelayS": 0.35,
+        "count": 8,
+        "speedM": 5.2,
+        "radiusM": 0.28,
+        "lifeS": 1.2,
+        "mult": 0.7,
+        "cdS": 3.4
+      },
+      "$doc": "三章伏击怪(轮 11):伪装成沙地植物静默不动;玩家踏进 triggerM 才苏醒,firstDelayS 后向四周射 count 根环形毒针,之后只要玩家在圈内每 cdS 再来一轮。原型 = 伏击地雷:教玩家读地形里的\"不对劲\"。"
+    },
+    "emberwhirl": {
+      "name": "烬旋灵",
+      "hp": 60,
+      "atk": 12,
+      "def": 1,
+      "speed": 2.4,
+      "bodyRadius": 0.4,
+      "rush": {
+        "telegraphS": 0.6,
+        "speedM": 7.0,
+        "durS": 0.9,
+        "trailIntervalS": 0.18,
+        "trailRadiusM": 0.55,
+        "trailLifeS": 1.8,
+        "trailMult": 0.25,
+        "cdS": 4.2,
+        "recoverS": 0.8
+      },
+      "$doc": "三章拖痕突进怪(轮 11):慢速游走 → 自旋蓄力(telegraphS 原地转)→ 锁向突进 durS 秒,沿途每 trailIntervalS 留一小片火痕(trailLifeS 秒)→ 眩晕 recoverS。原型 = 画线怪:躲开本体还要躲它画出来的线,连续两只会把场地切成格子。"
     },
     "boss_kazra": {
       "name": "熔核蝎皇·卡兹拉",

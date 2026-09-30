@@ -28,6 +28,10 @@ KIND = {
     'midboss_mossstag': 'MidBossMossstag',
     'midboss_frosthuntress': 'MidBossFrosthuntress',
     'midboss_sandreaper': 'MidBossSandreaper',
+    'icespike': 'IceSpike',
+    'iceglider': 'IceGlider',
+    'mirageblossom': 'MirageBlossom',
+    'emberwhirl': 'EmberWhirl',
 }
 
 

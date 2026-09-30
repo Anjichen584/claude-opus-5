@@ -3,12 +3,14 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
-  BlizzardHawk, Body, Buffs, FrostMage, IceTurtle, Player, Projectile, SfxEvent,
-  SnowPuff, Stats, Transform, Velocity,
+  BlizzardHawk, Body, Buffs, FrostMage, IceGlider, IceSpike, IceTurtle, Player, Projectile,
+  SfxEvent, SnowPuff, Stats, TelegraphStrike, Transform, Velocity,
 } from '@game/components';
 import { PlayerSystem } from './PlayerSystem';
 
 const PUFF = balance.enemies.snowpuff;
+const SPIKE = balance.enemies.icespike;
+const GLIDER = balance.enemies.iceglider;
 const TURTLE = balance.enemies.iceturtle;
 const HAWK = balance.enemies.blizzardhawk;
 const MAGE = balance.enemies.frostmage;
@@ -31,6 +33,65 @@ export class TundraSystem implements System {
     this.turtles(world, dt, pe, ptr, pr, pAlive);
     this.hawks(world, dt, pe, ptr, pr, pAlive);
     this.mages(world, dt, ptr, pAlive);
+    this.spikes(world, dt, ptr, pAlive);
+    this.gliders(world, dt, pe, ptr, pr, pAlive);
+  }
+
+  // ---- 冰锥笋(轮 11):炮台 —— 玩家进圈就在其脚下点冰锥,血薄,走过去拍碎它 ----
+  private spikes(world: World, dt: number, ptr: Transform, pAlive: boolean): void {
+    for (const e of world.query(IceSpike, Transform, Stats)) {
+      const s = world.mustGet(e, IceSpike);
+      const tr = world.mustGet(e, Transform);
+      const stats = world.mustGet(e, Stats);
+      const buffs = world.get(e, Buffs);
+      s.animT += dt;
+      if ((buffs && buffs.stunT > 0) || !pAlive) continue;
+      const dist = Math.hypot(ptr.x - tr.x, ptr.y - tr.y);
+      s.cd -= dt;
+      if (s.cd <= 0 && dist < SPIKE.spike.rangeM * M) {
+        const ts = world.create();
+        world.add(ts, new Transform(ptr.x, ptr.y));
+        world.add(ts, new TelegraphStrike(
+          SPIKE.spike.telegraphS, SPIKE.spike.radiusM * M, stats.atk, SPIKE.spike.mult,
+          'enemy', elementColor('ice'),
+        ));
+        s.cd = SPIKE.spike.cdS;
+        world.emit(new SfxEvent('shot'));
+      }
+    }
+  }
+
+  // ---- 霜刃滑手(轮 11):漂移体 —— 速度恒定,朝向只能慢慢掰;急转就是解法 ----
+  private gliders(world: World, dt: number, pe: Entity, ptr: Transform, pr: number, pAlive: boolean): void {
+    for (const e of world.query(IceGlider, Transform, Velocity, Stats, Body)) {
+      const g = world.mustGet(e, IceGlider);
+      const tr = world.mustGet(e, Transform);
+      const vel = world.mustGet(e, Velocity);
+      const stats = world.mustGet(e, Stats);
+      const body = world.mustGet(e, Body);
+      const buffs = world.get(e, Buffs);
+      g.animT += dt;
+      g.contactCd -= dt;
+      if ((buffs && buffs.stunT > 0) || !pAlive) { vel.vx = 0; vel.vy = 0; continue; }
+      const slow = buffs && buffs.slowT > 0 ? 1 - buffs.slowPct : 1;
+
+      // 朝向以固定角速度掰向玩家(不能瞬转 —— 这是它的全部弱点)
+      const want = Math.atan2(ptr.y - tr.y, ptr.x - tr.x);
+      let diff = want - g.heading;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const maxTurn = GLIDER.glide.turnRadPerS * dt;
+      g.heading += Math.max(-maxTurn, Math.min(maxTurn, diff));
+      tr.face = g.heading;
+      vel.vx = Math.cos(g.heading) * stats.moveSpeed * M * slow;
+      vel.vy = Math.sin(g.heading) * stats.moveSpeed * M * slow;
+
+      const dist = Math.hypot(ptr.x - tr.x, ptr.y - tr.y);
+      if (dist < body.radius * M + pr + 4 && g.contactCd <= 0) {
+        g.contactCd = GLIDER.glide.contactCd;
+        PlayerSystem.applyHurt(world, pe, stats.atk);
+      }
+    }
   }
 
   // ---- 雪绒球:间歇滚动冲撞 ----

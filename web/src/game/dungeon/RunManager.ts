@@ -5,7 +5,8 @@ import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
   DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
-  FrostMage, FrostSlime, Health, IceTurtle, MidBossHuntress, MidBossReaper, MidBossStag, SnowPuff,
+  EmberWhirl, FrostMage, FrostSlime, Health, IceGlider, IceSpike, IceTurtle, MidBossHuntress,
+  MidBossReaper, MidBossStag, MirageBlossom, SnowPuff,
   OakGolem, Merchant, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
@@ -29,8 +30,8 @@ export type RoomKind = 'battle' | 'treasure' | 'elite' | 'midboss' | 'boss' | 's
 type SpawnKind =
   | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem' | 'midboss_mossstag' | 'midboss_frosthuntress' | 'midboss_sandreaper'
   | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite'
-  | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage'
-  | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger';
+  | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage' | 'icespike' | 'iceglider'
+  | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger' | 'mirageblossom' | 'emberwhirl';
 
 const R = balance.rooms;
 
@@ -327,6 +328,7 @@ export class RunManager {
         world.count(ThornVine) + world.count(OakGolem) + world.count(BossNanmir) +
         world.count(EmberImp) + world.count(FrostSlime) + world.count(SparkLizard) +
         world.count(ToxinToad) + world.count(SnowPuff) + world.count(IceTurtle) +
+        world.count(IceSpike) + world.count(IceGlider) + world.count(MirageBlossom) + world.count(EmberWhirl) +
         world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha) +
         world.count(CinderRat) + world.count(DuneBeetle) + world.count(FlameDancer) +
         world.count(DustStinger) + world.count(BossKazra) +
@@ -431,6 +433,8 @@ export class RunManager {
           ['flamedancer', 16, 2, 1],
           ['sparklizard', 12, 1, 1], // 荒漠雷蜥(雷,与火组成超载连锁)
           ['dunebeetle', 16, 2, 2],
+          ['mirageblossom', 12, 1, 1], // 沙蜃花(伏击,轮 11)
+          ['emberwhirl', 14, 2, 2],    // 烬旋灵(画线,轮 11)
           ['frostslime', 10, 2, 3], // 绿洲史莱姆(冰,反差连锁)
         ]
       : this.chapter === 2
@@ -440,6 +444,8 @@ export class RunManager {
           ['frostmage', 16, 2, 1],
           ['sparklizard', 12, 1, 1], // 冰原也有蜥蜴(雷,与冰组成脆冰连锁)
           ['iceturtle', 14, 2, 2],
+          ['icespike', 12, 1, 1],  // 冰锥笋(炮台,轮 11)
+          ['iceglider', 14, 1, 2], // 霜刃滑手(漂移,轮 11)
           ['emberimp', 10, 2, 3], // 深处的余烬小鬼(火,融雪反差)
         ]
       : [
@@ -541,10 +547,14 @@ export class RunManager {
       case 'iceturtle': world.add(e, new IceTurtle()); break;
       case 'blizzardhawk': world.add(e, new BlizzardHawk()); break;
       case 'frostmage': world.add(e, new FrostMage()); break;
+      case 'icespike': world.add(e, new IceSpike()); break;
+      case 'iceglider': world.add(e, new IceGlider()); break;
       case 'cinderrat': world.add(e, new CinderRat()); break;
       case 'dunebeetle': world.add(e, new DuneBeetle()); break;
       case 'flamedancer': world.add(e, new FlameDancer()); break;
       case 'duststinger': world.add(e, new DustStinger()); break;
+      case 'mirageblossom': world.add(e, new MirageBlossom()); break;
+      case 'emberwhirl': world.add(e, new EmberWhirl()); break;
       case 'midboss_mossstag': {
         const stag = new MidBossStag();
         stag.spawnX = x;

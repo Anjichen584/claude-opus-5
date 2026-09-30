@@ -13,9 +13,13 @@ import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
+  EmberWhirl,
+  IceGlider,
+  IceSpike,
   MidBossHuntress,
   MidBossReaper,
   MidBossStag,
+  MirageBlossom,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
   Merchant, SfxEvent, ShopStand, Shroomling, SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine,
@@ -1389,6 +1393,46 @@ export class GameScene {
       }
 
       // ---- 第二章:冰原怪 ----
+      // ---- 冰锥笋(轮 11):炮台,蓄冰时微颤 ----
+      for (const e of w.query(IceSpike, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const s = w.mustGet(e, IceSpike);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 10);
+          const charging = s.cd < 0.5;
+          if (!drawSprite(ctx, 'icespike', ix, iy, {
+            flash: h.flash,
+            rot: charging ? (Math.random() - 0.5) * 0.1 : 0,
+            sy: 1 + Math.sin(s.animT * 2) * 0.03,
+          })) {
+            // 兜底:一丛冰蓝三角锥
+            ctx.fillStyle = '#bfe8ff';
+            for (const [ox, sh] of [[-7, 12], [0, 18], [7, 11]] as const) {
+              ctx.beginPath();
+              ctx.moveTo(ix + ox - 5, iy);
+              ctx.lineTo(ix + ox, iy - sh);
+              ctx.lineTo(ix + ox + 5, iy);
+              ctx.fill();
+            }
+          }
+        } });
+      }
+      // ---- 霜刃滑手(轮 11):永远在滑,倾斜入弯 ----
+      for (const e of w.query(IceGlider, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const g = w.mustGet(e, IceGlider);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 12);
+          if (!drawSprite(ctx, 'iceglider', ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(g.heading) < 0,
+            rot: Math.sin(g.animT * 6) * 0.1,
+          })) blob(ix, iy, 12, '#a8e4f0');
+        } });
+      }
       for (const e of w.query(SnowPuff, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
         const s = w.mustGet(e, SnowPuff);
@@ -1661,6 +1705,38 @@ export class GameScene {
             rot: jit + Math.sin(d.animT * 4) * 0.1,
             sx: d.state === 'aim' ? 1.12 : 1,
           })) blob(ix, iy + hover, 10, '#ff9a6b');
+        } });
+      }
+      // ---- 沙蜃花(轮 11):休眠时伪装,苏醒抖动 ----
+      for (const e of w.query(MirageBlossom, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const b = w.mustGet(e, MirageBlossom);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 10);
+          const waking = b.state === 'wake';
+          if (!drawSprite(ctx, 'mirageblossom', ix, iy, {
+            flash: h.flash,
+            rot: waking ? (Math.random() - 0.5) * 0.24 : 0,
+            sy: b.state === 'dormant' ? 0.9 : 1 + Math.sin(b.animT * 5) * 0.05,
+          })) {
+            blob(ix, iy, 11, b.state === 'dormant' ? '#b8a06a' : '#d46a8a');
+          }
+        } });
+      }
+      // ---- 烬旋灵(轮 11):自旋蓄力越转越快,突进拖火 ----
+      for (const e of w.query(EmberWhirl, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const wl = w.mustGet(e, EmberWhirl);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 12);
+          const spin = wl.state === 'spinup' ? wl.animT * 14 : wl.state === 'rush' ? wl.animT * 22 : Math.sin(wl.animT * 3) * 0.1;
+          if (!drawSprite(ctx, 'emberwhirl', ix, iy, {
+            flash: h.flash, rot: spin,
+          })) blob(ix, iy, 12, '#f08a4a');
         } });
       }
       for (const e of w.query(DustStinger, Transform, Health)) {

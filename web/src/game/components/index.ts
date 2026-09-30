@@ -499,6 +499,26 @@ export class MidBossStag {
   spawnY = 0;
 }
 
+/** 沙蜃花:三章伏击怪 —— 伪装静默,近身炸环形毒针(轮 11) */
+export class MirageBlossom {
+  state: 'dormant' | 'wake' | 'active' = 'dormant';
+  t = 0;
+  cd = 0;
+  animT = Math.random() * 10;
+}
+
+/** 烬旋灵:三章拖痕突进怪 —— 自旋蓄力 → 突进留火痕(轮 11) */
+export class EmberWhirl {
+  state: 'drift' | 'spinup' | 'rush' | 'dizzy' = 'drift';
+  t = 0;
+  cd = 2.0 + Math.random();
+  dirX = 1;
+  dirY = 0;
+  trailT = 0;
+  contactCd = 0;
+  animT = Math.random() * 10;
+}
+
 /** 第二章中 Boss:霜噬女猎(与巨鹿完全反向的风筝型猎手,轮 13) */
 export class MidBossHuntress {
   phase: 1 | 2 = 1;
@@ -564,6 +584,20 @@ export class MidBossReaper {
   animT = 0;
   spawnX = 0;
   spawnY = 0;
+}
+
+/** 冰锥笋:二章炮台怪 —— 不动,在玩家脚下点冰锥(轮 11) */
+export class IceSpike {
+  cd = 1.2 + Math.random() * 0.8;
+  animT = Math.random() * 10;
+}
+
+/** 霜刃滑手:二章漂移冲撞怪 —— 永远滑行,转向慢,会冲过头(轮 11) */
+export class IceGlider {
+  /** 当前滑行朝向(弧度;速度恒定,只能慢慢掰方向) */
+  heading = Math.random() * Math.PI * 2;
+  contactCd = 0;
+  animT = Math.random() * 10;
 }
 
 /** ===== 第三章「烬语荒漠」怪物 ===== */

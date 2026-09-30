@@ -20,6 +20,10 @@ TARGETS = {
     "arcanist": 46,
     "warden": 48,
     "npc_merchant": 44,  # 流浪商人(轮 29:微驼背设定,比英雄矮 2px)
+    "icespike": 26,       # 冰锥笋(轮 11:炮台,矮)
+    "iceglider": 30,      # 霜刃滑手(轮 11:低伏的速度体)
+    "mirageblossom": 30,  # 沙蜃花(轮 11:伏击花)
+    "emberwhirl": 34,     # 烬旋灵(轮 11:火焰陀螺)
     "midboss_frosthuntress": 56,  # 二章中 Boss(轮 13:人形猎手,比英雄高一头、比巨鹿(80)轻盈)
     "midboss_sandreaper": 62,  # 三章中 Boss(轮 16:魁梧刽子,介于女猎(56)与巨鹿(80)之间)
     "shroomling": 30,

@@ -46,6 +46,8 @@ namespace StarfallKnights.Dungeon
             new(EnemyKind.FrostMage, 16, 2, 1),
             new(EnemyKind.SparkLizard, 12, 1, 1),
             new(EnemyKind.IceTurtle, 14, 2, 2),
+            new(EnemyKind.IceSpike, 12, 1, 1),
+            new(EnemyKind.IceGlider, 14, 1, 2),
             new(EnemyKind.EmberImp, 10, 2, 3),
         };
 
@@ -56,6 +58,8 @@ namespace StarfallKnights.Dungeon
             new(EnemyKind.FlameDancer, 16, 2, 1),
             new(EnemyKind.SparkLizard, 12, 1, 1),
             new(EnemyKind.DuneBeetle, 16, 2, 2),
+            new(EnemyKind.MirageBlossom, 12, 1, 1),
+            new(EnemyKind.EmberWhirl, 14, 2, 2),
             new(EnemyKind.FrostSlime, 10, 2, 3),
         };
 

@@ -39,11 +39,15 @@ namespace StarfallKnights.Data
             { EnemyKind.IceTurtle, new Stat("冰壳龟", 110f, 12f, 4f, 1f, 0.4f, 0.9f) },
             { EnemyKind.BlizzardHawk, new Stat("风雪隼", 34f, 11f, 0f, 3.4f, 0.26f, 0.8f) },
             { EnemyKind.FrostMage, new Stat("霜语法师", 40f, 10f, 1f, 2.2f, 0.28f, 0.8f) },
+            { EnemyKind.IceSpike, new Stat("冰锥笋", 30f, 9f, 0f, 0f, 0.35f, 0.8f) },
+            { EnemyKind.IceGlider, new Stat("霜刃滑手", 55f, 11f, 1f, 4.6f, 0.4f, 0.8f) },
             { EnemyKind.BossVelsha, new Stat("霜语女妖·薇尔莎", 5200f, 16f, 3f, 2f, 0.55f, 0.8f) },
             { EnemyKind.CinderRat, new Stat("烬鼠", 26f, 10f, 0f, 3.8f, 0.22f, 0.7f) },
             { EnemyKind.DuneBeetle, new Stat("沙暴甲虫", 80f, 13f, 3f, 1.4f, 0.36f, 0.9f) },
             { EnemyKind.FlameDancer, new Stat("火舞妖", 38f, 11f, 0f, 2.4f, 0.26f, 0.8f) },
             { EnemyKind.DustStinger, new Stat("岩尾蝎", 60f, 10f, 2f, 1.6f, 0.32f, 0.9f) },
+            { EnemyKind.MirageBlossom, new Stat("沙蜃花", 45f, 10f, 2f, 0f, 0.38f, 0.8f) },
+            { EnemyKind.EmberWhirl, new Stat("烬旋灵", 60f, 12f, 1f, 2.4f, 0.4f, 0.8f) },
             { EnemyKind.BossKazra, new Stat("熔核蝎皇·卡兹拉", 6400f, 18f, 4f, 2.2f, 0.6f, 0.8f) },
             { EnemyKind.MidBossMossstag, new Stat("苔冠巨鹿", 1500f, 12f, 4f, 1.5f, 0.55f, 0.8f) },
             { EnemyKind.MidBossFrosthuntress, new Stat("霜噬女猎", 1550f, 13f, 3f, 2.9f, 0.42f, 0.8f) },
@@ -392,6 +396,40 @@ namespace StarfallKnights.Data
         public const float FrostMageBoltMult = 1f;
         /// <summary>frostmage.bolt.lifeS</summary>
         public const float FrostMageBoltLifeS = 2.5f;
+        /// <summary>icespike.hp</summary>
+        public const float IceSpikeHp = 30f;
+        /// <summary>icespike.atk</summary>
+        public const float IceSpikeAtk = 9f;
+        /// <summary>icespike.def</summary>
+        public const float IceSpikeDef = 0f;
+        /// <summary>icespike.speed</summary>
+        public const float IceSpikeSpeed = 0f;
+        /// <summary>icespike.bodyRadius</summary>
+        public const float IceSpikeBodyRadius = 0.35f;
+        /// <summary>icespike.spike.telegraphS</summary>
+        public const float IceSpikeSpikeTelegraphS = 0.8f;
+        /// <summary>icespike.spike.radiusM</summary>
+        public const float IceSpikeSpikeRadiusM = 0.9f;
+        /// <summary>icespike.spike.mult</summary>
+        public const float IceSpikeSpikeMult = 1.1f;
+        /// <summary>icespike.spike.cdS</summary>
+        public const float IceSpikeSpikeCdS = 2.6f;
+        /// <summary>icespike.spike.rangeM</summary>
+        public const float IceSpikeSpikeRangeM = 8f;
+        /// <summary>iceglider.hp</summary>
+        public const float IceGliderHp = 55f;
+        /// <summary>iceglider.atk</summary>
+        public const float IceGliderAtk = 11f;
+        /// <summary>iceglider.def</summary>
+        public const float IceGliderDef = 1f;
+        /// <summary>iceglider.speed</summary>
+        public const float IceGliderSpeed = 4.6f;
+        /// <summary>iceglider.bodyRadius</summary>
+        public const float IceGliderBodyRadius = 0.4f;
+        /// <summary>iceglider.glide.turnRadPerS</summary>
+        public const float IceGliderGlideTurnRadPerS = 1.6f;
+        /// <summary>iceglider.glide.contactCd</summary>
+        public const float IceGliderGlideContactCd = 0.8f;
         /// <summary>boss_velsha.hp</summary>
         public const float BossVelshaHp = 5200f;
         /// <summary>boss_velsha.atk</summary>
@@ -542,6 +580,60 @@ namespace StarfallKnights.Data
         public const float DustStingerHopSpeedM = 2.8f;
         /// <summary>duststinger.contactCd</summary>
         public const float DustStingerContactCd = 0.9f;
+        /// <summary>mirageblossom.hp</summary>
+        public const float MirageBlossomHp = 45f;
+        /// <summary>mirageblossom.atk</summary>
+        public const float MirageBlossomAtk = 10f;
+        /// <summary>mirageblossom.def</summary>
+        public const float MirageBlossomDef = 2f;
+        /// <summary>mirageblossom.speed</summary>
+        public const float MirageBlossomSpeed = 0f;
+        /// <summary>mirageblossom.bodyRadius</summary>
+        public const float MirageBlossomBodyRadius = 0.38f;
+        /// <summary>mirageblossom.burst.triggerM</summary>
+        public const float MirageBlossomBurstTriggerM = 3.2f;
+        /// <summary>mirageblossom.burst.firstDelayS</summary>
+        public const float MirageBlossomBurstFirstDelayS = 0.35f;
+        /// <summary>mirageblossom.burst.count</summary>
+        public const float MirageBlossomBurstCount = 8f;
+        /// <summary>mirageblossom.burst.speedM</summary>
+        public const float MirageBlossomBurstSpeedM = 5.2f;
+        /// <summary>mirageblossom.burst.radiusM</summary>
+        public const float MirageBlossomBurstRadiusM = 0.28f;
+        /// <summary>mirageblossom.burst.lifeS</summary>
+        public const float MirageBlossomBurstLifeS = 1.2f;
+        /// <summary>mirageblossom.burst.mult</summary>
+        public const float MirageBlossomBurstMult = 0.7f;
+        /// <summary>mirageblossom.burst.cdS</summary>
+        public const float MirageBlossomBurstCdS = 3.4f;
+        /// <summary>emberwhirl.hp</summary>
+        public const float EmberWhirlHp = 60f;
+        /// <summary>emberwhirl.atk</summary>
+        public const float EmberWhirlAtk = 12f;
+        /// <summary>emberwhirl.def</summary>
+        public const float EmberWhirlDef = 1f;
+        /// <summary>emberwhirl.speed</summary>
+        public const float EmberWhirlSpeed = 2.4f;
+        /// <summary>emberwhirl.bodyRadius</summary>
+        public const float EmberWhirlBodyRadius = 0.4f;
+        /// <summary>emberwhirl.rush.telegraphS</summary>
+        public const float EmberWhirlRushTelegraphS = 0.6f;
+        /// <summary>emberwhirl.rush.speedM</summary>
+        public const float EmberWhirlRushSpeedM = 7f;
+        /// <summary>emberwhirl.rush.durS</summary>
+        public const float EmberWhirlRushDurS = 0.9f;
+        /// <summary>emberwhirl.rush.trailIntervalS</summary>
+        public const float EmberWhirlRushTrailIntervalS = 0.18f;
+        /// <summary>emberwhirl.rush.trailRadiusM</summary>
+        public const float EmberWhirlRushTrailRadiusM = 0.55f;
+        /// <summary>emberwhirl.rush.trailLifeS</summary>
+        public const float EmberWhirlRushTrailLifeS = 1.8f;
+        /// <summary>emberwhirl.rush.trailMult</summary>
+        public const float EmberWhirlRushTrailMult = 0.25f;
+        /// <summary>emberwhirl.rush.cdS</summary>
+        public const float EmberWhirlRushCdS = 4.2f;
+        /// <summary>emberwhirl.rush.recoverS</summary>
+        public const float EmberWhirlRushRecoverS = 0.8f;
         /// <summary>boss_kazra.hp</summary>
         public const float BossKazraHp = 6400f;
         /// <summary>boss_kazra.atk</summary>
@@ -1425,6 +1517,23 @@ namespace StarfallKnights.Data
             { "frostmage.bolt.radiusM", FrostMageBoltRadiusM },
             { "frostmage.bolt.mult", FrostMageBoltMult },
             { "frostmage.bolt.lifeS", FrostMageBoltLifeS },
+            { "icespike.hp", IceSpikeHp },
+            { "icespike.atk", IceSpikeAtk },
+            { "icespike.def", IceSpikeDef },
+            { "icespike.speed", IceSpikeSpeed },
+            { "icespike.bodyRadius", IceSpikeBodyRadius },
+            { "icespike.spike.telegraphS", IceSpikeSpikeTelegraphS },
+            { "icespike.spike.radiusM", IceSpikeSpikeRadiusM },
+            { "icespike.spike.mult", IceSpikeSpikeMult },
+            { "icespike.spike.cdS", IceSpikeSpikeCdS },
+            { "icespike.spike.rangeM", IceSpikeSpikeRangeM },
+            { "iceglider.hp", IceGliderHp },
+            { "iceglider.atk", IceGliderAtk },
+            { "iceglider.def", IceGliderDef },
+            { "iceglider.speed", IceGliderSpeed },
+            { "iceglider.bodyRadius", IceGliderBodyRadius },
+            { "iceglider.glide.turnRadPerS", IceGliderGlideTurnRadPerS },
+            { "iceglider.glide.contactCd", IceGliderGlideContactCd },
             { "boss_velsha.hp", BossVelshaHp },
             { "boss_velsha.atk", BossVelshaAtk },
             { "boss_velsha.def", BossVelshaDef },
@@ -1500,6 +1609,33 @@ namespace StarfallKnights.Data
             { "duststinger.hop.dur", DustStingerHopDur },
             { "duststinger.hop.speedM", DustStingerHopSpeedM },
             { "duststinger.contactCd", DustStingerContactCd },
+            { "mirageblossom.hp", MirageBlossomHp },
+            { "mirageblossom.atk", MirageBlossomAtk },
+            { "mirageblossom.def", MirageBlossomDef },
+            { "mirageblossom.speed", MirageBlossomSpeed },
+            { "mirageblossom.bodyRadius", MirageBlossomBodyRadius },
+            { "mirageblossom.burst.triggerM", MirageBlossomBurstTriggerM },
+            { "mirageblossom.burst.firstDelayS", MirageBlossomBurstFirstDelayS },
+            { "mirageblossom.burst.count", MirageBlossomBurstCount },
+            { "mirageblossom.burst.speedM", MirageBlossomBurstSpeedM },
+            { "mirageblossom.burst.radiusM", MirageBlossomBurstRadiusM },
+            { "mirageblossom.burst.lifeS", MirageBlossomBurstLifeS },
+            { "mirageblossom.burst.mult", MirageBlossomBurstMult },
+            { "mirageblossom.burst.cdS", MirageBlossomBurstCdS },
+            { "emberwhirl.hp", EmberWhirlHp },
+            { "emberwhirl.atk", EmberWhirlAtk },
+            { "emberwhirl.def", EmberWhirlDef },
+            { "emberwhirl.speed", EmberWhirlSpeed },
+            { "emberwhirl.bodyRadius", EmberWhirlBodyRadius },
+            { "emberwhirl.rush.telegraphS", EmberWhirlRushTelegraphS },
+            { "emberwhirl.rush.speedM", EmberWhirlRushSpeedM },
+            { "emberwhirl.rush.durS", EmberWhirlRushDurS },
+            { "emberwhirl.rush.trailIntervalS", EmberWhirlRushTrailIntervalS },
+            { "emberwhirl.rush.trailRadiusM", EmberWhirlRushTrailRadiusM },
+            { "emberwhirl.rush.trailLifeS", EmberWhirlRushTrailLifeS },
+            { "emberwhirl.rush.trailMult", EmberWhirlRushTrailMult },
+            { "emberwhirl.rush.cdS", EmberWhirlRushCdS },
+            { "emberwhirl.rush.recoverS", EmberWhirlRushRecoverS },
             { "boss_kazra.hp", BossKazraHp },
             { "boss_kazra.atk", BossKazraAtk },
             { "boss_kazra.def", BossKazraDef },

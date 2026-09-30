@@ -117,6 +117,8 @@ namespace StarfallKnights.Dungeon
                     case EnemyKind.SnowPuff: SnowPuff(w, e, st, dt, slow); break;
                     case EnemyKind.IceTurtle: IceTurtle(w, e, st, dt, slow); break;
                     case EnemyKind.BlizzardHawk: BlizzardHawk(w, e, st, dt, slow); break;
+                    case EnemyKind.IceSpike: IceSpike(w, e, st, dt); break;
+                    case EnemyKind.IceGlider: IceGlider(w, e, st, dt, slow); break;
                     case EnemyKind.FrostMage: Kiter(w, e, st, dt, slow,
                         Bestiary.FrostMageKeepMinM, Bestiary.FrostMageKeepMaxM,
                         Bestiary.FrostMageBoltCd, Bestiary.FrostMageBoltAimS,
@@ -126,6 +128,8 @@ namespace StarfallKnights.Dungeon
                     case EnemyKind.MidBossMossstag: MossStag(w, e, st, dt, slow); break;
                     case EnemyKind.MidBossFrosthuntress: FrostHuntress(w, e, st, dt, slow); break;
                     case EnemyKind.MidBossSandreaper: SandReaper(w, e, st, dt, slow); break;
+                    case EnemyKind.MirageBlossom: MirageBlossom(w, e, st, dt); break;
+                    case EnemyKind.EmberWhirl: EmberWhirl(w, e, st, dt, slow); break;
                     case EnemyKind.CinderRat: CinderRat(w, e, st, dt, slow); break;
                     case EnemyKind.DuneBeetle: DuneBeetle(w, e, st, dt, slow); break;
                     case EnemyKind.FlameDancer: FlameDancer(w, e, st, dt, slow); break;
@@ -1145,6 +1149,129 @@ namespace StarfallKnights.Dungeon
                     break;
             }
             st.AnimT += dt;
+        }
+
+        // ---------- 轮 11 补怪四件套(镜像 web TundraSystem/DesertSystem) ----------
+
+        /// <summary>冰锥笋:炮台 —— 玩家进 rangeM 就在其脚下点冰锥,本体不动。</summary>
+        private static void IceSpike(LogicWorld w, Actor e, MobState st, float dt)
+        {
+            e.Vel = Vector2.Zero;
+            var (_, _, dist, _, _) = ToPlayer(w, e);
+            st.Cd -= dt;
+            if (st.Cd <= 0f && dist < Bestiary.IceSpikeSpikeRangeM)
+            {
+                TelegraphSystem.Add(w, w.Player.Pos, Bestiary.IceSpikeSpikeRadiusM,
+                    Bestiary.IceSpikeSpikeTelegraphS, e.Unit.Atk, Bestiary.IceSpikeSpikeMult,
+                    Element.Ice, true);
+                st.Cd = Bestiary.IceSpikeSpikeCdS;
+            }
+        }
+
+        /// <summary>霜刃滑手:漂移体 —— 速度恒定,朝向按 turnRadPerS 缓慢掰向玩家。</summary>
+        private static void IceGlider(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, _, _) = ToPlayer(w, e);
+            float want = MathF.Atan2(dy, dx);
+            float diff = want - st.DirX;   // DirX 借存 heading(弧度)
+            while (diff > MathF.PI) diff -= MathF.PI * 2f;
+            while (diff < -MathF.PI) diff += MathF.PI * 2f;
+            float maxTurn = Bestiary.IceGliderGlideTurnRadPerS * dt;
+            st.DirX += Math.Clamp(diff, -maxTurn, maxTurn);
+            e.Face = st.DirX;
+            e.Vel = new Vector2(MathF.Cos(st.DirX), MathF.Sin(st.DirX)) * Bestiary.IceGliderSpeed * slow;
+            Touch(w, e, st, dist);
+        }
+
+        /// <summary>沙蜃花:伏击 —— 圈外装死;踏进圈苏醒,firstDelayS 后环形毒针,在圈内每 cdS 一轮。</summary>
+        private static void MirageBlossom(LogicWorld w, Actor e, MobState st, float dt)
+        {
+            e.Vel = Vector2.Zero;
+            var (_, _, dist, _, _) = ToPlayer(w, e);
+            bool inRange = dist < Bestiary.MirageBlossomBurstTriggerM;
+            switch (st.Phase)
+            {
+                case MobPhase.Chase:     // MobState 默认相位 → 先归位休眠(伏击怪出生必须装死)
+                    st.Phase = MobPhase.Idle;
+                    break;
+                case MobPhase.Idle:      // dormant
+                    if (inRange) { st.Phase = MobPhase.Telegraph; st.T = Bestiary.MirageBlossomBurstFirstDelayS; }
+                    break;
+                case MobPhase.Telegraph: // wake
+                    st.T -= dt;
+                    if (st.T <= 0f) { NeedleRing(w, e); st.Phase = MobPhase.Aim; st.Cd = Bestiary.MirageBlossomBurstCdS; }
+                    break;
+                default:                 // active
+                    st.Cd -= dt;
+                    if (!inRange && st.Cd <= 0f) st.Phase = MobPhase.Idle;
+                    else if (inRange && st.Cd <= 0f) { NeedleRing(w, e); st.Cd = Bestiary.MirageBlossomBurstCdS; }
+                    break;
+            }
+        }
+
+        private static void NeedleRing(LogicWorld w, Actor e)
+        {
+            int count = (int)Bestiary.MirageBlossomBurstCount;
+            for (int i = 0; i < count; i++)
+            {
+                float a = (i / (float)count) * MathF.PI * 2f;
+                ShootAtPlayer(w, e, new Vector2(MathF.Cos(a), MathF.Sin(a)),
+                    Bestiary.MirageBlossomBurstSpeedM, Bestiary.MirageBlossomBurstRadiusM,
+                    Bestiary.MirageBlossomBurstMult, Bestiary.MirageBlossomBurstLifeS, Element.Toxin);
+            }
+        }
+
+        /// <summary>烬旋灵:画线 —— 游走 → 自旋蓄力 → 锁向突进留火痕 → 眩晕。</summary>
+        private static void EmberWhirl(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, nx, ny) = ToPlayer(w, e);
+            switch (st.Phase)
+            {
+                case MobPhase.Chase:
+                    e.Face = MathF.Atan2(dy, dx);
+                    e.Vel = new Vector2(nx, ny) * Bestiary.EmberWhirlSpeed * slow;
+                    Touch(w, e, st, dist);
+                    st.Cd -= dt;
+                    if (st.Cd <= 0f && dist < 7f)
+                    {
+                        st.Phase = MobPhase.Telegraph;
+                        st.T = Bestiary.EmberWhirlRushTelegraphS;
+                        st.DirX = nx; st.DirY = ny;
+                        e.Vel = Vector2.Zero;
+                    }
+                    break;
+                case MobPhase.Telegraph:
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f) { st.Phase = MobPhase.Dash; st.T = Bestiary.EmberWhirlRushDurS; st.TrailT = 0f; }
+                    break;
+                case MobPhase.Dash:
+                    e.Vel = new Vector2(st.DirX, st.DirY) * Bestiary.EmberWhirlRushSpeedM * slow;
+                    st.T -= dt;
+                    st.TrailT -= dt;
+                    if (st.TrailT <= 0f)
+                    {
+                        w.Zones.Add(new Zone
+                        {
+                            Pos = e.Pos, RadiusM = Bestiary.EmberWhirlRushTrailRadiusM,
+                            LifeS = Bestiary.EmberWhirlRushTrailLifeS, TickS = 0.4f,
+                            Atk = e.Unit.Atk, Mult = Bestiary.EmberWhirlRushTrailMult,
+                            Element = Element.Fire, PlayerTeam = false,
+                        });
+                        st.TrailT = Bestiary.EmberWhirlRushTrailIntervalS;
+                    }
+                    Touch(w, e, st, dist);
+                    if (st.T <= 0f) { st.Phase = MobPhase.Recover; st.T = Bestiary.EmberWhirlRushRecoverS; }
+                    break;
+                case MobPhase.Recover:
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f) { st.Phase = MobPhase.Chase; st.Cd = Bestiary.EmberWhirlRushCdS; }
+                    break;
+                default:
+                    st.Phase = MobPhase.Chase;
+                    break;
+            }
         }
 
         /// <summary>冲出竞技场边界 = 撞墙(中 Boss 拿硬边界当地形用)。</summary>

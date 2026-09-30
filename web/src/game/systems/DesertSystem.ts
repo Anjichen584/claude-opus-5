@@ -3,8 +3,8 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
-  Body, Buffs, CinderRat, DuneBeetle, DustStinger, FlameDancer, Player, Projectile,
-  RingFxEvent, SfxEvent, Stats, Transform, Velocity, Zone,
+  Body, Buffs, CinderRat, DuneBeetle, DustStinger, EmberWhirl, Faction, FlameDancer,
+  MirageBlossom, Player, Projectile, RingFxEvent, SfxEvent, Stats, Transform, Velocity, Zone,
 } from '@game/components';
 import { PlayerSystem } from './PlayerSystem';
 
@@ -12,6 +12,8 @@ const RAT = balance.enemies.cinderrat;
 const BEETLE = balance.enemies.dunebeetle;
 const DANCER = balance.enemies.flamedancer;
 const STINGER = balance.enemies.duststinger;
+const BLOSSOM = balance.enemies.mirageblossom;
+const WHIRL = balance.enemies.emberwhirl;
 
 /**
  * 第三章「烬语荒漠」杂兵 AI 四件套:
@@ -31,6 +33,148 @@ export class DesertSystem implements System {
     this.beetles(world, dt, pe, ptr, pr, pAlive);
     this.dancers(world, dt, ptr, pAlive);
     this.stingers(world, dt, pe, ptr, pr, pAlive);
+    this.blossoms(world, dt, ptr, pAlive);
+    this.whirls(world, dt, pe, ptr, pr, pAlive);
+  }
+
+  // ---- 沙蜃花(轮 11):伏击 —— 伪装静默,踏进圈才苏醒,环形毒针 ----
+  private blossoms(world: World, dt: number, ptr: Transform, pAlive: boolean): void {
+    for (const e of world.query(MirageBlossom, Transform, Stats)) {
+      const b = world.mustGet(e, MirageBlossom);
+      const tr = world.mustGet(e, Transform);
+      const stats = world.mustGet(e, Stats);
+      const buffs = world.get(e, Buffs);
+      b.animT += dt;
+      if ((buffs && buffs.stunT > 0) || !pAlive) continue;
+      const dist = Math.hypot(ptr.x - tr.x, ptr.y - tr.y);
+      const inRange = dist < BLOSSOM.burst.triggerM * M;
+
+      if (b.state === 'dormant') {
+        if (inRange) {
+          b.state = 'wake';
+          b.t = BLOSSOM.burst.firstDelayS;   // 苏醒抖动 = 预警(渲染读 state)
+          world.emit(new SfxEvent('growl'));
+        }
+      } else if (b.state === 'wake') {
+        b.t -= dt;
+        if (b.t <= 0) {
+          this.needleRing(world, tr, stats);
+          b.state = 'active';
+          b.cd = BLOSSOM.burst.cdS;
+        }
+      } else {
+        // active:玩家在圈内每 cdS 再来一轮;离开圈就重新休眠(伏击怪不追人)
+        b.cd -= dt;
+        if (!inRange && b.cd <= 0) {
+          b.state = 'dormant';
+        } else if (inRange && b.cd <= 0) {
+          this.needleRing(world, tr, stats);
+          b.cd = BLOSSOM.burst.cdS;
+        }
+      }
+    }
+  }
+
+  private needleRing(world: World, tr: Transform, stats: Stats): void {
+    const bu = BLOSSOM.burst;
+    const color = elementColor('toxin');
+    for (let i = 0; i < bu.count; i++) {
+      const a = (i / bu.count) * Math.PI * 2;
+      const p = world.create();
+      world.add(p, new Transform(tr.x + Math.cos(a) * 10, tr.y - 8 + Math.sin(a) * 10));
+      const pv = new Velocity();
+      pv.vx = Math.cos(a) * bu.speedM * M;
+      pv.vy = Math.sin(a) * bu.speedM * M;
+      world.add(p, pv);
+      world.add(p, new Faction('enemy'));
+      world.add(p, new Projectile('enemy', stats.atk, bu.mult, 'toxin', bu.radiusM * M, bu.lifeS, color));
+    }
+    world.emit(new SfxEvent('shot'));
+  }
+
+  // ---- 烬旋灵(轮 11):画线怪 —— 自旋蓄力 → 锁向突进,沿途留火痕 ----
+  private whirls(world: World, dt: number, pe: Entity, ptr: Transform, pr: number, pAlive: boolean): void {
+    for (const e of world.query(EmberWhirl, Transform, Velocity, Stats, Body)) {
+      const wl = world.mustGet(e, EmberWhirl);
+      const tr = world.mustGet(e, Transform);
+      const vel = world.mustGet(e, Velocity);
+      const stats = world.mustGet(e, Stats);
+      const body = world.mustGet(e, Body);
+      const buffs = world.get(e, Buffs);
+      wl.animT += dt;
+      wl.contactCd -= dt;
+      if ((buffs && buffs.stunT > 0) || !pAlive) { vel.vx = 0; vel.vy = 0; continue; }
+      const slow = buffs && buffs.slowT > 0 ? 1 - buffs.slowPct : 1;
+      const dx = ptr.x - tr.x;
+      const dy = ptr.y - tr.y;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      switch (wl.state) {
+        case 'drift': {
+          tr.face = Math.atan2(dy, dx);
+          vel.vx = (dx / dist) * stats.moveSpeed * M * slow;
+          vel.vy = (dy / dist) * stats.moveSpeed * M * slow;
+          wl.cd -= dt;
+          if (wl.cd <= 0 && dist < 7 * M) {
+            wl.state = 'spinup';
+            wl.t = WHIRL.rush.telegraphS;
+            wl.dirX = dx / dist;
+            wl.dirY = dy / dist;
+            vel.vx = 0;
+            vel.vy = 0;
+            world.emit(new SfxEvent('growl'));
+          }
+          break;
+        }
+        case 'spinup': {
+          vel.vx = 0;
+          vel.vy = 0;
+          wl.t -= dt;
+          if (wl.t <= 0) {
+            wl.state = 'rush';
+            wl.t = WHIRL.rush.durS;
+            wl.trailT = 0;
+            world.emit(new SfxEvent('dash'));
+          }
+          break;
+        }
+        case 'rush': {
+          vel.vx = wl.dirX * WHIRL.rush.speedM * M * slow;
+          vel.vy = wl.dirY * WHIRL.rush.speedM * M * slow;
+          wl.t -= dt;
+          wl.trailT -= dt;
+          if (wl.trailT <= 0) {
+            // 火痕:一小片持续伤害区(它画出来的线)
+            const z = world.create();
+            world.add(z, new Transform(tr.x, tr.y));
+            world.add(z, new Zone(
+              WHIRL.rush.trailRadiusM * M, WHIRL.rush.trailLifeS, 0.4,
+              stats.atk, WHIRL.rush.trailMult, 'fire', 'enemy', elementColor('fire'),
+            ));
+            wl.trailT = WHIRL.rush.trailIntervalS;
+          }
+          if (dist < body.radius * M + pr + 4 && wl.contactCd <= 0) {
+            wl.contactCd = 0.8;
+            PlayerSystem.applyHurt(world, pe, stats.atk);
+          }
+          if (wl.t <= 0) {
+            wl.state = 'dizzy';
+            wl.t = WHIRL.rush.recoverS;
+          }
+          break;
+        }
+        case 'dizzy': {
+          vel.vx = 0;
+          vel.vy = 0;
+          wl.t -= dt;
+          if (wl.t <= 0) {
+            wl.state = 'drift';
+            wl.cd = WHIRL.rush.cdS;
+          }
+          break;
+        }
+      }
+    }
   }
 
   // ---- 烬鼠:Z 字高速贴脸 ----

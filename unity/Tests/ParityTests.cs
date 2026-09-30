@@ -1283,6 +1283,10 @@ namespace StarfallKnights.Tests
                 case "midboss_mossstag": return Core.EnemyKind.MidBossMossstag;
                 case "midboss_frosthuntress": return Core.EnemyKind.MidBossFrosthuntress;
                 case "midboss_sandreaper": return Core.EnemyKind.MidBossSandreaper;
+                case "icespike": return Core.EnemyKind.IceSpike;
+                case "iceglider": return Core.EnemyKind.IceGlider;
+                case "mirageblossom": return Core.EnemyKind.MirageBlossom;
+                case "emberwhirl": return Core.EnemyKind.EmberWhirl;
                 case "boss_velsha": return Core.EnemyKind.BossVelsha;
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;

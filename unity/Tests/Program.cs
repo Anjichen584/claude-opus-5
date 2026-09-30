@@ -1553,6 +1553,75 @@ namespace StarfallKnights.Tests
                 Check(TerrainRules.SlideStep(4f, 0f, -8f, 0f, true, true, 1f / 60f).vx == -8f, "翻滚期间位移立刻听翻滚的");
                 Check(TerrainRules.SlideStep(4f, 0f, -4f, 0f, false, false, 1f / 60f).vx == -4f, "平地没有惯性");
             }
+
+            Suite("轮 11 补怪四件套(炮台 / 漂移 / 伏击 / 画线)");
+
+            // 冰锥笋:进圈点脚下,本体不动;圈外装死
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var spike = MakeEnemy(w, mid + new Vector2(4f, 0f), Bestiary.IceSpikeHp);
+                spike.Kind = EnemyKind.IceSpike;
+                var ai = new CreatureAI();
+                var p0 = spike.Pos;
+                int maxTg = 0;
+                for (int i = 0; i < 60 * 4; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxTg = Math.Max(maxTg, w.Telegraphs.Count);
+                    w.Telegraphs.Clear();
+                }
+                Check(maxTg >= 1, "冰锥笋在玩家脚下点冰锥");
+                Check(Vector2.Distance(spike.Pos, p0) < 0.01f, "炮台一步不挪");
+            }
+
+            // 霜刃滑手:转向限速(0.3s 掰不过 180°)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var g = MakeEnemy(w, mid + new Vector2(3f, 0f), Bestiary.IceGliderHp);
+                g.Kind = EnemyKind.IceGlider;
+                var ai = new CreatureAI();
+                for (int i = 0; i < 18; i++) ai.Update(w, 1f / 60f);   // heading 从 0 开始,玩家在左
+                Check(MathF.Cos(g.Face) > 0f, "0.3s 内掰不过头(转向限速)");
+                for (int i = 0; i < 150; i++) ai.Update(w, 1f / 60f);
+                Check(MathF.Cos(g.Face) < 0f, "足够时间后终于朝向玩家");
+            }
+
+            // 沙蜃花:圈外装死;进圈 firstDelayS 后一圈毒针
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid + new Vector2(Bestiary.MirageBlossomBurstTriggerM + 2f, 0f));
+                var b = MakeEnemy(w, mid, Bestiary.MirageBlossomHp);
+                b.Kind = EnemyKind.MirageBlossom;
+                var ai = new CreatureAI();
+                for (int i = 0; i < 60; i++) ai.Update(w, 1f / 60f);
+                Check(w.Projectiles.Count == 0, "圈外装死不放针");
+                w.Player.Pos = mid + new Vector2(2f, 0f);
+                for (int i = 0; i < (int)((Bestiary.MirageBlossomBurstFirstDelayS + 0.3f) * 60); i++) ai.Update(w, 1f / 60f);
+                Check(w.Projectiles.Count >= (int)Bestiary.MirageBlossomBurstCount,
+                    $"苏醒后环形毒针 ≥{Bestiary.MirageBlossomBurstCount:0} 根(实际 {w.Projectiles.Count})");
+            }
+
+            // 烬旋灵:突进画火痕(≥3 片)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid + new Vector2(5f, 0f));
+                var wl = MakeEnemy(w, mid, Bestiary.EmberWhirlHp);
+                wl.Kind = EnemyKind.EmberWhirl;
+                var ai = new CreatureAI();
+                int maxZones = 0;
+                for (int i = 0; i < 60 * 8; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxZones = Math.Max(maxZones, w.Zones.Count);
+                }
+                Check(maxZones >= 3, $"突进沿途留火痕 ≥3 片(实际 {maxZones})");
+            }
+
+            // 章归属
+            Check(EnemyKinds.ChapterOf(EnemyKind.IceGlider) == 2 && EnemyKinds.ChapterOf(EnemyKind.EmberWhirl) == 3,
+                "新怪各归各章");
         }
 
 
@@ -1604,8 +1673,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 24 && Codex.RuneTotal == 36,
-                $"条目总数 24 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 28 && Codex.RuneTotal == 36,
+                $"条目总数 28 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1669,7 +1738,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 24, $"图鉴覆盖 24 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 28, $"图鉴覆盖 28 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {
