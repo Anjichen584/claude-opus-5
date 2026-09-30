@@ -24,7 +24,7 @@
 | `Skills/ArcanistSkills.cs` | `SkillSystem.ts`(秘术师路径) | Q追星术追踪法球/E星幕闪现(限程瞬移+起点爆裂)/R元素风暴(怒气延长) |
 | `Skills/WardenSkills.cs` | `SkillSystem.ts`(守卫路径) | Q岩震击(眩晕)/E壁垒冲锋(击退)/R大地怒吼(全周击退+减速) |
 | `Skills/ClassSkillSet.cs` | `SkillSystem.ts(klass 分派)` | 四职业分派适配层:怒气/CDR/冷却/符文位统一代理,切职业只改一个枚举 |
-| `Skills/RunePool.cs` | `data/runes/pool.json(全 36 枚)` | 符文定义镜像(id/技能/名称/元素/地带四参数) |
+| `Skills/RunePool.cs` | `data/runes/pool.json(全 48 枚)` | 符文定义镜像(id/技能/名称/元素/地带四参数) |
 | `Dungeon/RunManagerLite.cs` | `game/dungeon/RunManager.ts` | 8 房序列(战战宝藏战精英战战Boss)/三章出怪池与精英编成/章节 Boss/夜间与章节缩放,OnSpawn/OnRoomCleared/OnVictory 回调 |
 | `Meta/MetaSave.cs` | `game/meta/Save.ts` | 局外存档 POCO(JsonUtility 兼容)+ 祭坛升价公式 |
 | `Meta/Codex.cs` | `game/meta/Codex.ts` | 图鉴(收录):只存"见过没有+次数",数值现读 `Bestiary`/`RunePool`;MarkKill/MarkRune/Sanitize/TopKills |
@@ -32,6 +32,14 @@
 | `Data/Balance.cs` | `data/balance.json`(节选) | 核心常量镜像 + `PxPerM`(=web 的 M=48)⚠ 双端修改需同步 |
 | `Data/Bestiary.cs` | `data/balance.json`(全量) | **自动生成**:21 种敌人属性行 + 三章配置 + 304 个行为参数常量(`python3 tools/gen_bestiary.py`) |
 | `Core/PixelFont.cs` | `game/gfx/pixelFont.ts` | 5×7 位图数字字体(24 字符):字模表 + 度量/对齐/Pixel 查询;字模权威是 web/src/data/font.json,`ParityTests` 逐字符逐行比对(改一行字模立刻红) |
+| `Meta/Achievements.cs` | `game/meta/Achievements.ts` | 成就镜像(轮 41):权威表 = `web/src/data/achievements.json` 32 条,判定纯函数(`AchvState` 快照输入)+ 幂等解锁 + 脏档清洗;`CheckAchievements` 逐条 6 字段 parity |
+| `Meta/PanelModels.cs` | `ui/CampUI.ts`(行格式化) | U2 面板 ViewModel(轮 42):图鉴/成就/排行榜/装备四页的行文案纯函数,`Unity/MetaPanelsGUI.cs` 只画字符串零判断 |
+| `Meta/SaveCodec.cs` | `meta/Save.ts`(落盘部分) | 存档编解码(轮 43):四大块 ↔ JSON,读档三重清洗,坏档=全新默认,二次编码逐字节稳定 |
+| `Meta/Leaderboard.cs` | `game/meta/Leaderboard.ts` | 本地四榜:排序方向/门槛/前 N 截断/清洗/FormatScore,`CheckLeaderboard` parity |
+| `Loot/Equip.cs` | `game/loot/Equip.ts` | 装备穿戴(轮 44):六槽+背包 24 格、Recompute 公式骨架(祭坛→平铺→百分比,crit≤1/cdr≤40%)、KeepHpRatio、AutoTake 拾取决策 |
+| `Loot/ShopRules.cs` | `loot/ShopStock.ts` + `EventRules.ts` | 商店定价/议价/货架 + 秘境 8 碑(元数据/门槛/回响折算),`CheckShop` parity |
+| `Dungeon/AbyssRules.cs` | `game/dungeon/Abyss.ts` | 深渊三层乘区与逐层解锁 |
+| `Dungeon/EndlessRules.cs` | `game/dungeon/Endless.ts` | 无尽循环乘区 + 数值闸门(clamp 保证有限) |
 | `Meta/Challenges.cs` | `game/meta/Daily.ts` + `Weekly.ts` | 挑战镜像:每日 10 条词条池 + 周常 8 条**铁律**(结构性:多一波怪/商店关门/祭坛失效/精英提前/地形定死)+ ISO 周键 + 与 web 同构的抽签链路(FNV-1a→雪崩→mulberry32,含 golden 向量);数据走 `Parity` 与 challenges.json 的 178 键逐项比对 |
 | `Combat/Telegraphs.cs` | `TelegraphStrike` / Boss 预警 | 预警区域:亮圈 → 到点结算 → 可残留元素地带 |
 | `Dungeon/CreatureAI.cs` | `EnemySystem/CritterSystem/EliteSystem/TundraSystem/DesertSystem` | 18 种杂兵 AI:炮台/风筝/滚撞/旋壳/俯冲/钻地/抛毒沼/瞬跳/精灵逃跑 |
@@ -77,12 +85,11 @@ bash unity/Tests/run.sh      # 547 项断言:随机数/元素反应/伤害管线
 
 ## 尚未镜像(Web 端已有)
 
-- 商店/秘境(事件房)/图纸/星灯交互、装备穿戴与词条 recompute
-- 图鉴 / 成就面板(逻辑层 `Meta/Codex.cs` 已就绪,缺 Unity 面板;web 端实现见 `ui/CampUI.ts` 的 renderCodex / renderAchv)
-- 成就判定(web 端 `meta/Achievements.ts` 20 条;Unity 侧尚未镜像)
-- 存档落盘(MetaSave 已备好,宿主接 PlayerPrefs 两行即可)
-- 普攻各职业差异(猎手连射弓/秘术师法杖/守卫重锤连击):参数在 `balance.json classes.*`,目前宿主仍用剑士三段连击
-- 每日挑战词条(RunMods)对局内数值的乘区
+> 轮 41–44 已收掉原清单的大头:成就判定/面板/存档落盘/装备穿戴/挑战乘区全部镜像完成。
+
+- 商店房**实体化**(摊位 NPC/交互;`ShopRules` 定价议价逻辑已全 parity,缺场景交互 → 归 U5 人工位)
+- 图纸铸造与星灯交互(逻辑口径在 web `loot/Blueprint.ts`;Unity 侧未镜像,优先级低)
+- 真场景/Sprite 导入/出包(U4/U5,必须 Unity Editor 人工操作)
 
 > 已知数据死字段(web 与 C# 两边都未消费,仅作数据保留):
 > `blade_q_cleave.pullM`(拉拽 1.5m)、`shroomling.spore`(孢子云)、`frostslime.split`(分裂)。
