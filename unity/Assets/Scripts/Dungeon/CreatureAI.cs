@@ -8,7 +8,7 @@ using StarfallKnights.Data;
 namespace StarfallKnights.Dungeon
 {
     /// <summary>怪物行为状态(各怪共用的状态机标签,按种类只用到子集)。</summary>
-    public enum MobPhase { Chase, Wander, Telegraph, Dash, Aim, Recover, Orbit, Growl, Pounce, Windup, Idle, Hop, Burrow, Surface, Spin, Hover, Dive, Drop, Crawl, Flee }
+    public enum MobPhase { Chase, Wander, Telegraph, Dash, Aim, Recover, Orbit, Growl, Pounce, Windup, Idle, Hop, Burrow, Surface, Spin, Hover, Dive, Drop, Crawl, Flee, Channel }
 
     /// <summary>每只怪一份的可变状态。</summary>
     public sealed class MobState
@@ -24,6 +24,15 @@ namespace StarfallKnights.Dungeon
         public bool WallStun;
         /// <summary>上一招(true=冲撞,false=弹幕):两招各有独立冷却,只重置用掉的那个 → 自然轮换</summary>
         public bool LastWasCharge = true;
+        // 中 Boss 二号(霜噬女猎):三招独立冷却 / 连射计数 / 蓄力打断
+        public float BlinkCd = 2.2f, TrapCd = 4f, MarkCd = 8f;
+        /// <summary>上一招:0=瞬影冰矢 1=冰牙陷阵 2=猎杀凝视(只重置用掉的那招)</summary>
+        public int HuntressMove;
+        public int ShotsLeft;
+        public float ShotT;
+        public float HpAtChannel;
+        /// <summary>猎杀凝视的待结算冰枪(打断时连预警一起撤,不能只停动作)</summary>
+        public readonly List<Telegraph> Lanes = new();
     }
 
     /// <summary>
@@ -108,6 +117,7 @@ namespace StarfallKnights.Dungeon
                         Bestiary.FrostMageBoltMult, Bestiary.FrostMageBoltLifeS,
                         Element.Ice, 1); break;
                     case EnemyKind.MidBossMossstag: MossStag(w, e, st, dt, slow); break;
+                    case EnemyKind.MidBossFrosthuntress: FrostHuntress(w, e, st, dt, slow); break;
                     case EnemyKind.CinderRat: CinderRat(w, e, st, dt, slow); break;
                     case EnemyKind.DuneBeetle: DuneBeetle(w, e, st, dt, slow); break;
                     case EnemyKind.FlameDancer: FlameDancer(w, e, st, dt, slow); break;
@@ -758,6 +768,185 @@ namespace StarfallKnights.Dungeon
         {
             if (st.LastWasCharge) st.ChargeCd = Bestiary.MidBossMossstagChargeCdS * mul;
             else st.VolleyCd = Bestiary.MidBossMossstagVolleyCdS * mul;
+        }
+
+        // ---------- 第二章中 Boss:霜噬女猎(镜像 web MidBossHuntressSystem.ts) ----------
+        //
+        // 与巨鹿完全反向的风筝型猎手。三招 = 瞬影冰矢(瞬步拉开 → 连射,每发独立瞄准)、
+        // 冰牙陷阵(玩家脚下 + 环绕延时冰爆,错拍结算)、猎杀凝视(蓄力直线 6 段冰枪 ——
+        // 蓄力期间受伤加深(VulnT)且**掉血即打断** → interruptStunS 硬直 = 奖励窗口)。
+        // 三招独立冷却只重置用掉的那招;半血狂怒:冰矢+1/陷阱+1/移速×/冷却×。数值全走 Bestiary。
+        private static void FrostHuntress(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, nx, ny) = ToPlayer(w, e);
+            bool enraged = e.Unit.Hp <= e.Unit.HpMax * Bestiary.MidBossFrosthuntressPhase2At;
+            float cdMul = enraged ? Bestiary.MidBossFrosthuntressEnrageCdMul : 1f;
+            st.BlinkCd -= dt;
+            st.TrapCd -= dt;
+            st.MarkCd -= dt;
+            float keepMin = Bestiary.MidBossFrosthuntressKiteM * 0.75f;
+            float keepMax = Bestiary.MidBossFrosthuntressKiteM * 1.55f;
+
+            switch (st.Phase)
+            {
+                case MobPhase.Chase:   // kite:距离管理 + 侧移
+                {
+                    Vector2 mv;
+                    if (dist < keepMin) mv = new Vector2(-nx, -ny);
+                    else if (dist > keepMax) mv = new Vector2(nx, ny);
+                    else mv = new Vector2(-ny, nx) * st.CircleDir;
+                    mv += SteerToArena(e.Pos);
+                    if (mv.LengthSquared() > 0.0001f) mv = Vector2.Normalize(mv);
+                    float spd = Bestiary.MidBossFrosthuntressSpeed
+                        * (enraged ? Bestiary.MidBossFrosthuntressEnrageSpeedMul : 1f) * slow;
+                    e.Vel = mv * spd;
+                    e.Face = MathF.Atan2(dy, dx);
+
+                    // 三招轮换:就绪里挑"过期最久"的(与巨鹿同规则,推广到三招)
+                    int move = -1;
+                    float most = float.MaxValue;
+                    if (st.BlinkCd <= 0f && st.BlinkCd < most) { move = 0; most = st.BlinkCd; }
+                    if (st.TrapCd <= 0f && st.TrapCd < most) { move = 1; most = st.TrapCd; }
+                    if (st.MarkCd <= 0f && st.MarkCd < most) { move = 2; most = st.MarkCd; }
+                    if (move >= 0)
+                    {
+                        st.HuntressMove = move;
+                        e.Vel = Vector2.Zero;
+                        if (move == 0)
+                        {
+                            st.Phase = MobPhase.Telegraph;   // blinkWind:蹲身预警
+                            st.T = Bestiary.MidBossFrosthuntressBlinkTelegraphS;
+                            st.DirX = nx; st.DirY = ny;
+                        }
+                        else if (move == 1)
+                        {
+                            st.Phase = MobPhase.Windup;      // trapAim:抬手指地
+                            st.T = Bestiary.MidBossFrosthuntressTrapsTelegraphS * 0.5f;
+                        }
+                        else
+                        {
+                            // markChannel:锁向 + 铺直线冰枪 + 亮要害(VulnT)
+                            st.Phase = MobPhase.Channel;
+                            st.T = Bestiary.MidBossFrosthuntressMarkChannelS;
+                            st.DirX = nx; st.DirY = ny;
+                            st.HpAtChannel = e.Unit.Hp;
+                            st.Lanes.Clear();
+                            for (int i = 0; i < (int)Bestiary.MidBossFrosthuntressMarkSegments; i++)
+                            {
+                                float d = 1.6f + i * Bestiary.MidBossFrosthuntressMarkStepM; // 1.6 = web laneStartM
+                                var tg = TelegraphSystem.Add(w,
+                                    e.Pos + new Vector2(nx, ny) * d,
+                                    Bestiary.MidBossFrosthuntressMarkRadiusM,
+                                    Bestiary.MidBossFrosthuntressMarkChannelS + i * Bestiary.MidBossFrosthuntressMarkRippleS,
+                                    e.Unit.Atk, Bestiary.MidBossFrosthuntressMarkMult, Element.Ice, true);
+                                st.Lanes.Add(tg);
+                            }
+                            e.Unit.VulnT = MathF.Max(e.Unit.VulnT, Bestiary.MidBossFrosthuntressMarkChannelS);
+                            if (e.Unit.VulnPct <= 0f) e.Unit.VulnPct = BestiaryReactions.ReactionsBrittlePct;
+                        }
+                    }
+                    break;
+                }
+                case MobPhase.Telegraph:   // blinkWind → 瞬步 + 进入连射
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        var to = e.Pos - new Vector2(st.DirX, st.DirY) * Bestiary.MidBossFrosthuntressBlinkRangeM;
+                        const float pad = 1.2f;
+                        to.X = Math.Clamp(to.X, pad, Bestiary.ArenaWidthM - pad);
+                        to.Y = Math.Clamp(to.Y, pad, Bestiary.ArenaHeightM - pad);
+                        e.Pos = to;
+                        st.Phase = MobPhase.Aim;   // shoot
+                        st.ShotsLeft = (int)Bestiary.MidBossFrosthuntressArrowsCount
+                            + (enraged ? (int)Bestiary.MidBossFrosthuntressEnrageArrowAdd : 0);
+                        st.ShotT = 0f;
+                    }
+                    break;
+                }
+                case MobPhase.Aim:   // shoot:每发都重新瞄准(追身)
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(dy, dx);
+                    st.ShotT -= dt;
+                    if (st.ShotT <= 0f && st.ShotsLeft > 0)
+                    {
+                        var (_, _, _, anx, any) = ToPlayer(w, e);
+                        ShootAtPlayer(w, e, new Vector2(anx, any),
+                            Bestiary.MidBossFrosthuntressArrowsSpeedM,
+                            Bestiary.MidBossFrosthuntressArrowsRadiusM,
+                            Bestiary.MidBossFrosthuntressArrowsMult,
+                            Bestiary.MidBossFrosthuntressArrowsLifeS, Element.Ice);
+                        st.ShotsLeft--;
+                        st.ShotT = Bestiary.MidBossFrosthuntressArrowsIntervalS;
+                    }
+                    if (st.ShotsLeft <= 0) { st.Phase = MobPhase.Recover; st.T = 0.4f; }
+                    break;
+                }
+                case MobPhase.Windup:   // trapAim → 放陷阱
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(dy, dx);
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        int count = (int)Bestiary.MidBossFrosthuntressTrapsCount
+                            + (enraged ? (int)Bestiary.MidBossFrosthuntressEnrageTrapAdd : 0);
+                        for (int i = 0; i < count; i++)
+                        {
+                            float ang = (i / (float)count) * MathF.PI * 2f;
+                            var off = i == 0 ? Vector2.Zero
+                                : new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * Bestiary.MidBossFrosthuntressTrapsRingM;
+                            TelegraphSystem.Add(w, w.Player.Pos + off,
+                                Bestiary.MidBossFrosthuntressTrapsRadiusM,
+                                Bestiary.MidBossFrosthuntressTrapsTelegraphS + i * Bestiary.MidBossFrosthuntressTrapsStepS,
+                                e.Unit.Atk, Bestiary.MidBossFrosthuntressTrapsMult, Element.Ice, true);
+                        }
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.5f;
+                    }
+                    break;
+                }
+                case MobPhase.Channel:   // markChannel:站桩;掉血即打断(核心博弈)
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(st.DirY, st.DirX);
+                    if (e.Unit.Hp < st.HpAtChannel - 0.5f)
+                    {
+                        foreach (var tg in st.Lanes) w.Telegraphs.Remove(tg); // 幽灵冰枪必须撤干净
+                        st.Lanes.Clear();
+                        st.Phase = MobPhase.Recover;
+                        st.T = Bestiary.MidBossFrosthuntressMarkInterruptStunS;
+                        break;
+                    }
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.Lanes.Clear();   // 蓄满:冰枪按各自倒计时结算
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.6f;
+                    }
+                    break;
+                }
+                case MobPhase.Recover:   // 后摇/硬直共用(与巨鹿同口径)
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.Phase = MobPhase.Chase;
+                        // 只重置用掉的那一招
+                        if (st.HuntressMove == 0) st.BlinkCd = Bestiary.MidBossFrosthuntressBlinkCdS * cdMul;
+                        else if (st.HuntressMove == 1) st.TrapCd = Bestiary.MidBossFrosthuntressTrapsCdS * cdMul;
+                        else st.MarkCd = Bestiary.MidBossFrosthuntressMarkCdS * cdMul;
+                    }
+                    break;
+                }
+                default:
+                    st.Phase = MobPhase.Chase;
+                    break;
+            }
         }
 
         /// <summary>冲出竞技场边界 = 撞墙(中 Boss 拿硬边界当地形用)。</summary>

@@ -12,6 +12,7 @@ import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
+  MidBossHuntress,
   MidBossStag,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
@@ -23,6 +24,7 @@ import {
   drawBlightWolf, drawBossNanmir, drawDummy, drawElementIcon, drawKnight, drawOakGolem, drawPickup,
   drawPortal, drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
+import { MidBossHuntressSystem } from '@game/systems/MidBossHuntressSystem';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
 import { ShopSystem } from '@game/systems/ShopSystem';
@@ -218,6 +220,7 @@ export class GameScene {
       new EnemySystem(),
       new EliteSystem(),
       new MidBossSystem(),
+      new MidBossHuntressSystem(),
       new CritterSystem(),
       new TundraSystem(),
       new DesertSystem(),
@@ -1481,6 +1484,54 @@ export class GameScene {
         } });
       }
 
+      // ---- 第二章中 Boss:霜噬女猎(站立/引弓双帧) ----
+      for (const e of w.query(MidBossHuntress, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const hs = w.mustGet(e, MidBossHuntress);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 18);
+          // 连射/蓄力用引弓帧,其余站立帧;蓄力时加微颤(拉满弓的张力)
+          const aiming = hs.state === 'shoot' || hs.state === 'markChannel' || hs.state === 'trapAim';
+          const frame = aiming ? 'midboss_frosthuntress_f2' : this.frame2('midboss_frosthuntress', e, hs.state === 'kite');
+          const jit = hs.state === 'markChannel' ? (Math.random() - 0.5) * 0.08 : 0;
+          if (!drawSprite(ctx, frame, ix, iy, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: jit + (hs.state === 'stagger' ? 0.22 : 0),
+          })) {
+            // 程序化回退:冰蓝披风身形 + 弓弧
+            blob(ix, iy, 16, '#8fd4ff');
+            ctx.strokeStyle = '#cfeeff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ix + (Math.cos(tr.face) < 0 ? -12 : 12), iy - 14, 9, -1.2, 1.2);
+            ctx.stroke();
+          }
+          // 蓄力警示:她"亮出要害"的时刻(受伤加深 + 可打断),画一圈金色细环提示上
+          if (hs.state === 'markChannel') {
+            ctx.save();
+            ctx.globalAlpha = 0.5 + Math.sin(hs.animT * 10) * 0.3;
+            ctx.strokeStyle = '#e8c07a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ix, iy - 14, 20, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+          // 狂怒霜雾
+          if (hs.phase === 2) {
+            ctx.save();
+            ctx.globalAlpha = 0.14 + Math.sin(hs.animT * 5) * 0.05;
+            ctx.fillStyle = '#8fd4ff';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy - 20, 34, 22, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        } });
+      }
+
       // ---- 第三章:荒漠怪 ----
       for (const e of w.query(CinderRat, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
@@ -2087,6 +2138,10 @@ export class GameScene {
     for (const e of this.world.query(MidBossStag, Health)) {
       const st = this.world.mustGet(e, MidBossStag);
       drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_mossstag.name, st.phase, false, '#8fd45f');
+    }
+    for (const e of this.world.query(MidBossHuntress, Health)) {
+      const hs = this.world.mustGet(e, MidBossHuntress);
+      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_frosthuntress.name, hs.phase, false, '#8fd4ff');
     }
     for (const e of this.world.query(BossNanmir, Health)) {
       const boss = this.world.mustGet(e, BossNanmir);

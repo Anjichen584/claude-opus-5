@@ -386,3 +386,245 @@ describe('中 Boss 苔冠巨鹿 · 行为(真跑 AI)', () => {
 function nanmarAtk(n: { atk: number }): number {
   return n.atk;
 }
+
+/* ================= 二章中 Boss 霜噬女猎(轮 13) ================= */
+
+import { MidBossHuntress } from '@game/components';
+import { MidBossHuntressSystem } from '@game/systems/MidBossHuntressSystem';
+
+const H = balance.enemies.midboss_frosthuntress;
+
+function makeHuntressWorld(hx: number, hy: number, px: number, py: number) {
+  const w = new World();
+  const pe = w.create();
+  w.add(pe, new Transform(px, py));
+  w.add(pe, new Velocity());
+  w.add(pe, new Body(0.3));
+  w.add(pe, new Health(200));
+  w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+  w.add(pe, new Faction('player'));
+  w.add(pe, new Player());
+
+  const he = w.create();
+  w.add(he, new Transform(hx, hy));
+  w.add(he, new Velocity());
+  w.add(he, new Body(H.bodyRadius));
+  w.add(he, new Health(Math.round(H.hp)));
+  w.add(he, new Stats(H.atk, H.speed, 0, 1, H.def));
+  w.add(he, new Faction('enemy'));
+  w.add(he, new Buffs());
+  const hnt = new MidBossHuntress();
+  hnt.spawnX = hx;
+  hnt.spawnY = hy;
+  w.add(he, hnt);
+  return { w, pe, he, hnt };
+}
+
+function runH(sys: MidBossHuntressSystem, w: World, seconds: number): void {
+  const dt = 1 / 60;
+  const phys = new PhysicsSystem();
+  for (let i = 0; i < Math.round(seconds * 60); i++) {
+    sys.update(w, dt);
+    phys.update(w, dt);
+  }
+}
+
+describe('中 Boss 霜噬女猎 · 数据契约', () => {
+  it('balance 条目齐全(数值块不能少,少一块 AI 会读 undefined)', () => {
+    for (const key of ['hp', 'atk', 'def', 'speed', 'bodyRadius', 'kiteM', 'phase2At', 'runeDrop'] as const) {
+      expect(H[key], `缺 ${key}`).toBeTypeOf('number');
+    }
+    expect(H.blink.rangeM).toBeGreaterThan(0);
+    expect(H.arrows.count).toBeGreaterThanOrEqual(2);
+    expect(H.traps.count).toBeGreaterThanOrEqual(2);
+    expect(H.mark.segments).toBeGreaterThanOrEqual(4);
+  });
+
+  it('定位正确:比精英肉、比章 Boss 轻(她是二章的"半个 Boss")', () => {
+    expect(H.hp).toBeGreaterThan(balance.enemies.oakgolem.hp * 1.5);
+    expect(H.hp).toBeLessThan(balance.enemies.boss_velsha.hp * 0.6);
+  });
+
+  it('可读性硬约束:陷阱预警/蓄力时长/打断硬直都要给够反应时间', () => {
+    expect(H.traps.telegraphS).toBeGreaterThanOrEqual(0.5);
+    expect(H.mark.channelS, '蓄力短于 1.2s 玩家根本来不及做打断决策').toBeGreaterThanOrEqual(1.2);
+    expect(H.mark.interruptStunS, '打断奖励窗口不能小于 1.2s,否则博弈不值').toBeGreaterThanOrEqual(1.2);
+  });
+
+  it('狂怒是"更凶"而不是"更弱"', () => {
+    expect(H.enrageArrowAdd).toBeGreaterThanOrEqual(1);
+    expect(H.enrageTrapAdd).toBeGreaterThanOrEqual(1);
+    expect(H.enrageSpeedMul).toBeGreaterThan(1);
+    expect(H.enrageCdMul).toBeLessThan(1);
+  });
+
+  it('图鉴:独立条目带 ★,有行为提示;与巨鹿风格互斥(近身 vs 风筝)', () => {
+    expect(ENEMY_KEYS).toContain('midboss_frosthuntress');
+    expect(isMidBossKey('midboss_frosthuntress')).toBe(true);
+    expect(isBossKey('midboss_frosthuntress')).toBe(true);
+    expect(ENEMY_HINT.midboss_frosthuntress).toBeTruthy();
+    expect(enemyEntry('midboss_frosthuntress')?.name).toBe('霜噬女猎');
+  });
+});
+
+describe('中 Boss 霜噬女猎 · 房间接线(二章门控)', () => {
+  const mkWorldWithPlayer = () => {
+    const w = new World();
+    const pe = w.create();
+    w.add(pe, new Transform(200, 200));
+    w.add(pe, new Velocity());
+    w.add(pe, new Body(0.3));
+    w.add(pe, new Health(200));
+    w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+    w.add(pe, new Faction('player'));
+    w.add(pe, new Player());
+    return { w, pe };
+  };
+
+  it('二章 midboss 房刷的是女猎不是巨鹿(章节决定中 Boss)', () => {
+    const run = new RunManager(new ItemFactory(new Rng(7)));
+    run.chapter = 2;
+    const { w, pe } = mkWorldWithPlayer();
+    run.startRoom(w, 'midboss', pe);
+    expect(w.count(MidBossHuntress)).toBe(1);
+    expect(w.count(MidBossStag), '二章不能再把巨鹿抬出来').toBe(0);
+  });
+
+  it('一章 midboss 房仍然是巨鹿(改二章不能把一章改坏)', () => {
+    const run = new RunManager(new ItemFactory(new Rng(7)));
+    run.chapter = 1;
+    const { w, pe } = mkWorldWithPlayer();
+    run.startRoom(w, 'midboss', pe);
+    expect(w.count(MidBossStag)).toBe(1);
+    expect(w.count(MidBossHuntress)).toBe(0);
+  });
+
+  it('打掉她才算清房(清房判定漏登记 = 门永不开)', () => {
+    const run = new RunManager(new ItemFactory(new Rng(7)));
+    run.chapter = 2;
+    const { w, pe } = mkWorldWithPlayer();
+    run.startRoom(w, 'midboss', pe);
+    run.update(w, 1 / 60, pe);
+    expect(run.cleared).toBe(false);
+    for (const e of w.query(MidBossHuntress)) w.destroy(e);
+    w.flushDestroyed();
+    run.update(w, 1 / 60, pe);
+    expect(run.cleared).toBe(true);
+  });
+
+  it('击杀掉落:必掉紫装 + 保底符文按她自己的表读(不是巨鹿的)', () => {
+    const w = new World();
+    const pe = w.create();
+    w.add(pe, new Transform(200, 200));
+    w.add(pe, new Velocity());
+    w.add(pe, new Inventory());
+    w.add(pe, new Player());
+    w.emit(new KillEvent(200, 200, 'midboss_frosthuntress'));
+    new LootSystem().update(w, 1 / 60);
+    const picks = w.query(Pickup).map((e) => w.mustGet(e, Pickup));
+    const items = picks.filter((p) => p.kind === 'item');
+    const runes = picks.filter((p) => p.kind === 'rune');
+    expect(items.some((p) => p.item?.rarity === 'epic'), '保底紫装').toBe(true);
+    expect(runes.length, `保底符文 ×${H.runeDrop}`).toBeGreaterThanOrEqual(H.runeDrop);
+  });
+});
+
+describe('中 Boss 霜噬女猎 · 行为(真跑 AI)', () => {
+  it('kite:保持距离不贴脸(她是弓手,巨鹿的反面)', () => {
+    const { w, pe, he, hnt } = makeHuntressWorld(300, 300, 380, 300);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 99; hnt.markCd = 99;
+    runH(sys, w, 2.0);
+    const d = Math.hypot(
+      w.mustGet(he, Transform).x - w.mustGet(pe, Transform).x,
+      w.mustGet(he, Transform).y - w.mustGet(pe, Transform).y,
+    );
+    expect(hnt.state).toBe('kite');
+    expect(d, '开局贴脸也要拉开到 >2m').toBeGreaterThan(2 * M);
+  });
+
+  it('瞬影冰矢:蹲身预警 → 瞬步拉开 → 三连冰矢(每发都是投影物)', () => {
+    const { w, he, hnt } = makeHuntressWorld(300, 300, 420, 300);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 0.02; hnt.trapCd = 99; hnt.markCd = 99;
+    const x0 = w.mustGet(he, Transform).x;
+    const seen = new Set<string>();
+    const phys = new PhysicsSystem();
+    let arrows = 0;
+    for (let i = 0; i < 60 * 3; i++) {
+      sys.update(w, 1 / 60);
+      phys.update(w, 1 / 60);
+      seen.add(hnt.state);
+      arrows = Math.max(arrows, w.query(Projectile).length);
+    }
+    expect([...seen]).toContain('blinkWind');
+    expect([...seen]).toContain('shoot');
+    expect(arrows, '三连冰矢都要真的射出来').toBeGreaterThanOrEqual(H.arrows.count);
+    expect(Math.abs(w.mustGet(he, Transform).x - x0), '瞬步必须真的位移了').toBeGreaterThan(1.5 * M);
+  });
+
+  it('冰牙陷阵:玩家脚下 + 环绕,共 count 处冰爆预警', () => {
+    const { w, hnt } = makeHuntressWorld(200, 200, 500, 200);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 0.02; hnt.markCd = 99;
+    runH(sys, w, 1.0);
+    expect(w.count(TelegraphStrike)).toBeGreaterThanOrEqual(H.traps.count);
+  });
+
+  it('猎杀凝视:蓄力铺直线冰枪 + 受伤加深;蓄满后冰枪留场结算', () => {
+    const { w, he, hnt } = makeHuntressWorld(200, 200, 500, 200);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 99; hnt.markCd = 0.02;
+    runH(sys, w, 0.3);
+    expect(hnt.state).toBe('markChannel');
+    expect(w.count(TelegraphStrike), '直线段数').toBeGreaterThanOrEqual(H.mark.segments);
+    expect(w.mustGet(he, Buffs).vulnT, '蓄力 = 受伤加深(要害亮出来)').toBeGreaterThan(0);
+    runH(sys, w, H.mark.channelS + 0.2);
+    expect(hnt.state === 'recover' || hnt.state === 'kite', '蓄满收招').toBe(true);
+  });
+
+  it('核心博弈:蓄力期间打她 → 打断 + 硬直 + 冰枪连预警一起撤掉', () => {
+    const { w, he, hnt } = makeHuntressWorld(200, 200, 500, 200);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 99; hnt.markCd = 0.02;
+    runH(sys, w, 0.3);
+    expect(hnt.state).toBe('markChannel');
+    // 玩家打了她一下(任何真实伤害都触发打断)
+    w.mustGet(he, Health).hp -= 15;
+    runH(sys, w, 0.1);
+    expect(hnt.state, '被命中必须打断').toBe('stagger');
+    expect(hnt.t, '打断给满硬直(这是玩家冲脸的报酬)').toBeGreaterThan(H.mark.interruptStunS - 0.2);
+    expect(w.count(TelegraphStrike), '幽灵冰枪必须撤干净(只停动作会平白炸玩家一排)').toBe(0);
+  });
+
+  it('轮换回归:30 秒内三招各出现 ≥2 次(独立冷却只重置用掉的那招)', () => {
+    const { w, hnt } = makeHuntressWorld(300, 300, 600, 320);
+    const sys = new MidBossHuntressSystem();
+    const used = { blink: 0, traps: 0, mark: 0 };
+    let prev = hnt.state;
+    const phys = new PhysicsSystem();
+    for (let i = 0; i < 60 * 30; i++) {
+      sys.update(w, 1 / 60);
+      phys.update(w, 1 / 60);
+      if (prev === 'kite' && hnt.state !== 'kite' && hnt.state !== 'stagger') {
+        used[hnt.lastMove] += 1;
+      }
+      prev = hnt.state;
+    }
+    expect(used.blink, `瞬影冰矢:${JSON.stringify(used)}`).toBeGreaterThanOrEqual(2);
+    expect(used.traps, `冰牙陷阵:${JSON.stringify(used)}`).toBeGreaterThanOrEqual(2);
+    expect(used.mark, `猎杀凝视:${JSON.stringify(used)}`).toBeGreaterThanOrEqual(2);
+  });
+
+  it('被打晕(stun)时:蓄力中被控也要连预警一起撤(不能留幽灵冰枪)', () => {
+    const { w, he, hnt } = makeHuntressWorld(200, 200, 500, 200);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 99; hnt.markCd = 0.02;
+    runH(sys, w, 0.3);
+    expect(hnt.state).toBe('markChannel');
+    w.mustGet(he, Buffs).stunT = 1.0;
+    runH(sys, w, 0.1);
+    expect(hnt.state).toBe('stagger');
+    expect(w.count(TelegraphStrike)).toBe(0);
+  });
+});

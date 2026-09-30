@@ -499,6 +499,40 @@ export class MidBossStag {
   spawnY = 0;
 }
 
+/** 第二章中 Boss:霜噬女猎(与巨鹿完全反向的风筝型猎手,轮 13) */
+export class MidBossHuntress {
+  phase: 1 | 2 = 1;
+  /**
+   * kite        保持 4~8m 距离侧移(她要的是射击空间,不是贴脸)
+   * blinkWind   瞬步预警(蹲身,0.35s)
+   * shoot       瞬步落地后三连冰矢(每发独立瞄准,追身)
+   * trapAim     冰牙陷阵起手(抬手指地)
+   * markChannel 猎杀凝视蓄力(直线 6 段冰枪预警;受伤加深;**任何命中都打断** → 硬直 = 奖励窗口)
+   * stagger     硬直(被打断/被控)
+   * recover     招式后摇
+   */
+  state: 'kite' | 'blinkWind' | 'shoot' | 'trapAim' | 'markChannel' | 'stagger' | 'recover' = 'kite';
+  t = 0;
+  /** 三招独立冷却:只重置用掉的那一招(与巨鹿同一课:一起重置会把长冷却的招饿死) */
+  blinkCd = 2.2;    // 首招给玩家喘息
+  trapCd = 4.0;
+  markCd = 8.0;     // 大招最后登场(玩家先学会前两招的节奏)
+  lastMove: 'blink' | 'traps' | 'mark' = 'blink';
+  /** 连射状态(shoot 期间) */
+  shotsLeft = 0;
+  shotT = 0;
+  /** 蓄力直线的锁定朝向 */
+  dirX = 0;
+  dirY = 0;
+  /** 猎杀凝视的待结算冰枪实体(打断时要连预警一起撤掉,不能只停动作) */
+  laneIds: number[] = [];
+  /** 蓄力开始时的血量(掉血 = 被命中 = 打断;比接伤害管线回调省一条依赖) */
+  hpAtChannel = 0;
+  animT = 0;
+  spawnX = 0;
+  spawnY = 0;
+}
+
 /** ===== 第三章「烬语荒漠」怪物 ===== */
 
 /** 烬鼠:高速 Z 字贴脸群怪 */

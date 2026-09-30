@@ -465,6 +465,54 @@
       "enrageVolleyAdd": 2,
       "runeDrop": 1,
       "$doc": "中 Boss 第一章「苔冠巨鹿」:推图中段的\"半个 Boss\"。三招 = 冲撞(路径预警 3 圈,撞墙自晕 charge.wallStunS = 玩家的输出窗口)/ 扇形孢子弹幕 / 玩家脚下孢子云(空间封锁)。P2(<phase2At)狂怒:冲速 ×enrageSpeedMul、弹幕 +enrageVolleyAdd 发、冷却 ×0.8。掉落:击杀必掉紫装 + 保底 1 枚符文(LootSystem 的 isMid 分支)。"
+    },
+    "midboss_frosthuntress": {
+      "name": "霜噬女猎",
+      "hp": 1550,
+      "atk": 13,
+      "def": 3,
+      "speed": 2.9,
+      "bodyRadius": 0.42,
+      "kiteM": 5.2,
+      "blink": {
+        "telegraphS": 0.35,
+        "rangeM": 4.0,
+        "cdS": 4.6
+      },
+      "arrows": {
+        "count": 3,
+        "intervalS": 0.16,
+        "speedM": 7.5,
+        "lifeS": 1.4,
+        "radiusM": 0.3,
+        "mult": 0.7
+      },
+      "traps": {
+        "telegraphS": 0.75,
+        "count": 3,
+        "ringM": 1.8,
+        "radiusM": 0.85,
+        "mult": 0.9,
+        "stepS": 0.12,
+        "cdS": 7.0
+      },
+      "mark": {
+        "channelS": 1.5,
+        "segments": 6,
+        "stepM": 1.2,
+        "radiusM": 0.55,
+        "mult": 1.4,
+        "rippleS": 0.06,
+        "interruptStunS": 1.8,
+        "cdS": 11.0
+      },
+      "phase2At": 0.5,
+      "enrageArrowAdd": 1,
+      "enrageTrapAdd": 1,
+      "enrageSpeedMul": 1.15,
+      "enrageCdMul": 0.85,
+      "runeDrop": 1,
+      "$doc": "中 Boss 第二章「霜噬女猎」:与巨鹿完全反向的风筝型猎手。三招 = 瞬影冰矢(瞬步拉开 → 三连追踪冰矢)/ 冰牙陷阵(玩家脚下+环绕三处延时冰爆,逼即刻走位)/ 猎杀凝视(1.5s 蓄力直线 6 段冰枪 —— 蓄力期间受伤加深且**任何命中都会打断**,打断=interruptStunS 硬直,这是本场的核心博弈:冲脸赌打断 vs 拉开躲直线)。P2(<phase2At)狂怒:冰矢+enrageArrowAdd、陷阱+enrageTrapAdd、移速×enrageSpeedMul、冷却×enrageCdMul。掉落:必掉紫装+保底 runeDrop 枚符文(与巨鹿同口径)。"
     }
   },
   "boss": {

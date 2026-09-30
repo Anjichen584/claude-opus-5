@@ -46,6 +46,7 @@ namespace StarfallKnights.Data
             { EnemyKind.DustStinger, new Stat("岩尾蝎", 60f, 10f, 2f, 1.6f, 0.32f, 0.9f) },
             { EnemyKind.BossKazra, new Stat("熔核蝎皇·卡兹拉", 6400f, 18f, 4f, 2.2f, 0.6f, 0.8f) },
             { EnemyKind.MidBossMossstag, new Stat("苔冠巨鹿", 1500f, 12f, 4f, 1.5f, 0.55f, 0.8f) },
+            { EnemyKind.MidBossFrosthuntress, new Stat("霜噬女猎", 1550f, 13f, 3f, 2.9f, 0.42f, 0.8f) },
             { EnemyKind.BossNanmir, new Stat("腐木巨像·南弥尔", 4200f, 18f, 8f, 1.2f, 0.7f, 0.8f) },
         };
 
@@ -654,6 +655,78 @@ namespace StarfallKnights.Data
         public const float MidBossMossstagEnrageVolleyAdd = 2f;
         /// <summary>midboss_mossstag.runeDrop</summary>
         public const float MidBossMossstagRuneDrop = 1f;
+        /// <summary>midboss_frosthuntress.hp</summary>
+        public const float MidBossFrosthuntressHp = 1550f;
+        /// <summary>midboss_frosthuntress.atk</summary>
+        public const float MidBossFrosthuntressAtk = 13f;
+        /// <summary>midboss_frosthuntress.def</summary>
+        public const float MidBossFrosthuntressDef = 3f;
+        /// <summary>midboss_frosthuntress.speed</summary>
+        public const float MidBossFrosthuntressSpeed = 2.9f;
+        /// <summary>midboss_frosthuntress.bodyRadius</summary>
+        public const float MidBossFrosthuntressBodyRadius = 0.42f;
+        /// <summary>midboss_frosthuntress.kiteM</summary>
+        public const float MidBossFrosthuntressKiteM = 5.2f;
+        /// <summary>midboss_frosthuntress.blink.telegraphS</summary>
+        public const float MidBossFrosthuntressBlinkTelegraphS = 0.35f;
+        /// <summary>midboss_frosthuntress.blink.rangeM</summary>
+        public const float MidBossFrosthuntressBlinkRangeM = 4f;
+        /// <summary>midboss_frosthuntress.blink.cdS</summary>
+        public const float MidBossFrosthuntressBlinkCdS = 4.6f;
+        /// <summary>midboss_frosthuntress.arrows.count</summary>
+        public const float MidBossFrosthuntressArrowsCount = 3f;
+        /// <summary>midboss_frosthuntress.arrows.intervalS</summary>
+        public const float MidBossFrosthuntressArrowsIntervalS = 0.16f;
+        /// <summary>midboss_frosthuntress.arrows.speedM</summary>
+        public const float MidBossFrosthuntressArrowsSpeedM = 7.5f;
+        /// <summary>midboss_frosthuntress.arrows.lifeS</summary>
+        public const float MidBossFrosthuntressArrowsLifeS = 1.4f;
+        /// <summary>midboss_frosthuntress.arrows.radiusM</summary>
+        public const float MidBossFrosthuntressArrowsRadiusM = 0.3f;
+        /// <summary>midboss_frosthuntress.arrows.mult</summary>
+        public const float MidBossFrosthuntressArrowsMult = 0.7f;
+        /// <summary>midboss_frosthuntress.traps.telegraphS</summary>
+        public const float MidBossFrosthuntressTrapsTelegraphS = 0.75f;
+        /// <summary>midboss_frosthuntress.traps.count</summary>
+        public const float MidBossFrosthuntressTrapsCount = 3f;
+        /// <summary>midboss_frosthuntress.traps.ringM</summary>
+        public const float MidBossFrosthuntressTrapsRingM = 1.8f;
+        /// <summary>midboss_frosthuntress.traps.radiusM</summary>
+        public const float MidBossFrosthuntressTrapsRadiusM = 0.85f;
+        /// <summary>midboss_frosthuntress.traps.mult</summary>
+        public const float MidBossFrosthuntressTrapsMult = 0.9f;
+        /// <summary>midboss_frosthuntress.traps.stepS</summary>
+        public const float MidBossFrosthuntressTrapsStepS = 0.12f;
+        /// <summary>midboss_frosthuntress.traps.cdS</summary>
+        public const float MidBossFrosthuntressTrapsCdS = 7f;
+        /// <summary>midboss_frosthuntress.mark.channelS</summary>
+        public const float MidBossFrosthuntressMarkChannelS = 1.5f;
+        /// <summary>midboss_frosthuntress.mark.segments</summary>
+        public const float MidBossFrosthuntressMarkSegments = 6f;
+        /// <summary>midboss_frosthuntress.mark.stepM</summary>
+        public const float MidBossFrosthuntressMarkStepM = 1.2f;
+        /// <summary>midboss_frosthuntress.mark.radiusM</summary>
+        public const float MidBossFrosthuntressMarkRadiusM = 0.55f;
+        /// <summary>midboss_frosthuntress.mark.mult</summary>
+        public const float MidBossFrosthuntressMarkMult = 1.4f;
+        /// <summary>midboss_frosthuntress.mark.rippleS</summary>
+        public const float MidBossFrosthuntressMarkRippleS = 0.06f;
+        /// <summary>midboss_frosthuntress.mark.interruptStunS</summary>
+        public const float MidBossFrosthuntressMarkInterruptStunS = 1.8f;
+        /// <summary>midboss_frosthuntress.mark.cdS</summary>
+        public const float MidBossFrosthuntressMarkCdS = 11f;
+        /// <summary>midboss_frosthuntress.phase2At</summary>
+        public const float MidBossFrosthuntressPhase2At = 0.5f;
+        /// <summary>midboss_frosthuntress.enrageArrowAdd</summary>
+        public const float MidBossFrosthuntressEnrageArrowAdd = 1f;
+        /// <summary>midboss_frosthuntress.enrageTrapAdd</summary>
+        public const float MidBossFrosthuntressEnrageTrapAdd = 1f;
+        /// <summary>midboss_frosthuntress.enrageSpeedMul</summary>
+        public const float MidBossFrosthuntressEnrageSpeedMul = 1.15f;
+        /// <summary>midboss_frosthuntress.enrageCdMul</summary>
+        public const float MidBossFrosthuntressEnrageCdMul = 0.85f;
+        /// <summary>midboss_frosthuntress.runeDrop</summary>
+        public const float MidBossFrosthuntressRuneDrop = 1f;
         /// <summary>boss_nanmir.hp</summary>
         public const float BossNanmirHp = 4200f;
         /// <summary>boss_nanmir.atk</summary>
@@ -1417,6 +1490,42 @@ namespace StarfallKnights.Data
             { "midboss_mossstag.enrageSpeedMul", MidBossMossstagEnrageSpeedMul },
             { "midboss_mossstag.enrageVolleyAdd", MidBossMossstagEnrageVolleyAdd },
             { "midboss_mossstag.runeDrop", MidBossMossstagRuneDrop },
+            { "midboss_frosthuntress.hp", MidBossFrosthuntressHp },
+            { "midboss_frosthuntress.atk", MidBossFrosthuntressAtk },
+            { "midboss_frosthuntress.def", MidBossFrosthuntressDef },
+            { "midboss_frosthuntress.speed", MidBossFrosthuntressSpeed },
+            { "midboss_frosthuntress.bodyRadius", MidBossFrosthuntressBodyRadius },
+            { "midboss_frosthuntress.kiteM", MidBossFrosthuntressKiteM },
+            { "midboss_frosthuntress.blink.telegraphS", MidBossFrosthuntressBlinkTelegraphS },
+            { "midboss_frosthuntress.blink.rangeM", MidBossFrosthuntressBlinkRangeM },
+            { "midboss_frosthuntress.blink.cdS", MidBossFrosthuntressBlinkCdS },
+            { "midboss_frosthuntress.arrows.count", MidBossFrosthuntressArrowsCount },
+            { "midboss_frosthuntress.arrows.intervalS", MidBossFrosthuntressArrowsIntervalS },
+            { "midboss_frosthuntress.arrows.speedM", MidBossFrosthuntressArrowsSpeedM },
+            { "midboss_frosthuntress.arrows.lifeS", MidBossFrosthuntressArrowsLifeS },
+            { "midboss_frosthuntress.arrows.radiusM", MidBossFrosthuntressArrowsRadiusM },
+            { "midboss_frosthuntress.arrows.mult", MidBossFrosthuntressArrowsMult },
+            { "midboss_frosthuntress.traps.telegraphS", MidBossFrosthuntressTrapsTelegraphS },
+            { "midboss_frosthuntress.traps.count", MidBossFrosthuntressTrapsCount },
+            { "midboss_frosthuntress.traps.ringM", MidBossFrosthuntressTrapsRingM },
+            { "midboss_frosthuntress.traps.radiusM", MidBossFrosthuntressTrapsRadiusM },
+            { "midboss_frosthuntress.traps.mult", MidBossFrosthuntressTrapsMult },
+            { "midboss_frosthuntress.traps.stepS", MidBossFrosthuntressTrapsStepS },
+            { "midboss_frosthuntress.traps.cdS", MidBossFrosthuntressTrapsCdS },
+            { "midboss_frosthuntress.mark.channelS", MidBossFrosthuntressMarkChannelS },
+            { "midboss_frosthuntress.mark.segments", MidBossFrosthuntressMarkSegments },
+            { "midboss_frosthuntress.mark.stepM", MidBossFrosthuntressMarkStepM },
+            { "midboss_frosthuntress.mark.radiusM", MidBossFrosthuntressMarkRadiusM },
+            { "midboss_frosthuntress.mark.mult", MidBossFrosthuntressMarkMult },
+            { "midboss_frosthuntress.mark.rippleS", MidBossFrosthuntressMarkRippleS },
+            { "midboss_frosthuntress.mark.interruptStunS", MidBossFrosthuntressMarkInterruptStunS },
+            { "midboss_frosthuntress.mark.cdS", MidBossFrosthuntressMarkCdS },
+            { "midboss_frosthuntress.phase2At", MidBossFrosthuntressPhase2At },
+            { "midboss_frosthuntress.enrageArrowAdd", MidBossFrosthuntressEnrageArrowAdd },
+            { "midboss_frosthuntress.enrageTrapAdd", MidBossFrosthuntressEnrageTrapAdd },
+            { "midboss_frosthuntress.enrageSpeedMul", MidBossFrosthuntressEnrageSpeedMul },
+            { "midboss_frosthuntress.enrageCdMul", MidBossFrosthuntressEnrageCdMul },
+            { "midboss_frosthuntress.runeDrop", MidBossFrosthuntressRuneDrop },
             { "boss_nanmir.hp", BossNanmirHp },
             { "boss_nanmir.atk", BossNanmirAtk },
             { "boss_nanmir.def", BossNanmirDef },

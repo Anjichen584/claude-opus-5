@@ -78,6 +78,7 @@ export const ENEMY_HINT: Record<string, string> = {
   flamedancer: '瞬跳走位 + 双火球',
   duststinger: '蝎尾抛毒沼,平时小跳接近',
   midboss_mossstag: '一章中 Boss:冲撞(撞墙自晕!)/ 孢子弹幕 / 脚下孢子云;半血狂怒',
+  midboss_frosthuntress: '二章中 Boss:瞬步三连冰矢 / 冰牙陷阵 / 猎杀凝视(蓄力可打断!);半血狂怒',
   boss_nanmir: '一章 Boss:扫击 / 根须线 / 尖刺网格 / 环形风暴',
   boss_velsha: '二章 Boss:冰弹环 / 暴风雪 / 召唤雪绒球 / P3 寒风冲锋',
   boss_kazra: '三章 Boss:钻地突袭 / 熔痕 / 召唤烬鼠 / P3 熔核暴走',

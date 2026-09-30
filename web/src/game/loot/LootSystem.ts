@@ -123,7 +123,9 @@ export class LootSystem implements System {
         const info = this.playerRuneInfo(world);
         const owned = new Set(info.bag);
         const prefix = `${info.klass}_`;
-        const take = isMid ? balance.enemies.midboss_mossstag.runeDrop : 1;
+        // 中 Boss 保底枚数按**被击杀的那只**读(硬编码巨鹿的话,二章女猎的保底会静默读错表)
+        const midCfg = (balance.enemies as Record<string, { runeDrop?: number }>)[kill.kind];
+        const take = isMid ? (midCfg?.runeDrop ?? 1) : 1;
         for (let n = 0; n < take; n++) {
           const candidates = [...RUNE_POOL.values()]
             .filter((r) => r.skill.startsWith(prefix) && !owned.has(r.id))

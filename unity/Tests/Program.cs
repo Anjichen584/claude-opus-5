@@ -1205,13 +1205,24 @@ namespace StarfallKnights.Tests
                         Check(midSpawns == 1, $"中 Boss 房只刷一只(实际 {midSpawns})");
                     }
                 }
-                // 三章门控:二三章的中 Boss 还没做,不该刷
+                // 章节决定中 Boss:二章刷女猎不刷巨鹿(轮 13);三章仍门控
                 var run2 = new RunManagerLite();
                 run2.SetChapter(2);
-                int ch2Mid = 0;
-                run2.OnSpawn = (k, hp, atk, spd) => { if (k == EnemyKind.MidBossMossstag) ch2Mid++; };
+                int ch2Stag = 0, ch2Hnt = 0;
+                run2.OnSpawn = (k, hp, atk, spd) =>
+                {
+                    if (k == EnemyKind.MidBossMossstag) ch2Stag++;
+                    if (k == EnemyKind.MidBossFrosthuntress) ch2Hnt++;
+                };
                 for (int d = 0; d < 8; d++) run2.NextRoom(w);
-                Check(ch2Mid == 0, "第二章暂时不刷中 Boss(章节门控)");
+                Check(ch2Hnt == 1, $"第二章中 Boss = 霜噬女猎 ×1(实际 {ch2Hnt})");
+                Check(ch2Stag == 0, "第二章不能再把巨鹿抬出来");
+                var run3 = new RunManagerLite();
+                run3.SetChapter(3);
+                int ch3Mid = 0;
+                run3.OnSpawn = (k, hp, atk, spd) => { if (EnemyKinds.IsMidBoss(k)) ch3Mid++; };
+                for (int d = 0; d < 8; d++) run3.NextRoom(w);
+                Check(ch3Mid == 0, "第三章中 Boss 未做,仍门控(轮 21)");
             }
 
             // 注意:测试里的站位要离墙远一点(撞墙判定读的是 0.6m 边界余量,
@@ -1339,6 +1350,108 @@ namespace StarfallKnights.Tests
             Check(EnemyKinds.IsBossTier(EnemyKind.MidBossMossstag) && !EnemyKinds.IsBoss(EnemyKind.MidBossMossstag),
                 "中 Boss 属 Boss 级但不是章 Boss");
             Check(EnemyKinds.ChapterOf(EnemyKind.MidBossMossstag) == 1, "苔冠巨鹿归第一章");
+
+            Suite("中 Boss 霜噬女猎(风筝 / 瞬步连射 / 冰牙陷阵 / 猎杀凝视可打断)");
+
+            // kite:弓手要距离(巨鹿的反面:开局贴脸也要拉开)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var hnt = MakeEnemy(w, mid + new Vector2(1.5f, 0f), Bestiary.MidBossFrosthuntressHp);
+                hnt.Kind = EnemyKind.MidBossFrosthuntress;
+                var ai = new CreatureAI();
+                for (int i = 0; i < 120; i++) ai.Update(w, 1f / 60f);
+                float d = Vector2.Distance(hnt.Pos, w.Player.Pos);
+                Check(d > 2f, $"女猎拉开距离({d:0.0}m > 2m)");
+            }
+
+            // 瞬影冰矢:瞬步真的位移 + 连射发数够表
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var hnt = MakeEnemy(w, mid + new Vector2(5f, 0f), Bestiary.MidBossFrosthuntressHp);
+                hnt.Kind = EnemyKind.MidBossFrosthuntress;
+                var ai = new CreatureAI();
+                var p0 = hnt.Pos;
+                float maxJump = 0f;
+                int maxShots = 0;
+                var prev = hnt.Pos;
+                for (int i = 0; i < 60 * 8; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxJump = MathF.Max(maxJump, Vector2.Distance(prev, hnt.Pos)); // 单帧大位移 = 瞬步
+                    prev = hnt.Pos;
+                    maxShots += w.Projectiles.Count;   // 连射是 0.16s 一发,要**累计**数(齐射才看单帧峰值)
+                    w.Projectiles.Clear();
+                }
+                Check(maxJump > 1.5f, $"瞬步是瞬移不是走路(单帧位移峰值 {maxJump:0.0}m)");
+                Check(maxShots >= (int)Bestiary.MidBossFrosthuntressArrowsCount,
+                    $"8 秒内累计连射 ≥{Bestiary.MidBossFrosthuntressArrowsCount:0} 发(实测 {maxShots})");
+            }
+
+            // 冰牙陷阵:一次铺 ≥count 处冰爆预警
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var hnt = MakeEnemy(w, mid + new Vector2(5f, 0f), Bestiary.MidBossFrosthuntressHp);
+                hnt.Kind = EnemyKind.MidBossFrosthuntress;
+                var ai = new CreatureAI();
+                int maxTg = 0;
+                for (int i = 0; i < 60 * 14; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    maxTg = Math.Max(maxTg, w.Telegraphs.Count);
+                    TelegraphSystem.Tick(w, 1f / 60f);
+                }
+                Check(maxTg >= (int)Bestiary.MidBossFrosthuntressTrapsCount,
+                    $"陷阱/冰枪预警一次 ≥{Bestiary.MidBossFrosthuntressTrapsCount:0} 处(实测 {maxTg})");
+            }
+
+            // 猎杀凝视:蓄力亮要害(VulnT>0)+ 打断撤干净冰枪 + 满硬直(核心博弈)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid);
+                var hnt = MakeEnemy(w, mid + new Vector2(5f, 0f), Bestiary.MidBossFrosthuntressHp);
+                hnt.Kind = EnemyKind.MidBossFrosthuntress;
+                var ai = new CreatureAI();
+                // 等它进入蓄力(观测:VulnT 被点亮 + 场上有一排冰枪)
+                bool sawChannel = false;
+                int lanesBefore = 0, lanesAfter = -1;
+                int stillAfterHit = 0, bestStill = 0;
+                bool hit = false;
+                int framesAfterHit = 0;
+                for (int i = 0; i < 60 * 40 && framesAfterHit < (int)(Bestiary.MidBossFrosthuntressMarkInterruptStunS * 60) - 6; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    if (!sawChannel && hnt.Unit.VulnT > 0f && w.Telegraphs.Count >= (int)Bestiary.MidBossFrosthuntressMarkSegments)
+                    {
+                        sawChannel = true;
+                        lanesBefore = w.Telegraphs.Count;
+                        hnt.Unit.Hp -= 15f;   // 玩家打了她一下 → 下一帧必须打断
+                        hit = true;
+                        continue;             // 打断在下一次 Update 里发生
+                    }
+                    if (hit)
+                    {
+                        framesAfterHit++;
+                        if (lanesAfter < 0) lanesAfter = w.Telegraphs.Count;   // 打断后的第一帧采样
+                        if (hnt.Vel.Length() < 0.01f) { stillAfterHit++; bestStill = Math.Max(bestStill, stillAfterHit); }
+                        else stillAfterHit = 0;
+                    }
+                    TelegraphSystem.Tick(w, 1f / 60f);
+                }
+                Check(sawChannel, $"猎杀凝视蓄力真的会来(冰枪 {lanesBefore} 段 + VulnT 点亮)");
+                Check(lanesAfter >= 0 && lanesAfter <= lanesBefore - (int)Bestiary.MidBossFrosthuntressMarkSegments,
+                    $"打断把整排冰枪撤干净(蓄力时 {lanesBefore} → 打断后 {lanesAfter})");
+                Check(bestStill / 60f >= Bestiary.MidBossFrosthuntressMarkInterruptStunS * 0.6f,
+                    $"打断给足硬直(硬直期静止 {bestStill / 60f:0.0}s / 表 {Bestiary.MidBossFrosthuntressMarkInterruptStunS:0.0}s)");
+            }
+
+            // 分类助手
+            Check(EnemyKinds.IsMidBoss(EnemyKind.MidBossFrosthuntress), "IsMidBoss 认得霜噬女猎");
+            Check(EnemyKinds.IsBossTier(EnemyKind.MidBossFrosthuntress) && !EnemyKinds.IsBoss(EnemyKind.MidBossFrosthuntress),
+                "女猎属 Boss 级但不是章 Boss");
+            Check(EnemyKinds.ChapterOf(EnemyKind.MidBossFrosthuntress) == 2, "霜噬女猎归第二章");
         }
 
 
@@ -1390,8 +1503,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 22 && Codex.RuneTotal == 36,
-                $"条目总数 22 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 23 && Codex.RuneTotal == 36,
+                $"条目总数 23 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1455,7 +1568,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 22, $"图鉴覆盖 22 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 23, $"图鉴覆盖 23 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {

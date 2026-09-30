@@ -26,6 +26,7 @@ KIND = {
     'dunebeetle': 'DuneBeetle', 'flamedancer': 'FlameDancer', 'duststinger': 'DustStinger',
     'boss_nanmir': 'BossNanmir', 'boss_velsha': 'BossVelsha', 'boss_kazra': 'BossKazra',
     'midboss_mossstag': 'MidBossMossstag',
+    'midboss_frosthuntress': 'MidBossFrosthuntress',
 }
 
 
