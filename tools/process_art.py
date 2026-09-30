@@ -114,6 +114,7 @@ FX = {
     # 轮 35:六元素反应爆点(打出反应那一刻的主角帧)
     "fx_rx_steam": 72, "fx_rx_overload": 72, "fx_rx_miasma": 72,
     "fx_rx_chain": 72, "fx_rx_brittle": 72, "fx_rx_numb": 72,
+    "fx_blink": 88,           # 秘术师 E 星幕闪现(竖向星芒)
 }
 # 扁平的贴花/光环:按宽度缩放(按高度会得到离谱的宽度)
 FX_WIDE = {
@@ -121,6 +122,7 @@ FX_WIDE = {
     "fx_crack": 150,          # 守卫 Q 地面裂纹
     "fx_arrowrain": 132,      # 猎手 R 落点标记
     "fx_dash_trail": 120,     # 冲刺残影(横向拖尾)
+    "fx_nova": 120,           # 猎手 E 疾风回旋(扁平风刃环)
 }
 
 # 9-slice UI 面板:抠图后强制正方形输出(切片尺寸由绘制端按比例取,见 gfx/nineSlice.ts)

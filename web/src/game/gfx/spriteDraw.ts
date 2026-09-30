@@ -115,6 +115,7 @@ export const SPRITE_NAMES = [
   'shroomling_atk', 'cinderrat_atk', 'leafwisp_atk',
   // 轮 35:六元素反应爆点特效
   'fx_rx_steam', 'fx_rx_overload', 'fx_rx_miasma', 'fx_rx_chain', 'fx_rx_brittle', 'fx_rx_numb',
+  'fx_nova', 'fx_blink',
   'leafwisp',
   // 第三批:拾取物 / 传送门 / 元素图标
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',

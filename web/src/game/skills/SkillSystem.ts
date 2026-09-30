@@ -502,7 +502,8 @@ export class SkillSystem implements System {
 
     const color = element ? elementColor(element) : '#b880e8';
     world.emit(new RingFxEvent(ox, oy, ph.blastRadiusM * M, color));
-    world.emit(new RingFxEvent(tr.x, tr.y, 30, color));
+    // 终点:星幕闪灭贴图(轮 35;未加载回退小环)
+    world.emit(new RingFxEvent(tr.x, tr.y, 30, color, spriteOfSkill(def.id)));
     for (const e of world.query(Health, Transform, Faction)) {
       if (world.mustGet(e, Faction).team === 'player') continue;
       const ttr = world.mustGet(e, Transform);
