@@ -442,5 +442,63 @@
     ],
     "frames": 4,
     "targetH": 46
+  },
+  "warden_atk": {
+    "anchor": 3,
+    "anchorBody": [
+      50,
+      46
+    ],
+    "bodies": [
+      [
+        51,
+        47
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ]
+    ],
+    "canvas": [
+      56,
+      51
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "warden_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      50,
+      46
+    ],
+    "bodies": [
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ]
+    ],
+    "canvas": [
+      54,
+      50
+    ],
+    "frames": 4,
+    "targetH": 46
   }
 }

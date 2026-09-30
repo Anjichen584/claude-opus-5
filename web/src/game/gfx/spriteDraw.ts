@@ -87,6 +87,9 @@ export const SPRITE_NAMES = [
   'arcanist_dash_1', 'arcanist_dash_2', 'arcanist_dash_3',
   'arcanist_hurt_1', 'arcanist_hurt_2',
   'arcanist_die_1', 'arcanist_die_2', 'arcanist_die_3', 'arcanist_die_4',
+  // 守卫(轮 29 动画批次 3 上半场):走路 4 + 重锤攻击 3(蓄力→砸地命中→收锤;受击/死亡/施法随下批)
+  'warden_walk_1', 'warden_walk_2', 'warden_walk_3', 'warden_walk_4',
+  'warden_atk_1', 'warden_atk_2', 'warden_atk_3',
   'cinderrat', 'dunebeetle', 'flamedancer', 'duststinger', 'boss_kazra', 'sand_tile',
   'prop_cactus', 'prop_sandrock', 'prop_tumble',
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',

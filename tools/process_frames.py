@@ -76,6 +76,9 @@ SEQUENCES: dict[str, Seq] = {
     "arcanist_dash": Seq(frames=3, target_h=46, anchor=3),  # 锚点:起身站直那帧(第 2 帧是抱团,本来就该比站立矮)
     "arcanist_hurt": Seq(frames=2, target_h=46, anchor=1),  # 锚点:中招瞬间(还站得直,第 2 帧是踉跄后仰)
     "arcanist_die": Seq(frames=4, target_h=46, anchor=1),   # 锚点:第 1 帧(受创但还站着,整套里最接近站立)
+    # ---- 守卫(轮 29 动画批次 3:重锤三击风格 —— 蓄力 → 砸地命中 → 收锤连招窗)----
+    "warden_walk": Seq(frames=4, target_h=46, anchor=1),   # 锚点:第 1 帧(接触姿势,躯干最直)
+    "warden_atk": Seq(frames=3, target_h=46, anchor=3),    # 锚点:收锤起身那帧(1 蓄力后仰 / 2 砸地前倾都偏离站立)
 }
 
 PAD = 2  # 画布四周留白
@@ -95,6 +98,25 @@ def body_component(img: Image.Image):
     return max(comps, key=lambda c: c[0])[1]
 
 
+def preclean(img: Image.Image) -> Image.Image:
+    """生成图预清洗(轮 29 教训):部分模型出的品红幕布带噪(模糊渐变,g 通道飘到 110+),
+    key_out 的通道判定会把这些像素留下 → 幕布连成一个巨型连通域,主体检测全错。
+    两步:① 近品红一律钉回纯品红(阈值故意收紧:r/b>150 且 g 比 r/b 低 80+,
+    紫袍/浅紫发色 r≈120-150 不会中招);② 四周包 6px 纯品红边(幕布色采样与洪泛入口
+    不再受"内容蹭到画布角"的污染 —— atk 砸地帧的碎屑就踩过这个)。"""
+    img = img.convert("RGB")
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b = px[x, y]
+            if r > 150 and b > 150 and g < r - 80 and g < b - 80:
+                px[x, y] = (255, 0, 255)
+    out = Image.new("RGB", (w + 12, h + 12), (255, 0, 255))
+    out.paste(img, (6, 6))
+    return out
+
+
 def load_frames(seq: str, n: int) -> list[Image.Image] | None:
     frames = []
     for i in range(1, n + 1):
@@ -102,7 +124,7 @@ def load_frames(seq: str, n: int) -> list[Image.Image] | None:
         if not f.exists():
             print(f"{seq}: 缺源帧 {f.name},跳过")
             return None
-        frames.append(process_art.key_out(Image.open(f)))
+        frames.append(process_art.key_out(preclean(Image.open(f))))
     return frames
 
 
