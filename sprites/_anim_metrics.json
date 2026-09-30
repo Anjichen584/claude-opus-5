@@ -1,0 +1,612 @@
+{
+  "arcanist_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        37,
+        45
+      ],
+      [
+        33,
+        46
+      ]
+    ],
+    "canvas": [
+      40,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "arcanist_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        34,
+        42
+      ],
+      [
+        33,
+        46
+      ]
+    ],
+    "canvas": [
+      38,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "arcanist_die": {
+    "anchor": 1,
+    "anchorBody": [
+      31,
+      46
+    ],
+    "bodies": [
+      [
+        31,
+        46
+      ],
+      [
+        33,
+        43
+      ],
+      [
+        35,
+        26
+      ],
+      [
+        34,
+        23
+      ]
+    ],
+    "canvas": [
+      40,
+      48
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "arcanist_hurt": {
+    "anchor": 1,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        35,
+        48
+      ]
+    ],
+    "canvas": [
+      40,
+      51
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
+  "arcanist_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      33,
+      46
+    ],
+    "bodies": [
+      [
+        33,
+        46
+      ],
+      [
+        33,
+        45
+      ],
+      [
+        33,
+        46
+      ],
+      [
+        32,
+        45
+      ]
+    ],
+    "canvas": [
+      38,
+      49
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "knight_atk": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        41,
+        47
+      ],
+      [
+        45,
+        46
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      50,
+      55
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        39,
+        57
+      ],
+      [
+        53,
+        53
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      60,
+      63
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      45,
+      47
+    ],
+    "bodies": [
+      [
+        45,
+        41
+      ],
+      [
+        38,
+        34
+      ],
+      [
+        45,
+        47
+      ]
+    ],
+    "canvas": [
+      50,
+      56
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "knight_die": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        41,
+        43
+      ],
+      [
+        44,
+        27
+      ],
+      [
+        45,
+        24
+      ]
+    ],
+    "canvas": [
+      50,
+      53
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "knight_hurt": {
+    "anchor": 2,
+    "anchorBody": [
+      45,
+      46
+    ],
+    "bodies": [
+      [
+        46,
+        46
+      ],
+      [
+        45,
+        46
+      ]
+    ],
+    "canvas": [
+      50,
+      56
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
+  "knight_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      44,
+      47
+    ],
+    "bodies": [
+      [
+        44,
+        47
+      ],
+      [
+        47,
+        48
+      ],
+      [
+        44,
+        47
+      ],
+      [
+        44,
+        47
+      ]
+    ],
+    "canvas": [
+      50,
+      55
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "ranger_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      39,
+      47
+    ],
+    "bodies": [
+      [
+        39,
+        45
+      ],
+      [
+        38,
+        47
+      ],
+      [
+        39,
+        47
+      ]
+    ],
+    "canvas": [
+      44,
+      55
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "ranger_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        34,
+        45
+      ],
+      [
+        37,
+        46
+      ]
+    ],
+    "canvas": [
+      42,
+      48
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "ranger_die": {
+    "anchor": 1,
+    "anchorBody": [
+      31,
+      46
+    ],
+    "bodies": [
+      [
+        31,
+        46
+      ],
+      [
+        37,
+        46
+      ],
+      [
+        37,
+        32
+      ],
+      [
+        54,
+        28
+      ]
+    ],
+    "canvas": [
+      58,
+      48
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "ranger_hurt": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      46
+    ],
+    "bodies": [
+      [
+        37,
+        46
+      ],
+      [
+        32,
+        40
+      ]
+    ],
+    "canvas": [
+      42,
+      50
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
+  "ranger_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      37,
+      47
+    ],
+    "bodies": [
+      [
+        37,
+        47
+      ],
+      [
+        37,
+        47
+      ],
+      [
+        37,
+        46
+      ],
+      [
+        37,
+        47
+      ]
+    ],
+    "canvas": [
+      42,
+      56
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "warden_atk": {
+    "anchor": 3,
+    "anchorBody": [
+      50,
+      46
+    ],
+    "bodies": [
+      [
+        51,
+        47
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ]
+    ],
+    "canvas": [
+      56,
+      51
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "warden_cast": {
+    "anchor": 3,
+    "anchorBody": [
+      49,
+      46
+    ],
+    "bodies": [
+      [
+        46,
+        46
+      ],
+      [
+        45,
+        45
+      ],
+      [
+        49,
+        46
+      ]
+    ],
+    "canvas": [
+      54,
+      50
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "warden_dash": {
+    "anchor": 3,
+    "anchorBody": [
+      50,
+      46
+    ],
+    "bodies": [
+      [
+        51,
+        46
+      ],
+      [
+        46,
+        43
+      ],
+      [
+        50,
+        46
+      ]
+    ],
+    "canvas": [
+      56,
+      50
+    ],
+    "frames": 3,
+    "targetH": 46
+  },
+  "warden_die": {
+    "anchor": 1,
+    "anchorBody": [
+      52,
+      46
+    ],
+    "bodies": [
+      [
+        52,
+        46
+      ],
+      [
+        52,
+        47
+      ],
+      [
+        50,
+        42
+      ],
+      [
+        52,
+        39
+      ]
+    ],
+    "canvas": [
+      56,
+      54
+    ],
+    "frames": 4,
+    "targetH": 46
+  },
+  "warden_hurt": {
+    "anchor": 1,
+    "anchorBody": [
+      47,
+      46
+    ],
+    "bodies": [
+      [
+        47,
+        46
+      ],
+      [
+        47,
+        47
+      ]
+    ],
+    "canvas": [
+      52,
+      51
+    ],
+    "frames": 2,
+    "targetH": 46
+  },
+  "warden_walk": {
+    "anchor": 1,
+    "anchorBody": [
+      50,
+      46
+    ],
+    "bodies": [
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        50,
+        46
+      ],
+      [
+        49,
+        44
+      ]
+    ],
+    "canvas": [
+      54,
+      50
+    ],
+    "frames": 4,
+    "targetH": 46
+  }
+}

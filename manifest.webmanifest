@@ -1,0 +1,15 @@
+{
+  "name": "星陨骑士 · 序章 (Starfall Knights: Prelude)",
+  "short_name": "星陨骑士",
+  "description": "原创像素风刷宝割草 ARPG:元素连锁 × 符文改装 × 昼夜怪潮。Original pixel loot-and-slash ARPG.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d0f1a",
+  "theme_color": "#0d0f1a",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
