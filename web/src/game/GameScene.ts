@@ -319,7 +319,7 @@ export class GameScene {
     if (runMods.active) {
       const tag = runMods.mode === 'weekly' ? t('gs.tag.weekly') : t('gs.tag.daily');
       this.world.emit(new ToastEvent(
-        `${tag} ${runMods.label}:${runMods.mods.map((m) => m.name).join(' · ')}`,
+        `${tag} ${runMods.label}:${runMods.mods.map((m) => t(m.name)).join(' · ')}`,
         runMods.mode === 'weekly' ? '#8fd4c8' : '#e8c07a',
       ));
     }
@@ -483,7 +483,7 @@ export class GameScene {
     meta.save();
     const next = tutorial.current;
     this.world.emit(new ToastEvent(
-      next ? t('gs.tut.step', { n: tutorial.displayIndex - 1, title: next.title }) : t('gs.tut.done'),
+      next ? t('gs.tut.step', { n: tutorial.displayIndex - 1, title: t(next.title) }) : t('gs.tut.done'),
       '#5FD068',
     ));
     if (!next) this.world.emit(new SfxEvent('ult'));
@@ -685,7 +685,7 @@ export class GameScene {
   private renderTutorialHint(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     const step = tutorial.current;
     if (!step) return;
-    const text = formatHint(step.hint);
+    const text = formatHint(t(step.hint));
     const y = height * balance.tutorial.hintY;
     ctx.save();
     ctx.textAlign = 'center';
@@ -699,7 +699,7 @@ export class GameScene {
     ctx.globalAlpha = 1;
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 12px monospace';
-    ctx.fillText(t('gs.tut.header', { n: tutorial.displayIndex, total: TUTORIAL_TOTAL, title: step.title }), width / 2, y + 1);
+    ctx.fillText(t('gs.tut.header', { n: tutorial.displayIndex, total: TUTORIAL_TOTAL, title: t(step.title) }), width / 2, y + 1);
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
     ctx.fillText(text, width / 2, y + 16);
@@ -720,7 +720,7 @@ export class GameScene {
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     const kls = balance.classes[this.campUI.selectedClass];
-    ctx.fillText(t('gs.camp.header', { hero: kls.hero, name: kls.name }), 24, 34);
+    ctx.fillText(t('gs.camp.header', { hero: t(kls.hero), name: t(kls.name) }), 24, 34);
     this.renderTutorialHint(ctx, width, height);
     ctx.textAlign = 'right';
     ctx.fillText(`✦ ${meta.data.stardust} · 📜 ${meta.data.blueprintShards}/${balance.blueprint.craftCost}${meta.data.craftQueued ? t('gs.camp.queued') : ''}`, width - 20, 34);
@@ -2383,7 +2383,7 @@ export class GameScene {
       ? ` · ${t(LAYOUT_LABELS[this.run.layout.id])}`
       : '';
     const roomLabel = this.run.roomKind === 'boss'
-      ? balance.boss.nanmir.name
+      ? t(balance.boss.nanmir.name)
       : t('gs.room.header', { n: this.run.depth + 1, total: balance.rooms.count + 1, kind: t(PORTAL_STYLE[this.run.roomKind].label) }) + layoutTag;
     ctx.textAlign = 'center';
     if (!drawPanel9(ctx, width / 2 - 150, 14, 300, 26)) {
@@ -2398,7 +2398,7 @@ export class GameScene {
     // 挑战角标:日期/周数 + 三条规则名(玩家随时能确认本局规则)
     if (runMods.active) {
       const icon = runMods.mode === 'weekly' ? '🏅' : '🗓';
-      const label = `${icon} ${runMods.label} · ${runMods.mods.map((m) => m.name).join(' / ')}`;
+      const label = `${icon} ${runMods.label} · ${runMods.mods.map((m) => t(m.name)).join(' / ')}`;
       ctx.font = 'bold 11px monospace';
       const tw = ctx.measureText(label).width + 20;
       if (!drawPanel9(ctx, width / 2 - tw / 2, 44, tw, 22)) {
@@ -2427,27 +2427,27 @@ export class GameScene {
     };
     for (const e of this.world.query(MidBossStag, Health)) {
       const st = this.world.mustGet(e, MidBossStag);
-      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_mossstag.name, st.phase, false, '#8fd45f');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.enemies.midboss_mossstag.name), st.phase, false, '#8fd45f');
     }
     for (const e of this.world.query(MidBossHuntress, Health)) {
       const hs = this.world.mustGet(e, MidBossHuntress);
-      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_frosthuntress.name, hs.phase, false, '#8fd4ff');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.enemies.midboss_frosthuntress.name), hs.phase, false, '#8fd4ff');
     }
     for (const e of this.world.query(MidBossReaper, Health)) {
       const rp = this.world.mustGet(e, MidBossReaper);
-      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_sandreaper.name, rp.phase, false, '#d4a45f');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.enemies.midboss_sandreaper.name), rp.phase, false, '#d4a45f');
     }
     for (const e of this.world.query(BossNanmir, Health)) {
       const boss = this.world.mustGet(e, BossNanmir);
-      drawBossBar(this.world.mustGet(e, Health), balance.boss.nanmir.name, boss.phase, boss.state === 'stagger', '#b34747');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.boss.nanmir.name), boss.phase, boss.state === 'stagger', '#b34747');
     }
     for (const e of this.world.query(BossVelsha, Health)) {
       const boss = this.world.mustGet(e, BossVelsha);
-      drawBossBar(this.world.mustGet(e, Health), balance.enemies.boss_velsha.name, boss.phase, false, '#5fa8d9');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.enemies.boss_velsha.name), boss.phase, false, '#5fa8d9');
     }
     for (const e of this.world.query(BossKazra, Health)) {
       const boss = this.world.mustGet(e, BossKazra);
-      drawBossBar(this.world.mustGet(e, Health), balance.enemies.boss_kazra.name, boss.phase, false, '#d97a3c');
+      drawBossBar(this.world.mustGet(e, Health), t(balance.enemies.boss_kazra.name), boss.phase, false, '#d97a3c');
     }
 
     // 左下:翻滚冷却

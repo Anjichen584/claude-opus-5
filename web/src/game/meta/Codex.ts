@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import balance from '@data/balance.json';
 import runePoolData from '@data/runes/pool.json';
 
@@ -153,10 +154,10 @@ export function runeEntry(id: string): RuneEntry | null {
   const [klass, slot] = r.skill.split('_');
   return {
     id: r.id,
-    name: r.name,
+    name: t(r.name),
     skill: r.skill,
     element: r.element ?? null,
-    desc: r.desc,
+    desc: t(r.desc),
     klassName: CLASS_NAME[klass] ?? klass,
     skillSlot: SLOT_NAME[slot] ?? slot,
   };

@@ -47,3 +47,14 @@ const loop = new GameLoop(
 
 scene = new GameScene(renderer, input, loop);
 loop.start();
+
+// ---- 离线化(轮 45 门面批):注册 Service Worker ----
+// BASE_URL 本地 dev 为根路径,Pages 构建为仓库子路径 —— scope 自动跟对。
+// dev 服务器不注册(vite dev 不产 sw 环境,且热更与 SW 缓存互相捣乱)。
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+      /* 注册失败不影响游戏(老浏览器/隐私模式),静默 */
+    });
+  });
+}

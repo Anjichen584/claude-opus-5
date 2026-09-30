@@ -560,11 +560,11 @@ export class CampUI {
       ctx.strokeRect(rx, ry, cw, 108);
       ctx.fillStyle = UI.gold;
       ctx.font = 'bold 15px monospace';
-      ctx.fillText(m.name, rx + cw / 2, ry + 28);
+      ctx.fillText(t(m.name), rx + cw / 2, ry + 28);
       ctx.fillStyle = UI.text;
       ctx.font = '11px monospace';
       // 描述按 12 字折行
-      const words = m.desc.split('、');
+      const words = t(m.desc).split(/、|, /);   // zh 顿号 / en 逗号都断行
       words.forEach((line, li) => {
         ctx.fillText(line, rx + cw / 2, ry + 54 + li * 16);
       });
@@ -642,7 +642,7 @@ export class CampUI {
       ctx.fillText(isRule ? t('camp.weekly.rule') : t('camp.weekly.mod'), rx + cw / 2, ry + 16);
       ctx.fillStyle = UI.text;
       ctx.font = '11px monospace';
-      m.desc.split('、').forEach((line, li) => ctx.fillText(line, rx + cw / 2, ry + 58 + li * 16));
+      t(m.desc).split(/、|, /).forEach((line, li) => ctx.fillText(line, rx + cw / 2, ry + 58 + li * 16));
     });
 
     // 结构摘要(把铁律“改了什么”翻译成人话)
@@ -767,7 +767,7 @@ export class CampUI {
         // 职业 + 章节 + 挑战徽标
         ctx.fillStyle = UI.dim;
         ctx.font = '10px monospace';
-        const kls = balance.classes[e.klass].name;
+        const kls = t(balance.classes[e.klass].name);
         ctx.fillText(t('camp.board.row', { kls, ch: e.chapter }), bx + 82, ry);
         const tag = tagLabel(e.tag);
         if (tag) {
@@ -825,7 +825,7 @@ export class CampUI {
       ctx.fillText(locked ? t('camp.exp.chapterLocked', { ch }) : t('camp.exp.chapter', { ch }), rect.x + rect.w / 2, rect.y + 26);
       ctx.font = '11px monospace';
       ctx.fillStyle = UI.dim;
-      ctx.fillText(locked ? t('camp.exp.unlockAfter', { n: cfg.unlockClears }) : cfg.name, rect.x + rect.w / 2, rect.y + 48);
+      ctx.fillText(locked ? t('camp.exp.unlockAfter', { n: cfg.unlockClears }) : t(cfg.name), rect.x + rect.w / 2, rect.y + 48);
       this.rects.push({ rect, act: `ch${ch}` });
     });
 
@@ -1012,7 +1012,7 @@ export class CampUI {
     ctx.fillText(t('camp.forge.special', { s: sp?.itemName ?? bp.special }), dx + 12, py + 132);
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText(wrap(sp?.desc ?? '', 30).join(' / '), dx + 12, py + 148);
+    ctx.fillText(wrap(t(sp?.desc ?? ''), 30).join(' / '), dx + 12, py + 148);
     ctx.fillStyle = UI.text;
     ctx.fillText(t('camp.forge.affixes', { s: bp.affixes.join(' · ') }), dx + 12, py + 172);
     ctx.fillStyle = UI.dim;
@@ -1130,7 +1130,7 @@ export class CampUI {
       ctx.fillText(c.icon, rect.x + bw / 2, rect.y + 34);
       ctx.fillStyle = sel ? UI.gold : UI.text;
       ctx.font = 'bold 12px monospace';
-      ctx.fillText(`${cfg.hero}·${cfg.name}`, rect.x + bw / 2, rect.y + 58);
+      ctx.fillText(`${t(cfg.hero)}·${t(cfg.name)}`, rect.x + bw / 2, rect.y + 58);
       ctx.fillStyle = UI.dim;
       ctx.font = '9px monospace';
       // 描述按「·」分段,每行最多 2 段(普攻档案比原来的四个字长得多)

@@ -96,8 +96,8 @@ export function buildFromBlueprint(id: string, rng: Rng, make: (slot: Slot, rari
   item.affixes = bp.affixes.map((aid) => rollAffix(aid, rng, true)).filter((a): a is AffixRoll => a !== null);
   if (sp) {
     item.special = sp.id;
-    item.specialDesc = sp.desc;
-    item.name = sp.itemName;
+    item.specialDesc = t(sp.desc);
+    item.name = t(sp.itemName);
   }
   return item;
 }
@@ -109,14 +109,14 @@ function rollAffix(affixId: string, rng: Rng, high: boolean): AffixRoll | null {
   const [lo, hi] = high ? def.hi : def.lo;
   const roll: AffixRoll = {
     id: def.id,
-    name: def.name,
+    name: t(def.name),
     stat: def.stat,
     value: rng.int(lo, hi),
     suffix: def.suffix,
   };
   if (def.neg) {
     const [nlo, nhi] = high ? def.neg.hi : def.neg.lo;
-    roll.neg = { stat: def.neg.stat, name: def.neg.name, suffix: def.neg.suffix, value: rng.int(nlo, nhi) };
+    roll.neg = { stat: def.neg.stat, name: t(def.neg.name), suffix: def.neg.suffix, value: rng.int(nlo, nhi) };
   }
   if (def.cond) roll.cond = def.cond;
   return roll;

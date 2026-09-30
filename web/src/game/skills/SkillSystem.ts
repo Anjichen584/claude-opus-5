@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import { M } from '@game/constants';
@@ -28,7 +29,8 @@ export interface RuneDef {
 
 /** 全符文池(id → 定义),UI 与掉落共用 */
 export const RUNE_POOL = new Map<string, RuneDef>(
-  (runePool.runes as RuneDef[]).map((r) => [r.id, r]),
+  // 名称/描述过一次 t()(轮 45 数据名词典):zh 恒等,en 出译文;id/机制字段原样
+  (runePool.runes as RuneDef[]).map((r) => [r.id, { ...r, name: t(r.name), desc: t(r.desc) }]),
 );
 
 interface Scheduled { t: number; run: (world: World) => void }

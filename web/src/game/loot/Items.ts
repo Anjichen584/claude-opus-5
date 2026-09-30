@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import affixPool from '@data/affixes/pool.json';
@@ -68,7 +69,7 @@ export class ItemFactory {
     const baseValue = this.rng.int(lo, hi);
 
     const affixes = this.rollAffixes(slot, rarity);
-    let name = `${(bases.rarityPrefix as Record<Rarity, string>)[rarity]}·${base.name}`;
+    let name = `${t((bases.rarityPrefix as Record<Rarity, string>)[rarity])}${t('item.sep')}${t(base.name)}`;
     let special: string | undefined;
     let specialDesc: string | undefined;
 
@@ -78,8 +79,8 @@ export class ItemFactory {
       if (pool.length > 0) {
         const sp = this.rng.pick(pool);
         special = sp.id;
-        specialDesc = sp.desc;
-        name = sp.itemName;
+        specialDesc = t(sp.desc);
+        name = t(sp.itemName);
       }
     }
 
@@ -90,7 +91,7 @@ export class ItemFactory {
       glyph: base.glyph,
       rarity,
       baseStat: base.baseStat,
-      baseStatName: base.statName,
+      baseStatName: t(base.statName),
       baseValue,
       affixes,
       special,
@@ -135,7 +136,7 @@ export class ItemFactory {
       const [lo, hi] = highTier ? def.hi : def.lo;
       const roll: AffixRoll = {
         id: def.id,
-        name: def.name,
+        name: t(def.name),
         stat: def.stat,
         value: this.rng.int(lo, hi),
         suffix: def.suffix,
@@ -143,7 +144,7 @@ export class ItemFactory {
       // tradeoff 的负面面与加成一起掷(只掷加成 = 纯加强,取舍设计就失效了)
       if (def.neg) {
         const [nlo, nhi] = highTier ? def.neg.hi : def.neg.lo;
-        roll.neg = { stat: def.neg.stat, name: def.neg.name, suffix: def.neg.suffix, value: this.rng.int(nlo, nhi) };
+        roll.neg = { stat: def.neg.stat, name: t(def.neg.name), suffix: def.neg.suffix, value: this.rng.int(nlo, nhi) };
       }
       if (def.cond) roll.cond = def.cond;
       picked.push(roll);

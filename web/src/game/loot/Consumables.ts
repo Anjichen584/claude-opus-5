@@ -13,6 +13,7 @@
  *
  * 数值全部读 «balance.consumables»(项目硬规则)。
  */
+import { t } from '@game/i18n';
 import balance from '@data/balance.json';
 import type { Element } from '@game/components';
 
@@ -29,7 +30,7 @@ const C = balance.consumables;
 
 export const consumableDefs = (): ConsumableDef[] => CONSUMABLE_IDS.map((id) => ({
   id,
-  name: (C[id] as { name: string }).name,
+  name: t((C[id] as { name: string }).name),
   price: (C[id] as { price: number }).price,
 }));
 
