@@ -18,7 +18,13 @@ import { sprites } from '@engine/render/Sprites';
 interface Floater { x: number; y: number; vy: number; t: number; life: number; text: string; color: string; scale: number }
 interface Particle { x: number; y: number; vx: number; vy: number; t: number; life: number; color: string; size: number }
 
-const PARTICLE_CAP = 600; // 高峰保底:超过就不再生成(视觉上根本看不出少了)
+const PARTICLE_CAP = 600;
+
+/** 反应名 → 爆点贴图(轮 35;名字来自 combat/Elements 的 ReactionDef.name) */
+const RX_FX: Record<string, string> = {
+  蒸爆: 'fx_rx_steam', 超载: 'fx_rx_overload', 燃瘴: 'fx_rx_miasma',
+  冻链: 'fx_rx_chain', 脆蚀: 'fx_rx_brittle', 麻痹: 'fx_rx_numb',
+}; // 高峰保底:超过就不再生成(视觉上根本看不出少了)
 interface Slash { x: number; y: number; angle: number; stage: number; t: number; dur: number; rangePx: number; arcRad: number }
 interface Ghost { x: number; y: number; face: number; t: number; life: number }
 interface Beam { x: number; y: number; color: string; t: number; life: number; sprite: string | null }
@@ -48,7 +54,7 @@ export class FeedbackSystem implements System {
   private rings: Ring[] = [];
   private bursts: Array<{ x: number; y: number; t: number; life: number; scale: number; rot: number }> = [];
   /** 连锁反应演出:两枚触发元素图标相向交汇 */
-  private reactions: Array<{ x: number; y: number; elA: string; elB: string; color: string; t: number; life: number }> = [];
+  private reactions: Array<{ x: number; y: number; elA: string; elB: string; color: string; fx: string | null; t: number; life: number }> = [];
   hurtVignette = 0;
   kills = 0;
   /** 本局玩家受伤次数(无伤通关成就判定;enterCamp/startRun 时清零) */
@@ -129,7 +135,7 @@ export class FeedbackSystem implements System {
       sfx.play('reaction');
       if (rx.elA && rx.elB) {
         this.reactions.push({
-          x: rx.x, y: rx.y + 30, elA: rx.elA, elB: rx.elB, color: rx.color,
+          x: rx.x, y: rx.y + 30, elA: rx.elA, elB: rx.elB, color: rx.color, fx: RX_FX[rx.name] ?? null,
           t: 0, life: 0.55,
         });
       }
@@ -274,14 +280,20 @@ export class FeedbackSystem implements System {
       }
       if (p > 0.45) {
         const fp = (p - 0.45) / 0.55;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = (1 - fp) * 0.75;
-        ctx.fillStyle = r.color;
-        ctx.beginPath();
-        ctx.arc(r.x, y, 7 + 18 * fp, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        // 专属爆点贴图优先(轮 35:六反应各一张);未加载回退程序化圆爆
+        const drew = r.fx !== null && FeedbackSystem.fx(ctx, r.fx, r.x, y, {
+          alpha: (1 - fp) * 0.9, scaleW: 0.5 + fp * 0.8, scaleH: 0.5 + fp * 0.8,
+        });
+        if (!drew) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = (1 - fp) * 0.75;
+          ctx.fillStyle = r.color;
+          ctx.beginPath();
+          ctx.arc(r.x, y, 7 + 18 * fp, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
       }
     }
     for (const g of this.ghosts) {

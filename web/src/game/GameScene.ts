@@ -1531,7 +1531,7 @@ export class GameScene {
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 15);
           const jit = t.state === 'telegraph' ? (Math.random() - 0.5) * 0.2 : 0;
-          if (!drawSprite(ctx, 'iceturtle', ix, iy, {
+          if (!drawSprite(ctx, t.state === 'telegraph' ? 'iceturtle_atk' : 'iceturtle', ix, iy, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: t.state === 'spin' ? t.animT * 11 : jit,
             sy: 1 + Math.sin(t.animT * 2.5) * 0.03,
@@ -1548,7 +1548,7 @@ export class GameScene {
           const hover = Math.sin(hk.animT * 7) * 3 - 12;
           const jit = hk.state === 'telegraph' ? (Math.random() - 0.5) * 0.24 : 0;
           const lean = hk.state === 'dive' ? (Math.cos(tr.face) < 0 ? 0.3 : -0.3) : 0;
-          if (!drawSprite(ctx, 'blizzardhawk', ix, iy + hover, {
+          if (!drawSprite(ctx, hk.state === 'dive' ? 'blizzardhawk_atk' : this.frame2('blizzardhawk', e, false), ix, iy + hover, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0, rot: jit + lean,
             sx: hk.state === 'dive' ? 1.15 : 1,
           })) blob(ix, iy + hover, 10, '#dfe8f2');

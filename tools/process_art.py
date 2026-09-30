@@ -111,6 +111,9 @@ FX = {
     "fx_slash": 64, "fx_burst": 64, "fx_ring": 96, "fx_beam": 128,
     "fx_swordfall": 150,      # 剑士 R 星陨:剑体是竖向长条,按高度
     "fx_vortex": 104,         # 秘术师 R 元素风暴:近方形
+    # 轮 35:六元素反应爆点(打出反应那一刻的主角帧)
+    "fx_rx_steam": 72, "fx_rx_overload": 72, "fx_rx_miasma": 72,
+    "fx_rx_chain": 72, "fx_rx_brittle": 72, "fx_rx_numb": 72,
 }
 # 扁平的贴花/光环:按宽度缩放(按高度会得到离谱的宽度)
 FX_WIDE = {

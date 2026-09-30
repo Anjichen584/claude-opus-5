@@ -111,6 +111,9 @@ export const SPRITE_NAMES = [
   'boss_velsha_f2', 'boss_kazra_f2',
   'windbee_atk', 'blightwolf_atk', 'oakgolem_atk', 'frostmage_atk',
   'dunebeetle_atk', 'flamedancer_atk', 'duststinger_atk', 'snowpuff_atk',
+  'iceturtle_atk', 'blizzardhawk_atk',
+  // 轮 35:六元素反应爆点特效
+  'fx_rx_steam', 'fx_rx_overload', 'fx_rx_miasma', 'fx_rx_chain', 'fx_rx_brittle', 'fx_rx_numb',
   'leafwisp',
   // 第三批:拾取物 / 传送门 / 元素图标
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',
