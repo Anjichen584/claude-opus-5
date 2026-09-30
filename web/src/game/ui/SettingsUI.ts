@@ -43,6 +43,10 @@ export class SettingsUI {
   private codeMsg = '';
   private codeMsgT = 0;
   private bindRects: Array<{ rect: Rect; id: string }> = [];
+  /** fit 缩放(轮 46b:手机屏 < 面板逻辑尺寸时整体等比缩;鼠标坐标反变换用) */
+  private k = 1;
+  private ox = 0;
+  private oy = 0;
   private resetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private closeRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private titleRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -77,8 +81,9 @@ export class SettingsUI {
       return 'close';
     }
     if (!this.input.mousePressed) return null;
-    const mx = this.input.mouseX;
-    const my = this.input.mouseY;
+    // 面板绘制经过 translate+scale,点击判定要走同一套逆变换(rect 全存局部坐标)
+    const mx = (this.input.mouseX - this.ox) / this.k;
+    const my = (this.input.mouseY - this.oy) / this.k;
 
     // 音量滑条:点击位置即音量
     const setBar = (bar: Rect, apply: (v: number) => void): boolean => {
@@ -170,12 +175,18 @@ export class SettingsUI {
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const s = meta.data.settings;
     const pw = 560;
-    const ph = 574;
-    const px = w / 2 - pw / 2;
-    const py = h / 2 - ph / 2;
+    const ph = 600;
     ctx.save();
     ctx.fillStyle = 'rgba(13,15,26,0.88)';
     ctx.fillRect(0, 0, w, h);
+    // fit 缩放:屏幕装不下(手机/超小窗)就整体等比缩,始终完整可见、可点
+    this.k = Math.min(1, (w - 8) / pw, (h - 8) / ph);
+    this.ox = (w - pw * this.k) / 2;
+    this.oy = (h - ph * this.k) / 2;
+    ctx.translate(this.ox, this.oy);
+    ctx.scale(this.k, this.k);
+    const px = 0;
+    const py = 0;
     if (!drawPanel9(ctx, px, py, pw, ph)) {
       // 回退:程序化面板
       ctx.fillStyle = 'rgba(19,23,36,0.98)';
@@ -188,7 +199,7 @@ export class SettingsUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText(tr('settings.title'), w / 2, py + 32);
+    ctx.fillText(tr('settings.title'), pw / 2, py + 32);
 
     // ---- 音量 ----
     const bar = (label: string, y: number, val: number): Rect => {
@@ -302,23 +313,24 @@ export class SettingsUI {
       ctx.fillText(label, r.x + r.w / 2, r.y + 24);
       return r;
     };
-    // 两行布局(轮 46 修复:此前五钮同行互相压盖,EN 文案更是必然溢出)
-    const row1 = py + ph - 92;
-    const row2 = py + ph - 48;
-    this.resetRect = btn(tr('settings.resetBinds'), px + 28, row1, 160, false);
-    this.exportRect = btn(tr('settings.exportCode'), px + 200, row1, 150, false);
-    this.importRect = btn(tr('settings.importCode'), px + 362, row1, 150, false);
+    // 两列网格三行(轮 46b:两行方案在手机缩放后仍显拥挤 —— 每钮 240 宽,视觉彻底松开)
+    const bw = (pw - 28 * 2 - 16) / 2;   // 240
+    const colX = [px + 28, px + 28 + bw + 16];
+    const rowY = [py + ph - 136, py + ph - 92, py + ph - 48];
+    this.resetRect = btn(tr('settings.resetBinds'), colX[0], rowY[0], bw, false);
+    this.exportRect = btn(tr('settings.exportCode'), colX[1], rowY[0], bw, false);
+    this.importRect = btn(tr('settings.importCode'), colX[0], rowY[1], bw, false);
     this.titleRect = { x: 0, y: 0, w: 0, h: 0 };   // 不显示时清区(残留会吃到点击)
     if (this.showQuitToTitle) {
-      this.titleRect = btn(tr('settings.toTitle'), px + 28, row2, 160, false);
+      this.titleRect = btn(tr('settings.toTitle'), colX[1], rowY[1], bw, false);
     }
-    this.closeRect = btn(tr('settings.close'), px + pw - 28 - 150, row2, 150, true);
+    this.closeRect = btn(tr('settings.close'), colX[1], rowY[2], bw, true);
     if (this.codeMsgT > 0) {
       this.codeMsgT -= 1 / 60;
       ctx.textAlign = 'left';
       ctx.fillStyle = UI.gold;
       ctx.font = '12px monospace';
-      ctx.fillText(this.codeMsg, px + 28, py + ph - 102);
+      ctx.fillText(this.codeMsg, px + 28, rowY[2] + 24);   // 左下空位当消息位
     }
     ctx.restore();
   }
