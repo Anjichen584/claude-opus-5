@@ -54,7 +54,7 @@ describe('元素印记 → 连锁反应(管线级)', () => {
     hit(world, src, tgt, 'ice');
     const events = world.read(ReactionEvent);
     expect(events).toHaveLength(1);
-    expect(events[0].name).toBe('蒸爆');
+    expect(events[0].name).toBe('rx.steam');
     expect([events[0].elA, events[0].elB].sort()).toEqual(['fire', 'ice']);
   });
 
@@ -74,12 +74,12 @@ describe('元素印记 → 连锁反应(管线级)', () => {
 
   it('全部 6 组反应对都能带上两种不同元素', () => {
     const pairs: Array<[Element, Element, string]> = [
-      ['fire', 'ice', '蒸爆'],
-      ['fire', 'bolt', '超载'],
-      ['fire', 'toxin', '燃瘴'],
-      ['bolt', 'ice', '冻链'],
-      ['ice', 'toxin', '脆蚀'],
-      ['bolt', 'toxin', '麻痹'],
+      ['fire', 'ice', 'rx.steam'],
+      ['fire', 'bolt', 'rx.overload'],
+      ['fire', 'toxin', 'rx.miasma'],
+      ['bolt', 'ice', 'rx.chain'],
+      ['ice', 'toxin', 'rx.brittle'],
+      ['bolt', 'toxin', 'rx.numb'],
     ];
     for (const [a, b, name] of pairs) {
       const w = new World();

@@ -228,7 +228,8 @@ export class DesertSystem implements System {
       tr.face = Math.atan2(dy, dx);
 
       switch (b.state) {
-        case 'burrow': { // 地下移动(不可被普通近战命中——体现在渲染半透明沙丘;判定照常,简化)
+        // 地下移动(不可被普通近战命中——体现在渲染半透明沙丘;判定照常,简化)
+        case 'burrow': {
           vel.vx = (dx / dist) * BEETLE.burrow.underSpeedM * M * slow;
           vel.vy = (dy / dist) * BEETLE.burrow.underSpeedM * M * slow;
           if (dist < 1.6 * M) {

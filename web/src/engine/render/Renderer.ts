@@ -26,7 +26,7 @@ export class Renderer {
   }
 
   resize(): void {
-    // 强制横屏:竖屏(触屏设备)时画布 CSS 转 90°,宽高取"横屏视口"(见 Viewport.ts)
+    // 强制横屏:竖屏(触屏设备)时画布 CSS 转 90°,宽高取“横屏视口”(见 Viewport.ts)
     updateViewport();
     applyViewportTo(this.canvas);
     this.width = Math.round(viewW() / this.uiScale);

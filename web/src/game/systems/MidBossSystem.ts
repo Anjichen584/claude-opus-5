@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -19,23 +20,23 @@ export const MIDBOSS_TUNING = {
   keepMaxM: S.stalkM * 1.4,
   /** 撞墙判定余量:冲出竞技场边界这么多米就算撞墙 */
   wallPadM: 0.6,
-  /** 冲撞预警在路径上亮几个圈(玩家要能看清"这条线别站") */
+  /** 冲撞预警在路径上亮几个圈(玩家要能看清“这条线别站”) */
   laneDots: 3,
   /** 冲撞命中的击退(给玩家的位移冲量,px/s) */
   hitShoveV: 150,
 } as const;
 
 /**
- * 第一章中 Boss 苔冠巨鹿(双线镜像:Unity `Dungeon/CreatureAI.cs` 的 MossStag 段)。
+ * 第一章中 Boss 苔冠巨鹿(双线镜像:Unity «Dungeon/CreatureAI.cs» 的 MossStag 段)。
  *
- * 三个招式 = 三种"读法":
+ * 三个招式 = 三种“读法”:
  * 1. **冲撞**:3 个预警圈连成一条线,锁朝向 → 冲 → **撞墙自晕 2.2s**(核心奖励窗口:
  *    会走位的玩家能把它的冲锋骗到墙上,不会走位就被追着撞);
  * 2. **孢子弹幕**:扇形 5(狂怒 7)发毒弹,逼玩家横向移动;
  * 3. **孢子云**:在玩家脚下种一团持续伤害区,做空间封锁(与菇灵孢子同款结算)。
  *
  * P2(<50%)狂怒:冲速 ×1.25、弹幕 +2 发、冷却 ×0.8 —— 数值全部来自 balance.midboss。
- * 掉落:击杀保底 `runeDrop` 枚符文(直接掉 Pickup,不用等 LootSystem 的随机判定)。
+ * 掉落:击杀保底 «runeDrop» 枚符文(直接掉 Pickup,不用等 LootSystem 的随机判定)。
  */
 export class MidBossSystem implements System {
   update(world: World, dt: number): void {
@@ -67,15 +68,15 @@ export class MidBossSystem implements System {
         // 狂怒瞬间不立刻出招,给玩家一个读条(两招都压到 0.4s 内,由轮换逻辑决定先出哪招)
         stag.chargeCd = Math.min(stag.chargeCd, 0.4);
         stag.volleyCd = Math.min(stag.volleyCd, 0.7);
-        world.emit(new ToastEvent('🌿 苔冠巨鹿狂怒:苔雾暴涨,鹿角低垂!', '#8fd45f'));
-        world.emit(new BossPhaseEvent('苔冠巨鹿', 2, '「狂怒」', '#8fd45f', tr.x, tr.y));
+        world.emit(new ToastEvent(t('mb.stag.rage'), '#8fd45f'));
+        world.emit(new BossPhaseEvent(t('mb.stag.name'), 2, t('mb.phase.rage'), '#8fd45f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = stag.phase === 2;
       const cdMul = enraged ? 0.8 : 1;
       const stun = buffs !== undefined && buffs.stunT > 0;
       // 两个招式各有独立冷却:**只重置用掉的那一招**,另一招继续走表
-      // (一版是"两招一起重置",结果冷却短的总先就绪 → 孢子弹幕永远轮不到,实战里看不见)
+      // (一版是“两招一起重置”,结果冷却短的总先就绪 → 孢子弹幕永远轮不到,实战里看不见)
       stag.chargeCd -= dt;
       stag.volleyCd -= dt;
 
@@ -94,7 +95,7 @@ export class MidBossSystem implements System {
 
       switch (stag.state) {
         case 'stalk': {
-          // 面向玩家,但只做"侧向绕圈 + 拉距离":冲撞要助跑距离,所以它不贴脸
+          // 面向玩家,但只做“侧向绕圈 + 拉距离”:冲撞要助跑距离,所以它不贴脸
           tr.face = Math.atan2(dy, dx);
           const side = Math.cos(stag.animT * 0.8) >= 0 ? 1 : -1;
           const nx = dx / dist;
@@ -189,7 +190,7 @@ export class MidBossSystem implements System {
             stag.state = 'stagger';
             stag.t = S.charge.wallStunS;
             world.emit(new SfxEvent('reaction'));
-            world.emit(new ToastEvent('鹿角卡进了岩壁 — 输出窗口!', '#e8c07a'));
+            world.emit(new ToastEvent(t('mb.stag.stuck'), '#e8c07a'));
           } else if (stag.t <= 0) {
             stag.state = 'recover';
             stag.t = S.charge.recoverS;
@@ -269,7 +270,7 @@ export class MidBossSystem implements System {
       world.add(p, new Faction('enemy'));
       world.add(p, new Projectile('enemy', stats.atk, v.mult, 'toxin', v.radiusM * M, v.lifeS, color));
     }
-    // 玩家脚下种孢子云(不是必中的伤害,而是"这块地不能站")
+    // 玩家脚下种孢子云(不是必中的伤害,而是“这块地不能站”)
     const sp = S.spore;
     const z = world.create();
     world.add(z, new Transform(tx, ty));
@@ -281,7 +282,7 @@ export class MidBossSystem implements System {
     world.emit(new SfxEvent('growl'));
   }
 
-  /** 冲出竞技场边界 = 撞墙(mid-boss 用硬边界做"可用地形") */
+  /** 冲出竞技场边界 = 撞墙(mid-boss 用硬边界做“可用地形”) */
   private hitsWall(x: number, y: number): boolean {
     const pad = MIDBOSS_TUNING.wallPadM * M;
     return x < pad || y < pad || x > ARENA.widthM * M - pad || y > ARENA.heightM * M - pad;

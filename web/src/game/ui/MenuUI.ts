@@ -17,7 +17,7 @@ export interface RunStats {
   hitsTaken: number;
   /** 本局单次最高伤害(与排行榜共用同一数据源) */
   maxHit: number;
-  /** 无尽模式:本局到达的层数与循环数(0 = 不是无尽局;结算页显示"撑到第几层") */
+  /** 无尽模式:本局到达的层数与循环数(0 = 不是无尽局;结算页显示“撑到第几层”) */
   endlessFloor: number;
   endlessLoop: number;
   /** 无尽:本局是否刷新历史最高层 */
@@ -26,7 +26,7 @@ export interface RunStats {
 
 /**
  * 标题页(职业/章节/祭坛/铸台已移入可行走的「星陨营地」→ ui/CampUI.ts)
- * 与结算页。返回 'start' 表示进入营地。
+ * 与结算页。返回 ‘start’ 表示进入营地。
  */
 export class MenuUI {
   private startRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -35,7 +35,7 @@ export class MenuUI {
   constructor(private readonly input: Input) {}
 
   /**
-   * 标题页。返回 'start' | null。
+   * 标题页。返回 ‘start’ | null。
    * 存档槽选择也在这里:点别的槽 = 切换(切换前当前槽已写回,见 MetaStore.switchTo);
    * 长按/点空槽上的「新建」= 清空该槽重开。
    */
@@ -49,7 +49,8 @@ export class MenuUI {
         if (!inside(r, this.input.mouseX, this.input.mouseY)) continue;
         if (i === meta.slotIndex) continue;
         meta.switchTo(i);
-        return 'slotChanged'; // 调用方要同步引导进度与营地职业选择
+        // 调用方要同步引导进度与营地职业选择
+        return 'slotChanged';
       }
     }
     if (this.input.mousePressed && inside(this.startRect, this.input.mouseX, this.input.mouseY)) return 'start';
@@ -108,7 +109,7 @@ export class MenuUI {
     const gap = 12;
     const totalW = cw * slots.length + gap * (slots.length - 1);
     const x0 = w / 2 - totalW / 2;
-    const y = h * 0.66;   // 与上方"战绩"一行留出间距(720p 下两者相距 ~50px)
+    const y = h * 0.66;   // 与上方“战绩”一行留出间距(720p 下两者相距 ~50px)
     this.slotRects = [];
     ctx.textAlign = 'center';
     slots.forEach((sl, i) => {
@@ -144,7 +145,7 @@ export class MenuUI {
     ctx.fillText(tr('slot.hint'), w / 2, y + ch + 14);
   }
 
-  /** 结算页。返回 'menu' | null */
+  /** 结算页。返回 ‘menu’ | null */
   updateResults(): 'menu' | null {
     if (this.input.wasPressed('Enter') || this.input.wasPressed('PadStart') || this.input.mousePressed) return 'menu';
     return null;
@@ -156,7 +157,7 @@ export class MenuUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = rs.victory ? UI.gold : UI.hpLow;
     ctx.font = 'bold 40px monospace';
-    // 无尽模式没有"胜利":标题按层数说话(这个模式唯一的成就感就是撑得更远)
+    // 无尽模式没有“胜利”:标题按层数说话(这个模式唯一的成就感就是撑得更远)
     const title = rs.endlessFloor > 0
       ? (rs.endlessRecord ? tr('results.endless.record', { n: rs.endlessFloor }) : tr('results.endless.floor', { n: rs.endlessFloor }))
       : rs.victory ? tr('results.clear') : tr('results.dead');

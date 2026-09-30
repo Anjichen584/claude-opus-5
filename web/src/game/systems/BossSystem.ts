@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World, Entity } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -39,15 +40,15 @@ export class BossSystem implements System {
         boss.phase = 2;
         boss.state = 'stagger';
         boss.t = B.staggerS;
-        world.emit(new ToastEvent('南弥尔踉跄了!全力输出!', '#ffd94f'));
-        world.emit(new BossPhaseEvent('苔冠守望者 · 南弥尔', 2, '「根须苏醒」', '#ffd94f', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.nanmir.stagger'), '#ffd94f'));
+        world.emit(new BossPhaseEvent(t('boss.nanmir.name'), 2, t('boss.nanmir.p2'), '#ffd94f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       } else if (boss.phase === 2 && ratio <= B.phase3At) {
         boss.phase = 3;
         boss.state = 'stagger';
         boss.t = B.staggerS;
-        world.emit(new ToastEvent('南弥尔狂暴了!', '#e05f5f'));
-        world.emit(new BossPhaseEvent('苔冠守望者 · 南弥尔', 3, '「荆棘狂怒」', '#e05f5f', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.nanmir.rage'), '#e05f5f'));
+        world.emit(new BossPhaseEvent(t('boss.nanmir.name'), 3, t('boss.nanmir.p3'), '#e05f5f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
 

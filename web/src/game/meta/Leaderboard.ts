@@ -2,8 +2,8 @@
  * 本地排行榜(docs/01-GDD.md §11 · 「游戏层缺」清单的最后一项)。
  *
  * 为什么是**本地**榜:云端榜要后端(账号/防作弊/托管),对一个单机 roguelite 是过度工程。
- * 本地榜解决的是玩家真正在意的那件事 —— **"我这局打得怎么样"**:刷新自己记录时给一次明确反馈,
- * 以及让"上一把的最好成绩"随时可查、可对比。
+ * 本地榜解决的是玩家真正在意的那件事 —— **“我这局打得怎么样”**:刷新自己记录时给一次明确反馈,
+ * 以及让“上一把的最好成绩”随时可查、可对比。
  *
  * 四条榜(每条独立):
  *   speed  最快通关(秒,**越小越好**)    ← 需要真通关
@@ -12,10 +12,10 @@
  *   nohit  最快无伤通关(秒,越小越好)   ← 只有整局零受伤的那次才算
  *
  * 设计口径:
- *   · 上榜不需要通关(kills/hit 只要够门槛就记)—— 否则"没打通"的玩家永远看不到自己变强;
+ *   · 上榜不需要通关(kills/hit 只要够门槛就记)—— 否则“没打通”的玩家永远看不到自己变强;
  *   · 每条榜只留前 N 条(默认 5),同一次出征只提交一次(回放/重试不会刷榜);
  *   · 榜单是**存档的一部分**,sanitize 与其它字段同规格:未知职业/章节/负数/NaN 一律丢掉重排;
- *   · 展示格式集中在 `formatScore`/`BOARD_LABEL`,UI 不许自己拼字符串(否则两处口径会飘)。
+ *   · 展示格式集中在 «formatScore»/«BOARD_LABEL»,UI 不许自己拼字符串(否则两处口径会飘)。
  */
 
 import balance from '@data/balance.json';
@@ -30,17 +30,17 @@ export const BOARD_ASC: Readonly<Record<BoardId, boolean>> = {
 };
 
 export const BOARD_LABEL: Readonly<Record<BoardId, string>> = {
-  speed: '⚡ 最快通关',
-  kills: '💀 单局击杀',
-  hit: '💥 单次最高伤害',
-  nohit: '🛡 最快无伤通关',
+  speed: 'board.speed.label',
+  kills: 'board.kills.label',
+  hit: 'board.hit.label',
+  nohit: 'board.nohit.label',
 };
 
 export const BOARD_HINT: Readonly<Record<BoardId, string>> = {
-  speed: '通关用时越短越前',
-  kills: '一局里砍倒的敌人总数',
-  hit: '单次伤害峰值(暴击/连锁能上大数字)',
-  nohit: '整局零受伤的通关用时',
+  speed: 'board.speed.hint',
+  kills: 'board.kills.hint',
+  hit: 'board.hit.hint',
+  nohit: 'board.nohit.hint',
 };
 
 export type Klass = 'blade' | 'ranger' | 'arcanist' | 'warden';
@@ -53,7 +53,7 @@ export interface LbEntry {
   chapter: 1 | 2 | 3;
   /** 记录时刻(毫秒时间戳;展示相对时间用,0 = 未知) */
   at: number;
-  /** 挑战标记:'' = 普通远征;'daily:YYYY-MM-DD' / 'weekly:YYYY-Www' */
+  /** 挑战标记:‘’ = 普通远征;‘daily:YYYY-MM-DD’ / ‘weekly:YYYY-Www’ */
   tag: string;
 }
 
@@ -76,7 +76,7 @@ export interface RunScore {
   maxHit: number;
   klass: Klass;
   chapter: 1 | 2 | 3;
-  /** 挑战标记(普通局传 '') */
+  /** 挑战标记(普通局传 ‘’) */
   tag: string;
   /** 时间戳 */
   at: number;
@@ -146,7 +146,7 @@ export function formatScore(board: BoardId, score: number): string {
   return Math.round(score).toLocaleString('en-US');
 }
 
-/** 挑战标记的展示形式('' → 空,其它 → 徽标文字) */
+/** 挑战标记的展示形式(‘’ → 空,其它 → 徽标文字) */
 export function tagLabel(tag: string): string {
   if (tag.startsWith('daily:')) return `🗓 ${tag.slice(6)}`;
   if (tag.startsWith('weekly:')) return `🏅 ${tag.slice(7)}`;

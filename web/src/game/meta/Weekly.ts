@@ -1,16 +1,17 @@
 /**
- * 周常挑战(docs/01-GDD.md §9.3):在每日词条之上再叠一层"本周规则"。
+ * 周常挑战(docs/01-GDD.md §9.3):在每日词条之上再叠一层“本周规则”。
  *
  * 与每日挑战的差别:
  *   · 键 = ISO 周(2026-W40),跨周才换;一周之内随便挑时间打,成绩可比;
  *   · 规则 = 2 条每日池词条(周 seed 抽) + 1 条**周常铁律**(周 seed 抽);
- *   · 铁律是"结构性"的:多一波怪 / 商店关门 / 祭坛失效 / 精英提前 / 地形定死 / 换血量口径……
+ *   · 铁律是“结构性”的:多一波怪 / 商店关门 / 祭坛失效 / 精英提前 / 地形定死 / 换血量口径……
  *     它们改的是**本局怎么打**,不是再乘个数 —— 光叠乘区玩家看数字就麻了。
  *
- * 铁律的取舍同样由单测守卫:每条都必须既有"玩家难受的"也有"玩家划算的"。
+ * 铁律的取舍同样由单测守卫:每条都必须既有“玩家难受的”也有“玩家划算的”。
  * 数据在 src/data/challenges.json 的 weekly 段(双端 parity 比对 C# 镜像)。
  */
 
+import { t } from '@game/i18n';
 import { Rng } from '@engine/core/Rng';
 import challenges from '@data/challenges.json';
 import { keySeed, MOD_POOL, mergeMods, type MergedMods, type RunMod } from './Daily';
@@ -53,7 +54,7 @@ export const NEUTRAL_STRUCTURE: StructureMods = {
 };
 
 /**
- * ISO-8601 周键 `YYYY-Www`。
+ * ISO-8601 周键 «YYYY-Www»。
  * 规则:周一为一周之始,**归属看周四**——所以 1 月 1 日可能属于上一年的最后一周,
  * 12 月 31 日也可能属于下一年的第 1 周(2026-01-01 是周四 → 2026-W01)。
  */
@@ -132,5 +133,5 @@ export function pickForcedLayout(rule: WeeklyRule, rng: Rng): LayoutId | null {
 /** 周键的展示形式(第 N 周) */
 export function weeklyLabel(key: string): string {
   const m = /-W(\d{2})$/.exec(key);
-  return m ? `第 ${Number(m[1])} 周` : key;
+  return m ? t('weekly.week', { n: Number(m[1]) }) : key;
 }

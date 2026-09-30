@@ -10,7 +10,7 @@ import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
 const S_REAPER = balance.enemies.midboss_sandreaper;
 import { applyColorblind, FOREST, M, RARITY_COLORS, UI } from '@game/constants';
-import { t as tr } from '@game/i18n';
+import { t, t as tr } from '@game/i18n';
 import { setLocale } from '@game/i18n';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
@@ -97,13 +97,13 @@ const RAGE_FOR_R = 40;
 const TUTORIAL_TOTAL = balance.tutorial.steps.length;
 
 const PORTAL_STYLE: Record<string, { color: string; label: string }> = {
-  battle: { color: '#dfe8f2', label: '战斗' },
-  treasure: { color: '#F2A33C', label: '宝藏' },
-  elite: { color: '#B067E8', label: '精英' },
-  midboss: { color: '#8fd45f', label: '中首领' },
-  boss: { color: '#e05f5f', label: '首领' },
-  shop: { color: '#8fd4c8', label: '商店' },
-  event: { color: '#e8c07a', label: '秘境' },
+  battle: { color: '#dfe8f2', label: 'room.battle' },
+  treasure: { color: '#F2A33C', label: 'room.treasure' },
+  elite: { color: '#B067E8', label: 'room.elite' },
+  midboss: { color: '#8fd45f', label: 'room.midboss' },
+  boss: { color: '#e05f5f', label: 'room.boss' },
+  shop: { color: '#8fd4c8', label: 'room.shop' },
+  event: { color: '#e8c07a', label: 'room.event' },
 };
 
 /** 职业 → 精灵图名 */
@@ -118,7 +118,7 @@ type GameState = 'menu' | 'camp' | 'run' | 'results';
  * 系统更新顺序即契约(docs/02-ARCHITECTURE.md §4)。
  */
 export class GameScene {
-  /** 本局挑战模式(结算时写记录;'off' = 普通远征) */
+  /** 本局挑战模式(结算时写记录;‘off’ = 普通远征) */
   private runMode: 'off' | 'daily' | 'weekly' = 'off';
   private state: GameState = 'menu';
   private paused = false;
@@ -212,7 +212,7 @@ export class GameScene {
     this.loot.luck = meta.data.altar.luck * balance.altar.luckPerLvl;
     this.loot.factory.pityCount = meta.data.pity;
     this.shop = new ShopSystem(this.input);
-    // 议价随机源每局重播种:固定种子会让"每局第一家店的议价结果永远一样"
+    // 议价随机源每局重播种:固定种子会让“每局第一家店的议价结果永远一样”
     this.shop.reseed((meta.data.stats.runs + 1) * 2654435761);
     // 秘境抉择记录(轮 25):**每次抉择立刻落档**(中途退出也不丢),汇总面板与回响之碑都读它
     this.events = new EventSystem(
@@ -226,7 +226,7 @@ export class GameScene {
     );
     this.run = new RunManager(this.loot.factory);
     this.run.chapter = chapter;
-    // 深渊难度档(轮 23):挑战局(每日/周常)固定普通档 —— 挑战要全服同条件,不是"谁层数高谁分高"
+    // 深渊难度档(轮 23):挑战局(每日/周常)固定普通档 —— 挑战要全服同条件,不是“谁层数高谁分高”
     runMods.setAbyss(mode === 'off' ? this.campUI.selectedAbyss : ABYSS_NORMAL);
     // 无尽模式(轮 24):只有普通远征能开(挑战局要全服同条件);无尽开局从循环 0 起算
     this.run.endless = mode === 'off' && this.campUI.endless;
@@ -274,7 +274,7 @@ export class GameScene {
     w.add(this.playerE, playerComp);
     w.add(this.playerE, new Inventory());
     const equip = new Equipment();
-    // 星辉铸台:预订的开局装备。蓝图件按"图纸给定"的部位/特效/词条出炉(钱在铸台就付过了)
+    // 星辉铸台:预订的开局装备。蓝图件按“图纸给定”的部位/特效/词条出炉(钱在铸台就付过了)
     if (meta.data.craftQueuedId) {
       const bpId = meta.data.craftQueuedId;
       meta.data.craftQueuedId = null;
@@ -283,9 +283,9 @@ export class GameScene {
         (slot, rarity) => this.loot.factory.make(slot, rarity));
       if (gift) {
         equip.slots[gift.slot] = gift;
-        w.emit(new ToastEvent(`📜 铸台出品「${blueprintOf(bpId)?.name ?? ''}」:${gift.name}!`, RARITY_COLORS.legendary));
+        w.emit(new ToastEvent(t('gs.forge.gift', { bp: t(blueprintOf(bpId)?.name ?? ''), item: gift.name }), RARITY_COLORS.legendary));
       } else {
-        w.emit(new ToastEvent('📜 铸台:图纸记录已失效(数据更新过),碎片已退', UI.gold));
+        w.emit(new ToastEvent(t('gs.forge.stale'), UI.gold));
         meta.data.blueprintShards += balance.blueprint.craftCost;
         meta.save();
       }
@@ -296,7 +296,7 @@ export class GameScene {
       const slots = ['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const;
       const gift = this.loot.factory.make(slots[Math.floor(Math.random() * slots.length)], 'legendary');
       equip.slots[gift.slot] = gift;
-      w.emit(new ToastEvent(`📜 铸台出品:${gift.name}!`, RARITY_COLORS.legendary));
+      w.emit(new ToastEvent(t('gs.forge.gift2', { item: gift.name }), RARITY_COLORS.legendary));
     }
     w.add(this.playerE, equip);
     recompute(w, this.playerE);
@@ -317,7 +317,7 @@ export class GameScene {
     meta.data.stats.runs++;
     meta.save();
     if (runMods.active) {
-      const tag = runMods.mode === 'weekly' ? '🏅 周常挑战' : '🗓 每日挑战';
+      const tag = runMods.mode === 'weekly' ? t('gs.tag.weekly') : t('gs.tag.daily');
       this.world.emit(new ToastEvent(
         `${tag} ${runMods.label}:${runMods.mods.map((m) => m.name).join(' · ')}`,
         runMods.mode === 'weekly' ? '#8fd4c8' : '#e8c07a',
@@ -383,13 +383,13 @@ export class GameScene {
       w.add(e, new Transform(x * M, y * M));
       w.add(e, new CampStation(kind, label, icon));
     };
-    station('expedition', '远征传送门', '🌀', W - 3.2, H / 2);
-    station('altar', '星陨祭坛', '⭐', 4.6, 3.0);
-    station('forge', '星辉铸台', '📜', 4.6, H - 3.0);
-    station('classpick', '职业试炼场', '🏵', W / 2, 2.2);
-    station('daily', '混沌祭坛', '🗓', W / 2, H - 2.4);
-    station('codex', '星陨图鉴', '📖', W - 4.6, H - 3.0);
-    station('achv', '星陨殿堂', '🏆', W - 4.6, 3.0);
+    station('expedition', t('camp.station.expedition'), '🌀', W - 3.2, H / 2);
+    station('altar', t('camp.station.altar'), '⭐', 4.6, 3.0);
+    station('forge', t('camp.station.forge'), '📜', 4.6, H - 3.0);
+    station('classpick', t('camp.station.classpick'), '🏵', W / 2, 2.2);
+    station('daily', t('camp.station.daily'), '🗓', W / 2, H - 2.4);
+    station('codex', t('camp.station.codex'), '📖', W - 4.6, H - 3.0);
+    station('achv', t('camp.station.achv'), '🏆', W - 4.6, 3.0);
 
     this.feedback.hitsTaken = 0;
     // 进营地顺手补判一次(老档/上局遗留的成就一次性追上)
@@ -429,15 +429,15 @@ export class GameScene {
     deco('rock', W / 2 - 5, H - 2.6);
 
     this.renderer.camera.snap((W / 2) * M, (H / 2) * M);
-    this.world.emit(new ToastEvent('🏕 星陨营地:打木桩试招,走近建筑按 F', UI.gold));
+    this.world.emit(new ToastEvent(t('gs.camp.welcome'), UI.gold));
   }
 
   // ---- 新手引导(meta/Tutorial.ts)的轮询状态 ----
-  /** 本步骤内累计移动距离(px),用于"走两步"判定 */
+  /** 本步骤内累计移动距离(px),用于“走两步”判定 */
   private tutMoveAcc = 0;
   private tutPrevX = 0;
   private tutPrevY = 0;
-  /** 上一帧的 cdQ,用于检测"真的放出了一个技能" */
+  /** 上一帧的 cdQ,用于检测“真的放出了一个技能” */
   private tutPrevCdQ = 0;
 
   /**
@@ -483,7 +483,7 @@ export class GameScene {
     meta.save();
     const next = tutorial.current;
     this.world.emit(new ToastEvent(
-      next ? `✅ 引导 ${tutorial.displayIndex - 1}/5 完成 → 下一步:${next.title}` : '🎉 引导完成!去「远征」开一局吧',
+      next ? t('gs.tut.step', { n: tutorial.displayIndex - 1, title: next.title }) : t('gs.tut.done'),
       '#5FD068',
     ));
     if (!next) this.world.emit(new SfxEvent('ult'));
@@ -546,10 +546,10 @@ export class GameScene {
       tutorial.skip();
       meta.data.tutorial = tutorial.snapshot();
       meta.save();
-      this.world.emit(new ToastEvent('已跳过新手引导(设置里可重看)', '#8f98b2'));
+      this.world.emit(new ToastEvent(t('gs.tut.skipped'), '#8f98b2'));
     }
 
-    // 设置面板(营地 Esc 直接打开;含"返回标题"按钮)
+    // 设置面板(营地 Esc 直接打开;含“返回标题”按钮)
     if (this.settingsUI.open) {
       if (this.settingsUI.update() === 'title') this.state = 'menu';
       this.input.endFrame();
@@ -664,9 +664,9 @@ export class GameScene {
 
   /** 双帧动画:第二帧存在则 8fps 交替(needMove=仅移动中切帧) */
   /**
-   * 杂兵两帧走路的帧名(`{base}` / `{base}_f2`)。
-   * 交替节奏在 `anim.ts twoFrame` 里(推导自 `balance.anim.walk`)——
-   * **这里不再自己写 `floor(t*8)%2`**:两份实现会漂成两种心跳(杂兵 vs 玩家)。
+   * 杂兵两帧走路的帧名(«{base}» / «{base}_f2»)。
+   * 交替节奏在 «anim.ts twoFrame» 里(推导自 «balance.anim.walk»)——
+   * **这里不再自己写 «floor(t*8)%2»**:两份实现会漂成两种心跳(杂兵 vs 玩家)。
    * 速度阈值判定留在场景层:纯函数不该知道世界查询。
    */
   private frame2(base: string, e: number, needMove: boolean): string {
@@ -680,7 +680,7 @@ export class GameScene {
 
   /**
    * 引导提示条(屏幕下方居中):步骤序号 + 当前文案 + 跳过键。
-   * 文案里的按键在 `meta/Tutorial.formatHint` 里替换成**当前绑定** —— 改过键也不会指错。
+   * 文案里的按键在 «meta/Tutorial.formatHint» 里替换成**当前绑定** —— 改过键也不会指错。
    */
   private renderTutorialHint(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     const step = tutorial.current;
@@ -699,13 +699,13 @@ export class GameScene {
     ctx.globalAlpha = 1;
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 12px monospace';
-    ctx.fillText(`新手引导 ${tutorial.displayIndex}/${TUTORIAL_TOTAL} · ${step.title}`, width / 2, y + 1);
+    ctx.fillText(t('gs.tut.header', { n: tutorial.displayIndex, total: TUTORIAL_TOTAL, title: step.title }), width / 2, y + 1);
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
     ctx.fillText(text, width / 2, y + 16);
     ctx.fillStyle = UI.dim;
     ctx.font = '10px monospace';
-    ctx.fillText(`[${keyLabel(balance.tutorial.skipKey)}] 跳过引导`, width / 2, y + 30);
+    ctx.fillText(t('gs.tut.skip', { key: keyLabel(balance.tutorial.skipKey) }), width / 2, y + 30);
     ctx.restore();
   }
 
@@ -720,17 +720,17 @@ export class GameScene {
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     const kls = balance.classes[this.campUI.selectedClass];
-    ctx.fillText(`🏕 星陨营地 · ${kls.hero}·${kls.name}`, 24, 34);
+    ctx.fillText(t('gs.camp.header', { hero: kls.hero, name: kls.name }), 24, 34);
     this.renderTutorialHint(ctx, width, height);
     ctx.textAlign = 'right';
-    ctx.fillText(`✦ ${meta.data.stardust} · 📜 ${meta.data.blueprintShards}/${balance.blueprint.craftCost}${meta.data.craftQueued ? '(已预订)' : ''}`, width - 20, 34);
+    ctx.fillText(`✦ ${meta.data.stardust} · 📜 ${meta.data.blueprintShards}/${balance.blueprint.craftCost}${meta.data.craftQueued ? t('gs.camp.queued') : ''}`, width - 20, 34);
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.fillText(
       this.input.touchActive
-        ? '木桩试招 · 走近建筑点 F 钮 · 🌀出征 · 🗓每日/🏅周常挑战'
-        : '木桩试招(怒气满可放R) · 走近建筑按 [F] · 🌀出征 · 🗓每日/🏅周常挑战 · [Esc]设置',
+        ? t('gs.camp.hint.touch')
+        : t('gs.camp.hint.kb'),
       width / 2, height - 12,
     );
     ctx.restore();
@@ -740,7 +740,7 @@ export class GameScene {
   private awardAchievements(): void {
     const fresh = checkUnlocks(meta.data, Date.now());
     for (const a of fresh) {
-      this.world.emit(new ToastEvent(`🏆 成就解锁「${a.icon} ${a.name}」`, '#ffd94f'));
+      this.world.emit(new ToastEvent(t('gs.achv.unlock', { icon: a.icon, name: t(a.name) }), '#ffd94f'));
     }
     if (fresh.length > 0) meta.save();
   }
@@ -766,13 +766,13 @@ export class GameScene {
       endlessRecord,
     };
     if (isEndless) {
-      // 无尽成绩**无论胜败都记**(这个模式没有"胜利",只有撑到第几层)
+      // 无尽成绩**无论胜败都记**(这个模式没有“胜利”,只有撑到第几层)
       const prog = { clears: meta.data.stats.clears, bestFloor: meta.data.endlessBest, bestLoop: meta.data.endlessBestLoop };
       const next = recordRun(endlessFloor, this.run.loop, prog);
       meta.data.endlessBest = next.bestFloor;
       meta.data.endlessBestLoop = next.bestLoop;
       if (endlessRecord) {
-        this.world.emit(new ToastEvent(`♾ 新纪录:${floorLabel(endlessFloor)}(循环 ${this.run.loop + 1})`, RARITY_COLORS.legendary));
+        this.world.emit(new ToastEvent(t('gs.endless.record', { floor: floorLabel(endlessFloor), loop: this.run.loop + 1 }), RARITY_COLORS.legendary));
       }
     }
     meta.data.stardust += p.stardust;
@@ -788,7 +788,7 @@ export class GameScene {
       }
       const unlocked = newlyUnlocked(before, { clears: meta.data.stats.clears, abyssClears: meta.data.abyssClears });
       if (unlocked !== null) {
-        this.world.emit(new ToastEvent(`🔓 解锁「${levelName(unlocked)}」—— 营地里可选`, RARITY_COLORS.legendary));
+        this.world.emit(new ToastEvent(t('gs.abyss.unlock', { name: levelName(unlocked) }), RARITY_COLORS.legendary));
       }
       if (meta.data.stats.bestTimeS === 0 || clock.runTime < meta.data.stats.bestTimeS) {
         meta.data.stats.bestTimeS = clock.runTime;
@@ -828,8 +828,8 @@ export class GameScene {
     // 榜上有名:四条榜都能看到新记录才值得弹提示
     const boards = Object.keys(submitted) as BoardId[];
     if (boards.length > 0) {
-      const names = boards.map((b) => BOARD_LABEL[b]).join(' · ');
-      this.world.emit(new ToastEvent(`🥇 已记入排行榜:${names}`, '#e8c07a'));
+      const names = boards.map((b) => t(BOARD_LABEL[b])).join(' · ');
+      this.world.emit(new ToastEvent(t('gs.board.recorded', { names }), '#e8c07a'));
     }
     this.runMode = 'off';
     // 结算时统一判定成就(首次通关/极速/无伤/击杀里程碑/每日挑战等)
@@ -845,7 +845,7 @@ export class GameScene {
     this.menuT += dt;
 
     this.input.pollGamepad(dt);
-    // 手柄虚拟光标(轮 38):任何"面板态"开启 —— 摇杆移光标,A = 点击,全部鼠标 UI 零改造复用
+    // 手柄虚拟光标(轮 38):任何“面板态”开启 —— 摇杆移光标,A = 点击,全部鼠标 UI 零改造复用
     this.input.padCursorOn = this.state !== 'run'
       || this.settingsUI.open || this.inventoryUI.open || this.campUI.panel !== 'none';
     this.input.updatePadCursor(dt, this.renderer.width, this.renderer.height);
@@ -891,7 +891,7 @@ export class GameScene {
         // 换存档槽:引导进度与其他局外状态都得跟着换(否则会把 A 档的引导带进 B 档)
         tutorial.restore(meta.data.tutorial);
         this.tutMoveAcc = 0;
-        this.world.emit(new ToastEvent(`已切到存档 ${meta.slotIndex + 1}`, '#8f98b2'));
+        this.world.emit(new ToastEvent(t('gs.slot.switched', { n: meta.slotIndex + 1 }), '#8f98b2'));
       } else if (menuAct === 'start') this.enterCamp();
       this.input.endFrame();
       return;
@@ -908,7 +908,7 @@ export class GameScene {
 
     // ---- run ----
     // 触屏按钮先注入(复用键盘语义,后续逻辑零改动)。
-    // 按钮上的冷却/药剂数量、以及"锁定目标是否在普攻射程内"(自动攻击用)都在这里喂进去 ——
+    // 按钮上的冷却/药剂数量、以及“锁定目标是否在普攻射程内”(自动攻击用)都在这里喂进去 ——
     // 瞄准助手是玩家系统的**唯一真相**:HUD 显示的目标就是真正打的目标。
     this.syncTouchHud();
     this.touch.update(this.renderer.width, this.renderer.height, {
@@ -973,7 +973,7 @@ export class GameScene {
     const night = clock.isNight();
     if (night !== this.wasNight) {
       this.wasNight = night;
-      this.world.emit(new ToastEvent(night ? '🌙 夜幕降临…怪物变强,掉落翻倍!([L] 星灯买断)' : '☀ 天亮了', night ? '#8fb7ff' : '#f2d98c'));
+      this.world.emit(new ToastEvent(night ? t('gs.night.fall') : t('gs.night.dawn'), night ? '#8fb7ff' : '#f2d98c'));
     }
     // 星灯:花星尘立即天亮(vs 冒险赚双倍掉落——风险决策)
     if (night && (this.input.wasPressed(bindOf('lantern')) || this.input.wasPressed('PadDown'))) {
@@ -983,9 +983,9 @@ export class GameScene {
         p0.stardust -= cost;
         clock.skipNight();
         this.wasNight = false;
-        this.world.emit(new ToastEvent(`🏮 星灯点亮,黎明降临(✦-${cost})`, '#f2d98c'));
+        this.world.emit(new ToastEvent(t('gs.lantern.lit', { cost }), '#f2d98c'));
       } else {
-        this.world.emit(new ToastEvent(`星尘不足,星灯需 ✦${cost}`, UI.hpLow));
+        this.world.emit(new ToastEvent(t('gs.lantern.poor', { cost }), UI.hpLow));
       }
     }
 
@@ -996,7 +996,7 @@ export class GameScene {
       const ptr = this.world.mustGet(this.playerE, Transform);
       const inWater = terrain.isWater(ptr.x, ptr.y);
       if (inWater && !this.wasInWater) {
-        this.world.emit(new ToastEvent(`💧 浅滩:移动 ×${balance.layouts.terrain.waterMoveMult} · 雷击 ×${balance.layouts.terrain.waterBoltAmp} 并麻痹`, '#7fd6d6'));
+        this.world.emit(new ToastEvent(t('gs.terrain.water', { move: balance.layouts.terrain.waterMoveMult, bolt: balance.layouts.terrain.waterBoltAmp }), '#7fd6d6'));
       }
       this.wasInWater = inWater;
     } else {
@@ -1016,7 +1016,7 @@ export class GameScene {
     terrain.tick(dt);
     if (terrain.hasStorm) {
       if (terrain.stormActive && !this.wasInStorm) {
-        this.world.emit(new ToastEvent('🌪 沙暴来了:飞行物射程缩短 —— 近身,或等它过去', '#d4a45f'));
+        this.world.emit(new ToastEvent(t('gs.terrain.storm'), '#d4a45f'));
       }
       this.wasInStorm = terrain.stormActive;
     } else {
@@ -1027,7 +1027,7 @@ export class GameScene {
       const ptr = this.world.mustGet(this.playerE, Transform);
       const onIce = terrain.isIce(ptr.x, ptr.y);
       if (onIce && !this.wasOnIce) {
-        this.world.emit(new ToastEvent('🧊 冰面:滑行惯性 —— 急转会漂,翻滚不打滑', '#9fd8f0'));
+        this.world.emit(new ToastEvent(t('gs.terrain.ice'), '#9fd8f0'));
       }
       this.wasOnIce = onIce;
     } else {
@@ -1188,8 +1188,8 @@ export class GameScene {
             tr('pause.mute', { state: this.muted ? tr('pause.muted') : tr('pause.unmuted') }),
             tr('pause.abandon'),
             '',
-            `WASD移动 · 左键普攻 · ${kl('dash')}翻滚 · ${kl('q')}/${kl('e')}/${kl('r')}技能`,
-            `${kl('bag')}背包/符文 · ${kl('potion')}药剂 · ${kl('interact')}交互 · ${kl('lantern')}星灯(夜)`,
+            t('gs.pause.keys1', { dash: kl('dash'), q: kl('q'), e: kl('e'), r: kl('r') }),
+            t('gs.pause.keys2', { bag: kl('bag'), potion: kl('potion'), interact: kl('interact'), lantern: kl('lantern') }),
           ];
       lines.forEach((l, i) => ctx.fillText(l, r.width / 2, r.height * 0.43 + i * 26));
 
@@ -1203,7 +1203,7 @@ export class GameScene {
       ctx.strokeRect(this.settingsRect.x, this.settingsRect.y, 180, 38);
       ctx.fillStyle = UI.gold;
       ctx.font = 'bold 14px monospace';
-      ctx.fillText('⚙ 设置 [O]', r.width / 2, by + 25);
+      ctx.fillText(t('gs.pause.settings'), r.width / 2, by + 25);
 
       // 放弃按钮(触屏/鼠标可点)
       this.quitRect = { x: r.width / 2 - 90, y: by + 50, w: 180, h: 38 };
@@ -1214,7 +1214,7 @@ export class GameScene {
       ctx.strokeRect(this.quitRect.x, this.quitRect.y, this.quitRect.w, this.quitRect.h);
       ctx.fillStyle = UI.hpLow;
       ctx.font = 'bold 14px monospace';
-      ctx.fillText('🏳 放弃本局', r.width / 2, this.quitRect.y + 25);
+      ctx.fillText(t('gs.pause.quit'), r.width / 2, this.quitRect.y + 25);
       ctx.restore();
     }
   }
@@ -1611,7 +1611,7 @@ export class GameScene {
         const [ix, iy] = lerp(tr);
         list.push({ y: iy, draw: () => {
           drawShadow(ctx, ix, iy, 26);
-          // 冲锋/预警时用第二帧(低头顶角),其余时候站立帧;慢走也换帧做"蹄步"节奏
+          // 冲锋/预警时用第二帧(低头顶角),其余时候站立帧;慢走也换帧做“蹄步”节奏
           const moving = st.state === 'stalk';
           const frame = st.state === 'charge' || st.state === 'chargeWind'
             ? 'midboss_mossstag_f2' : this.frame2('midboss_mossstag', e, moving);
@@ -1622,7 +1622,7 @@ export class GameScene {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: jit + lean + proud + (st.state === 'stagger' ? 0.22 : 0),
           })) blob(ix, iy, 24, '#8fd45f');
-          // 狂怒苔雾:一层脉动的绿光,提示"它变强了"
+          // 狂怒苔雾:一层脉动的绿光,提示“它变强了”
           if (st.phase === 2) {
             ctx.save();
             ctx.globalAlpha = 0.16 + Math.sin(st.animT * 5) * 0.06;
@@ -1659,7 +1659,7 @@ export class GameScene {
             ctx.arc(ix + (Math.cos(tr.face) < 0 ? -12 : 12), iy - 14, 9, -1.2, 1.2);
             ctx.stroke();
           }
-          // 蓄力警示:她"亮出要害"的时刻(受伤加深 + 可打断),画一圈金色细环提示上
+          // 蓄力警示:她“亮出要害”的时刻(受伤加深 + 可打断),画一圈金色细环提示上
           if (hs.state === 'markChannel') {
             ctx.save();
             ctx.globalAlpha = 0.5 + Math.sin(hs.animT * 10) * 0.3;
@@ -1710,7 +1710,8 @@ export class GameScene {
           }
           const raising = rp.state === 'cleaveWind' || rp.state === 'cleaveLeap' || rp.state === 'hookWind';
           const frame = raising ? 'midboss_sandreaper_f2' : this.frame2('midboss_sandreaper', e, rp.state === 'stalk');
-          const leapUp = rp.state === 'cleaveLeap' ? -10 : 0;   // 腾空:抬高一点
+          // 腾空:抬高一点
+          const leapUp = rp.state === 'cleaveLeap' ? -10 : 0;
           if (!drawSprite(ctx, frame, ix, iy + leapUp, {
             flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
             rot: rp.state === 'stagger' ? 0.24 : 0,
@@ -1938,8 +1939,8 @@ export class GameScene {
           ctx.fillText(st.label, tr.x, tr.y + 14);
           if (near) {
             ctx.fillStyle = '#8fd4c8';
-            ctx.strokeText('[F] 交互', tr.x, tr.y + 28);
-            ctx.fillText('[F] 交互', tr.x, tr.y + 28);
+            ctx.strokeText(t('gs.hint.interact'), tr.x, tr.y + 28);
+            ctx.fillText(t('gs.hint.interact'), tr.x, tr.y + 28);
           }
           st.animT += 0.016;
         } });
@@ -2001,8 +2002,8 @@ export class GameScene {
           if (near && !totem.used) {
             ctx.fillStyle = UI.text;
             ctx.font = '11px monospace';
-            ctx.strokeText(`${info.desc} · [F] 选择`, tr.x, tr.y + 22);
-            ctx.fillText(`${info.desc} · [F] 选择`, tr.x, tr.y + 22);
+            ctx.strokeText(t('gs.hint.choose', { desc: t(info.desc) }), tr.x, tr.y + 22);
+            ctx.fillText(t('gs.hint.choose', { desc: t(info.desc) }), tr.x, tr.y + 22);
           }
         } });
       }
@@ -2044,11 +2045,11 @@ export class GameScene {
             ctx.textAlign = 'center';
             ctx.fillText('◈', tr.x, tr.y - 30 + bob);
           }
-          // 价签(轮 22):被特惠或议价动过价 → 画划线原价,一眼看出"现在便宜多少"
+          // 价签(轮 22):被特惠或议价动过价 → 画划线原价,一眼看出“现在便宜多少”
           ctx.font = 'bold 12px monospace';
           ctx.lineWidth = 3;
           ctx.strokeStyle = '#0d0f1a';
-          const tag = stand.sold ? '已售' : `✦${stand.price}`;
+          const tag = stand.sold ? t('gs.shop.sold') : `✦${stand.price}`;
           const wasChanged = !stand.sold && stand.price !== stand.listPrice;
           ctx.strokeText(tag, tr.x + (wasChanged ? 8 : 0), tr.y + 14);
           ctx.fillStyle = stand.sold ? UI.dim : stand.deal || (wasChanged && stand.price < stand.listPrice) ? UI.hp : UI.gold;
@@ -2072,19 +2073,19 @@ export class GameScene {
             ctx.font = 'bold 11px monospace';
             ctx.strokeStyle = '#0d0f1a';
             ctx.lineWidth = 3;
-            ctx.strokeText(`特惠 -${Math.round(balance.shop.dealOff * 100)}%`, tr.x, tr.y - 44);
-            ctx.fillText(`特惠 -${Math.round(balance.shop.dealOff * 100)}%`, tr.x, tr.y - 44);
+            ctx.strokeText(t('gs.shop.deal', { pct: Math.round(balance.shop.dealOff * 100) }), tr.x, tr.y - 44);
+            ctx.fillText(t('gs.shop.deal', { pct: Math.round(balance.shop.dealOff * 100) }), tr.x, tr.y - 44);
           }
           ctx.globalAlpha = 1;
           if (near && !stand.sold) {
             const name = stand.wares === 'item' ? stand.item!.name
-              : stand.wares === 'potion' ? '治疗药剂'
-              : stand.wares === 'cons' && stand.consId ? consumableDef(stand.consId)?.name ?? '消耗品'
-              : `符文「${RUNE_POOL.get(stand.runeId!)?.name ?? '?'}」`;
+              : stand.wares === 'potion' ? t('gs.shop.potion')
+              : stand.wares === 'cons' && stand.consId ? consumableDef(stand.consId)?.name ?? t('gs.shop.cons')
+              : t('gs.shop.rune', { name: RUNE_POOL.get(stand.runeId!)?.name ?? '?' });
             ctx.fillStyle = '#8fd4c8';
             ctx.font = 'bold 12px monospace';
-            ctx.strokeText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
-            ctx.fillText(`[F] 购买 ${name}`, tr.x, tr.y - 52);
+            ctx.strokeText(t('gs.shop.buy', { name }), tr.x, tr.y - 52);
+            ctx.fillText(t('gs.shop.buy', { name }), tr.x, tr.y - 52);
           }
         } });
       }
@@ -2096,7 +2097,8 @@ export class GameScene {
         const nearM = this.shop.nearbyMerchant === e;
         list.push({ y: tr.y, draw: () => {
           const bob = Math.sin(mc.animT * 2.4) * 2;
-          if (drawSprite(ctx, 'npc_merchant', tr.x, tr.y + bob, { scale: 1 })) { /* 已出图则走贴图 */ } else {
+          // 已出图则走贴图
+          if (drawSprite(ctx, 'npc_merchant', tr.x, tr.y + bob, { scale: 1 })) { /* noop */ } else {
             // 程序化回退:斗篷 + 兜帽 + 一点货担
             ctx.fillStyle = '#3b2f4a';
             ctx.fillRect(tr.x - 9, tr.y - 26 + bob, 18, 24);
@@ -2113,7 +2115,7 @@ export class GameScene {
           ctx.font = 'bold 11px monospace';
           ctx.lineWidth = 3;
           ctx.strokeStyle = '#0d0f1a';
-          const label = mc.haggled ? '商人(议过价了)' : '[F] 议价';
+          const label = mc.haggled ? t('gs.shop.haggled') : t('gs.shop.haggle');
           ctx.strokeText(label, tr.x, tr.y - 44);
           ctx.fillStyle = mc.haggled ? UI.dim : nearM ? UI.gold : '#8fd4c8';
           ctx.fillText(label, tr.x, tr.y - 44);
@@ -2211,10 +2213,10 @@ export class GameScene {
                 sx = 1 + punch * 0.08;
               }
               // 动作序列(anim.ts):动作判定 + 帧选择 + 缺序列自动降级,帧数/帧率走 balance.anim。
-              // 远程职业的普攻走"施法"动作:近战挥砍与拉弓/吟唱本来就是两套姿态
+              // 远程职业的普攻走“施法”动作:近战挥砍与拉弓/吟唱本来就是两套姿态
               // (序列没到位时自动降到待机,所以现在接线不会画出错东西)。
               const base = KLASS_SPRITE[p.klass];
-              // 远程职业的普攻走 `cast` 动作(挥剑与拉弓是两套姿态)—— 规则在 anim.ts attackAction
+              // 远程职业的普攻走 «cast» 动作(挥剑与拉弓是两套姿态)—— 规则在 anim.ts attackAction
               const isShot = basicSpec(p.klass, balance).kind === 'shot';
               const action = actionOf({
                 // 死亡:倒地那 1.5s(respawn.delay)播死亡序列,复活后自然回待机
@@ -2224,7 +2226,7 @@ export class GameScene {
                 hurt: h.flash > 0,
                 moving: p.moving,
               }, attackAction(isShot));
-              // 计时器给的是"剩余",动作时钟要的是"已进行"(见 anim.ts clockFor)
+              // 计时器给的是“剩余”,动作时钟要的是“已进行”(见 anim.ts clockFor)
               const animClock = clockFor(action, clock.runTime, clocksOf({
                 dashT: p.dashT, dashDur: p.dashDur,
                 attackT: p.attackT, attackDur: p.attackDur,
@@ -2252,7 +2254,7 @@ export class GameScene {
       list.sort((a, b) => a.y - b.y);
       for (const d of list) d.draw();
 
-      // 触屏锁定圈:玩家必须能一眼看出"自动瞄准锁的是谁"(瞄错人比不瞄更气人)。
+      // 触屏锁定圈:玩家必须能一眼看出“自动瞄准锁的是谁”(瞄错人比不瞄更气人)。
       // 画的正是 PlayerSystem.aimAssist 的本帧目标 —— 显示与实际是同一个来源。
       if (this.input.touchActive && this.state === 'run') {
         const pick = this.playerSystem.aimAssist.target;
@@ -2378,11 +2380,11 @@ export class GameScene {
 
     // 顶部中央:房间进度 + 昼夜
     const layoutTag = this.run.layout !== null && this.run.roomKind !== 'boss'
-      ? ` · ${LAYOUT_LABELS[this.run.layout.id]}`
+      ? ` · ${t(LAYOUT_LABELS[this.run.layout.id])}`
       : '';
     const roomLabel = this.run.roomKind === 'boss'
       ? balance.boss.nanmir.name
-      : `房间 ${this.run.depth + 1}/${balance.rooms.count + 1} · ${PORTAL_STYLE[this.run.roomKind].label}${layoutTag}`;
+      : t('gs.room.header', { n: this.run.depth + 1, total: balance.rooms.count + 1, kind: t(PORTAL_STYLE[this.run.roomKind].label) }) + layoutTag;
     ctx.textAlign = 'center';
     if (!drawPanel9(ctx, width / 2 - 150, 14, 300, 26)) {
       ctx.fillStyle = UI.panel;
@@ -2455,7 +2457,7 @@ export class GameScene {
     ctx.fillRect(14, height - 64, 130, 50);
     ctx.fillStyle = cdRatio >= 1 ? UI.gold : UI.dim;
     ctx.font = 'bold 12px monospace';
-    ctx.fillText('翻滚 [空格]', 24, height - 44);
+    ctx.fillText(t('gs.hud.roll'), 24, height - 44);
     ctx.fillStyle = '#232838';
     ctx.fillRect(24, height - 34, 110, 8);
     ctx.fillStyle = cdRatio >= 1 ? UI.gold : UI.dim;
@@ -2464,7 +2466,7 @@ export class GameScene {
     if (p.comboStage > 0 && p.comboTimer > 0) {
       ctx.fillStyle = p.comboStage === 3 ? UI.crit : UI.text;
       ctx.font = `bold ${14 + p.comboStage * 2}px monospace`;
-      ctx.fillText(`${p.comboStage} 段`, 160, height - 36);
+      ctx.fillText(t('gs.hud.combo', { n: p.comboStage }), 160, height - 36);
     }
 
     // 技能栏
@@ -2554,11 +2556,11 @@ export class GameScene {
     ctx.fillText('FPS', width - 24 - fpsW - 6, 32);
     drawPixelText(ctx, killText, width - 24 - fpsW - 6 - 26, 22, { scale: 2, color: UI.gold, align: 'right', outline: '#0d0f1a' });
     ctx.fillStyle = UI.text;
-    ctx.fillText('击杀', width - 24 - fpsW - 6 - 26 - killW - 6, 32);
+    ctx.fillText(t('gs.hud.kills'), width - 24 - fpsW - 6 - 26 - killW - 6, 32);
     ctx.fillStyle = UI.gold;
     ctx.fillText(`✦ ${p.stardust}`, width - 110, 52);
     ctx.fillStyle = p.potionCharges > 0 ? UI.hpLow : UI.dim;
-    ctx.fillText(`药剂[1] ×${p.potionCharges}`, width - 24, 52);
+    ctx.fillText(t('gs.hud.potion', { n: p.potionCharges }), width - 24, 52);
     // 消耗品栏(轮 21):按 2/3/4 使用。只显示**身上有**的那些,免得 HUD 常年挂三条 0
     let cxx = width - 24;
     for (const id of ['shield', 'cleanse', 'timeslow'] as ConsumableId[]) {
@@ -2580,19 +2582,19 @@ export class GameScene {
     ctx.fillStyle = 'rgba(232,232,232,0.5)';
     ctx.font = '12px monospace';
     const hint = this.input.touchActive
-      ? (clock.isNight() ? `🌙 掉落×2 · 🏮钮花✦${this.run.chapterCfg.lanternCost}买天亮 · 🎒镶符文` : '清房踩传送门 · 异元素连击触发连锁 · 靠近摊位按 F 钮')
+      ? (clock.isNight() ? t('gs.hint.touchNight', { cost: this.run.chapterCfg.lanternCost }) : t('gs.hint.touchDay'))
       : clock.isNight()
-      ? `🌙 夜间掉落×2 · [L] 星灯 ✦${this.run.chapterCfg.lanternCost} 立即天亮 · [Tab]背包镶符文`
-      : '踩传送门前进 · 异元素连击触发连锁 · 傀儡绕背×2 · [Tab]背包(右键重铸) · 2/3/4 消耗品 · 商店按[F]买';
+      ? t('gs.hint.kbNight', { cost: this.run.chapterCfg.lanternCost })
+      : t('gs.hint.kbDay');
     ctx.fillText(hint, width / 2, height - 12);
-    // 无尽模式(轮 24):显示"第几层 / 循环几 / 当前乘区" —— 这个模式的唯一进度感就靠这行
+    // 无尽模式(轮 24):显示“第几层 / 循环几 / 当前乘区” —— 这个模式的唯一进度感就靠这行
     if (this.run.endless) {
       const m = this.run.loopMults;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff9a6b';
       ctx.font = 'bold 13px monospace';
       ctx.fillText(
-        `♾ ${floorLabel(this.run.floor)} · ${loopLabel(this.run.loop)} · 怪血 ×${m.hp.toFixed(1)} 掉落 ×${m.loot.toFixed(2)}`,
+        t('gs.endless.hud', { floor: floorLabel(this.run.floor), loop: loopLabel(this.run.loop), hp: m.hp.toFixed(1), loot: m.loot.toFixed(2) }),
         width / 2, height - 46);
     }
     // 深渊档位提示(轮 23):玩家必须随时知道自己在哪一档 —— 打不动时第一反应是查装备,不是查难度
@@ -2600,7 +2602,7 @@ export class GameScene {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff9a6b';
       ctx.font = 'bold 12px monospace';
-      ctx.fillText(`🔥 ${levelName(runMods.abyss)}(怪血 ×${runMods.abyssHpMult} 攻击 ×${runMods.abyssAtkMult})`,
+      ctx.fillText(t('gs.abyss.hud', { name: levelName(runMods.abyss), hp: runMods.abyssHpMult, atk: runMods.abyssAtkMult }),
         width / 2, this.run.endless ? height - 64 : height - 30);
     }
   }

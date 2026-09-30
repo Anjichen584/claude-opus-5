@@ -3,11 +3,11 @@ import { migrateSave, type SaveData } from './migrations';
 /**
  * 存档码(轮 42):把整份存档导出成一串可复制的文本,跨设备/跨浏览器搬家用。
  *
- * 格式:`SFK1.<base64url(UTF-8 JSON)>.<djb2 校验>`
+ * 格式:«SFK1.<base64url(UTF-8 JSON)>.<djb2 校验>»
  * - 前缀带版本号:以后格式变了老码还能被识别并给出明确报错(而不是解析炸掉);
  * - 校验和防手抖:聊天软件截断/多复制一个字都会被拦下,绝不导入半份档;
  * - 导入走 migrateSave 全套清洗 —— 存档码和 localStorage 是同一条安检通道,
- *   不存在"码里塞脏数据绕过校验"的后门。
+ *   不存在“码里塞脏数据绕过校验”的后门。
  */
 
 const PREFIX = 'SFK1';

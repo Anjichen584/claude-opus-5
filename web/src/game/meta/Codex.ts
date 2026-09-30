@@ -5,7 +5,7 @@ import runePoolData from '@data/runes/pool.json';
  * 图鉴(收录):已击杀的怪 / 见过的符文入库,跨局持久。
  *
  * 设计原则(docs/02 §9 存档规矩):
- * - 只存"见过没有 + 击杀数",图鉴的**展示数值全部现读 balance.json**,
+ * - 只存“见过没有 + 击杀数”,图鉴的**展示数值全部现读 balance.json**,
  *   所以调平衡不会让老玩家的图鉴数值失真(也不会多一份要同步的数据);
  * - 加字段走逐层兜底,不改存档版本;未知 key 一律丢弃(旧档/手改档都不会炸)。
  *
@@ -59,36 +59,36 @@ const chapterOf = (key: string): 1 | 2 | 3 => ENEMY_CHAPTER[key] ?? 1;
 
 /** 一句话行为提示(UI 文案;数值仍来自 balance) */
 export const ENEMY_HINT: Record<string, string> = {
-  shroomling: '缓慢游荡,贴身撞击;死后留下孢子雾(毒)',
-  windbee: '绕着你盘旋 → 抖动预警 → 直线俯冲',
-  blightwolf: '绕圈逼近 → 低吼预警 → 扑击 → 硬直(输出窗口)',
-  thornvine: '固定炮台,在脚下召唤地刺预警',
-  oakgolem: '拍地 AOE;背部弱点,绕后伤害 ×2',
-  emberimp: '保持 3~5m 风筝,蓄力火球',
-  frostslime: '蓄力跳跃接近,接触上冰印记',
-  sparklizard: '抖动预警 → 闪电冲撞(雷)',
-  toxintoad: '吊射毒沼,落地留毒地',
-  stardustsprite: '见到你就跑,限时逃走;击杀给一大袋星尘',
-  snowpuff: '缓慢逼近 → 蓄力滚撞',
-  iceturtle: '旋壳冲撞;正面减伤 50%,打背后',
-  blizzardhawk: '环绕盘旋 → 定住 → 俯冲',
-  frostmage: '保持距离,吟唱冰弹',
-  leafwisp: '乘风的射手:风带里跑得飞快,把它逼出风带',
-  icespike: '不动的炮台:脚下会冒冰锥,走近拍碎它',
-  iceglider: '高速滑行,转弯半径大 —— 急转甩开它',
-  frostmoth: '不咬人的画雾蛾:飞过的地方全是冻雾,先点掉它',
-  cinderrat: 'Z 字高速贴脸',
-  dunebeetle: '钻地接近 → 预警 → 钻出爆发',
-  flamedancer: '瞬跳走位 + 双火球',
-  duststinger: '蝎尾抛毒沼,平时小跳接近',
-  mirageblossom: '伪装的沙地花:踏近会炸环形毒针,离远它就装死',
-  emberwhirl: '自旋蓄力后直线突进,沿途留火痕 —— 别踩它画的线',
-  midboss_mossstag: '一章中 Boss:冲撞(撞墙自晕!)/ 孢子弹幕 / 脚下孢子云;半血狂怒',
-  midboss_frosthuntress: '二章中 Boss:瞬步三连冰矢 / 冰牙陷阵 / 猎杀凝视(蓄力可打断!);半血狂怒',
-  midboss_sandreaper: '三章中 Boss:镰钩拉人 / 处刑斩(劈空刀卡沙!)/ 沙暴漩涡;半血狂怒',
-  boss_nanmir: '一章 Boss:扫击 / 根须线 / 尖刺网格 / 环形风暴',
-  boss_velsha: '二章 Boss:冰弹环 / 暴风雪 / 召唤雪绒球 / P3 寒风冲锋',
-  boss_kazra: '三章 Boss:钻地突袭 / 熔痕 / 召唤烬鼠 / P3 熔核暴走',
+  shroomling: 'codex.hint.shroomling',
+  windbee: 'codex.hint.windbee',
+  blightwolf: 'codex.hint.blightwolf',
+  thornvine: 'codex.hint.thornvine',
+  oakgolem: 'codex.hint.oakgolem',
+  emberimp: 'codex.hint.emberimp',
+  frostslime: 'codex.hint.frostslime',
+  sparklizard: 'codex.hint.sparklizard',
+  toxintoad: 'codex.hint.toxintoad',
+  stardustsprite: 'codex.hint.stardustsprite',
+  snowpuff: 'codex.hint.snowpuff',
+  iceturtle: 'codex.hint.iceturtle',
+  blizzardhawk: 'codex.hint.blizzardhawk',
+  frostmage: 'codex.hint.frostmage',
+  leafwisp: 'codex.hint.leafwisp',
+  icespike: 'codex.hint.icespike',
+  iceglider: 'codex.hint.iceglider',
+  frostmoth: 'codex.hint.frostmoth',
+  cinderrat: 'codex.hint.cinderrat',
+  dunebeetle: 'codex.hint.dunebeetle',
+  flamedancer: 'codex.hint.flamedancer',
+  duststinger: 'codex.hint.duststinger',
+  mirageblossom: 'codex.hint.mirageblossom',
+  emberwhirl: 'codex.hint.emberwhirl',
+  midboss_mossstag: 'codex.hint.midboss_mossstag',
+  midboss_frosthuntress: 'codex.hint.midboss_frosthuntress',
+  midboss_sandreaper: 'codex.hint.midboss_sandreaper',
+  boss_nanmir: 'codex.hint.boss_nanmir',
+  boss_velsha: 'codex.hint.boss_velsha',
+  boss_kazra: 'codex.hint.boss_kazra',
 };
 
 export interface EnemyEntry {
@@ -137,7 +137,7 @@ export interface RuneEntry {
 }
 
 const CLASS_NAME: Record<string, string> = {
-  blade: '狂澜剑士', ranger: '星弓猎手', arcanist: '元素秘术师', warden: '岩铠守卫',
+  blade: 'class.blade', ranger: 'class.ranger', arcanist: 'class.arcanist', warden: 'class.warden',
 };
 
 const SLOT_NAME: Record<string, string> = { q: 'Q', e: 'E', r: 'R' };
@@ -191,8 +191,8 @@ export function codexPct(codex: CodexData): number {
 // ---------------- 写入(收进图鉴) ----------------
 
 /**
- * 击杀记录 +1。返回 true = 这次是**首次收录**(宿主可以弹"新条目"提示)。
- * 未知 key(如 'monster' 兜底、'')一律忽略。
+ * 击杀记录 +1。返回 true = 这次是**首次收录**(宿主可以弹“新条目”提示)。
+ * 未知 key(如 ‘monster’ 兜底、‘’)一律忽略。
  */
 export function markEnemyKill(codex: CodexData, key: string, n = 1): boolean {
   if (!key || !(key in enemyTable()) || n <= 0) return false;
@@ -230,7 +230,7 @@ export function sanitizeCodex(raw: unknown): CodexData {
   return out;
 }
 
-/** 最近最常击杀的条目(图鉴首页"战绩"用) */
+/** 最近最常击杀的条目(图鉴首页“战绩”用) */
 export function topKills(codex: CodexData, n = 3): Array<{ key: string; name: string; kills: number }> {
   return Object.entries(codex.enemies)
     .filter(([k, v]) => v > 0 && k in enemyTable())

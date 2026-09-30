@@ -125,7 +125,8 @@ export class EnemySystem implements System {
           if (b.nextDiveT <= 0) { b.state = 'telegraph'; b.t = BEE.telegraphS; }
           break;
         }
-        case 'telegraph': { // 原地抖动蓄力
+        // 原地抖动蓄力
+        case 'telegraph': {
           b.t -= dt;
           aiVx = (Math.random() - 0.5) * 60;
           aiVy = (Math.random() - 0.5) * 60;
@@ -202,7 +203,8 @@ export class EnemySystem implements System {
           if (wf.circleT <= 0) { wf.state = 'growl'; wf.t = WOLF.growlS; }
           break;
         }
-        case 'growl': { // 站定低吼(预警窗口,玩家该翻滚了)
+        // 站定低吼(预警窗口,玩家该翻滚了)
+        case 'growl': {
           wf.t -= dt;
           if (wf.t <= 0) {
             wf.pounceVx = (dx / dist) * WOLF.pounceSpeed * M;
@@ -224,7 +226,8 @@ export class EnemySystem implements System {
           if (wf.t <= 0) { wf.state = 'recover'; wf.t = WOLF.recoverS; }
           break;
         }
-        case 'recover': { // 硬直(输出窗口)
+        // 硬直(输出窗口)
+        case 'recover': {
           wf.t -= dt;
           if (wf.t <= 0) {
             wf.state = 'circle';

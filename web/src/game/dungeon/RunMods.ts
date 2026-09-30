@@ -10,7 +10,7 @@ import { loopMults, safeAtk, safeHp, safeMult } from './Endless';
 class RunMods {
   /**
    * 深渊难度档(轮 23;0 = 普通远征)。乘区直接乘进 enemy()/dropMult ——
-   * 这样已有的出怪与掉落调用点**一行都不用改**(与每日/周常同一套"系统侧只读乘区"的做法)。
+   * 这样已有的出怪与掉落调用点**一行都不用改**(与每日/周常同一套“系统侧只读乘区”的做法)。
    */
   abyss = 0;
   /**
@@ -19,7 +19,7 @@ class RunMods {
    */
   endlessLoop = 0;
   active = false;
-  /** 'off' = 普通远征;'daily' = 每日挑战;'weekly' = 周常挑战 */
+  /** ‘off’ = 普通远征;‘daily’ = 每日挑战;‘weekly’ = 周常挑战 */
   mode: 'off' | 'daily' | 'weekly' = 'off';
   /** 挑战键:每日是 YYYY-MM-DD,周常是 YYYY-Www */
   key = '';
@@ -99,7 +99,7 @@ class RunMods {
     return safeMult(this.eff.drop * multsOf(this.abyss).loot * loopMults(this.endlessLoop).loot);
   }
 
-  /** 星尘结算乘区(深渊/无尽给更多星尘 —— 难度要"值得打",不能只有惩罚) */
+  /** 星尘结算乘区(深渊/无尽给更多星尘 —— 难度要“值得打”,不能只有惩罚) */
   get dustMult(): number {
     return safeMult(multsOf(this.abyss).dust * loopMults(this.endlessLoop).dust);
   }

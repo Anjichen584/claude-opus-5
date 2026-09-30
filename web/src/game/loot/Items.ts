@@ -99,7 +99,8 @@ export class ItemFactory {
   }
 
   private rollRarity(luck: number): Rarity {
-    if (this.pityCount >= L.pity) return 'legendary'; // 保底
+    // 保底
+    if (this.pityCount >= L.pity) return 'legendary';
 
     const luckMult = 1 + Math.min(luck * 0.008, 0.5);
     const w = L.rarityWeights;

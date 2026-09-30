@@ -1,14 +1,14 @@
 /**
  * 触屏瞄准辅助(纯函数 + 一个有记忆的包装类)。
  *
- * 为什么单独抽出来:自动瞄准的手感全在"锁定与换目标的规则"里 ——
- * 一版是"永远选最近的敌人",实战里两个敌人在近似等距时准星会**每帧横跳**,
+ * 为什么单独抽出来:自动瞄准的手感全在“锁定与换目标的规则”里 ——
+ * 一版是“永远选最近的敌人”,实战里两个敌人在近似等距时准星会**每帧横跳**,
  * 打起来像在抖枪。抽成纯函数之后,规则能用单测钉住(而且 Unity 侧可以照抄同一套规则)。
  *
  * 三条规则:
- * 1. **范围**:`aimRangeM` 之外不锁(屏幕外的敌人不该抢你的准星);
- * 2. **粘性**:已锁目标比别人近的距离只差 `aimStickyM` 以内 → **继续锁它**(不横跳);
- * 3. **续瞄**:目标死了/出范围后,朝最后的方向继续瞄 `aimLatchS` 秒(不甩枪回移动方向)。
+ * 1. **范围**:«aimRangeM» 之外不锁(屏幕外的敌人不该抢你的准星);
+ * 2. **粘性**:已锁目标比别人近的距离只差 «aimStickyM» 以内 → **继续锁它**(不横跳);
+ * 3. **续瞄**:目标死了/出范围后,朝最后的方向继续瞄 «aimLatchS» 秒(不甩枪回移动方向)。
  */
 import balance from '@data/balance.json';
 
@@ -64,14 +64,14 @@ export function dirTo(fromX: number, fromY: number, toX: number, toY: number): {
   return { x: dx / len, y: dy / len };
 }
 
-/** 自动攻击判定(纯函数):目标在"攻击距离 + 余量"内就该开火 */
+/** 自动攻击判定(纯函数):目标在“攻击距离 + 余量”内就该开火 */
 export function inAutoAttackRange(distPx: number, attackRangePx: number, padPx: number): boolean {
   return distPx <= attackRangePx + padPx;
 }
 
 /**
- * 有记忆的瞄准助手:持有锁定目标与"续瞄"计时。
- * GameScene 每帧调 `update()`,返回本帧应当瞄准的方向(px 单位向量),null = 交给调用方兜底。
+ * 有记忆的瞄准助手:持有锁定目标与“续瞄”计时。
+ * GameScene 每帧调 «update()»,返回本帧应当瞄准的方向(px 单位向量),null = 交给调用方兜底。
  */
 export class AimAssist {
   /** 当前锁定的实体 id */

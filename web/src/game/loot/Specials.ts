@@ -1,19 +1,19 @@
 /**
  * 橙装特效(2026-09-29,10-FULL-PLAN 轮 19:3 → 9 个,每部位至少 1 个)。
  *
- * 设计原则:**每个特效都要有一条"可测的行为"**,不做纯文案特效。
- * 数值全部读 `balance.specials`(项目硬规则:伤害/治疗数字不进代码),
- * 这里只写"什么时候、对谁、怎么算"。
+ * 设计原则:**每个特效都要有一条“可测的行为”**,不做纯文案特效。
+ * 数值全部读 «balance.specials»(项目硬规则:伤害/治疗数字不进代码),
+ * 这里只写“什么时候、对谁、怎么算”。
  *
  * 特效按触发时机分四类,每类一个纯函数 —— 这样它们能被单测直接驱动,
- * 而不是只能在游戏里"感觉一下":
+ * 而不是只能在游戏里“感觉一下”:
  *
  * | 时机 | 函数 | 例子 |
  * |---|---|---|
- * | 命中时 | `hitDamageMult` / `strikeElement` | 回响之戒(每第 5 击 ×2)、霜咬(附冰印记) |
- * | 击杀时 | `killHeal` | 噬魂坠 |
- * | 受伤时 | `damageTakenMult` / `reflectOnHurt` | 磐石胸甲、棘刺胸甲 |
- * | 持续/移动 | `statMods` | 猎风兜帽(移动 +攻)、星陨兜帽(受击后 +攻) |
+ * | 命中时 | «hitDamageMult» / «strikeElement» | 回响之戒(每第 5 击 ×2)、霜咬(附冰印记) |
+ * | 击杀时 | «killHeal» | 噬魂坠 |
+ * | 受伤时 | «damageTakenMult» / «reflectOnHurt» | 磐石胸甲、棘刺胸甲 |
+ * | 持续/移动 | «statMods» | 猎风兜帽(移动 +攻)、星陨兜帽(受击后 +攻) |
  */
 import balance from '@data/balance.json';
 import specialsData from '@data/items/specials.json';
@@ -108,7 +108,7 @@ export function statMods(specials: readonly string[], ctx: SpecialCtx): SpecialS
   return { atkPct };
 }
 
-/** 翻滚留火焰轨迹(焰行者之靴)—— 表现层问这一句,规则本身只有"有没有" */
+/** 翻滚留火焰轨迹(焰行者之靴)—— 表现层问这一句,规则本身只有“有没有” */
 export const dashLeavesFire = (specials: readonly string[]): boolean => hasSpecial(specials, 'emberstride');
 export const EMBER_TRAIL_BURN_S = S.emberstrideBurnS;
 

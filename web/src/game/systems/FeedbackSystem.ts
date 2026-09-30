@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import { Pool, reapInto } from '@engine/core/Pool';
 import type { GameLoop } from '@engine/core/GameLoop';
@@ -22,8 +23,8 @@ const PARTICLE_CAP = 600;
 
 /** 反应名 → 爆点贴图(轮 35;名字来自 combat/Elements 的 ReactionDef.name) */
 const RX_FX: Record<string, string> = {
-  蒸爆: 'fx_rx_steam', 超载: 'fx_rx_overload', 燃瘴: 'fx_rx_miasma',
-  冻链: 'fx_rx_chain', 脆蚀: 'fx_rx_brittle', 麻痹: 'fx_rx_numb',
+  'rx.steam': 'fx_rx_steam', 'rx.overload': 'fx_rx_overload', 'rx.miasma': 'fx_rx_miasma',
+  'rx.chain': 'fx_rx_chain', 'rx.brittle': 'fx_rx_brittle', 'rx.numb': 'fx_rx_numb',
 }; // 高峰保底:超过就不再生成(视觉上根本看不出少了)
 interface Slash { x: number; y: number; angle: number; stage: number; t: number; dur: number; rangePx: number; arcRad: number }
 interface Ghost { x: number; y: number; face: number; t: number; life: number }
@@ -141,7 +142,7 @@ export class FeedbackSystem implements System {
       }
       this.floaters.push({
         x: rx.x, y: rx.y, vy: -34, t: 0, life: 0.9,
-        text: `${rx.name}!`, color: rx.color, scale: 1.7,
+        text: `${t(rx.name)}!`, color: rx.color, scale: 1.7,
       });
       for (let i = 0; i < 16; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -362,7 +363,7 @@ export class FeedbackSystem implements System {
     for (const r of this.rings) {
       const p = r.t / r.life;
       const grow = r.radius * (0.3 + 0.7 * p) * 2;
-      // 专属贴图(冲击环/漩涡/裂纹/箭雨落点):按"目标直径 / 贴图宽"等比缩放到实际半径
+      // 专属贴图(冲击环/漩涡/裂纹/箭雨落点):按“目标直径 / 贴图宽”等比缩放到实际半径
       if (r.sprite) {
         const img = sprites.get(r.sprite);
         if (img && FeedbackSystem.fx(ctx, r.sprite, r.x, r.y - 6, {

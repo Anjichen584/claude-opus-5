@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { Input } from '@engine/input/Input';
 import { UI } from '@game/constants';
 import { bindOf } from '@game/meta/Bindings';
@@ -19,11 +20,11 @@ const BASE_W = 1350;
 const BASE_H = 620;
 
 /**
- * 把 `balance.touch` 的摇杆参数灌进引擎输入层。
+ * 把 «balance.touch» 的摇杆参数灌进引擎输入层。
  *
- * 为什么要显式做这一步:`TouchControls` 画摇杆圈用的是 TOUCH.joyRadiusPx,
- * 而真正夹住摇杆位移的是 Input —— 两处数值一旦漂移,摇杆"手上推到头了但角色还在走"
- * (或者反过来),这种 bug 眼睛很难发现。这里把"绘制方"和"判定方"绑成同一份数据。
+ * 为什么要显式做这一步:«TouchControls» 画摇杆圈用的是 TOUCH.joyRadiusPx,
+ * 而真正夹住摇杆位移的是 Input —— 两处数值一旦漂移,摇杆“手上推到头了但角色还在走”
+ * (或者反过来),这种 bug 眼睛很难发现。这里把“绘制方”和“判定方”绑成同一份数据。
  */
 export function applyTouchTuning(input: Pick<Input, 'joyRadiusPx' | 'joyDeadPx'>): void {
   input.joyRadiusPx = TOUCH.joyRadiusPx;
@@ -37,7 +38,7 @@ export interface TouchBtnLayout {
   r: number;
 }
 
-/** 基准半径(px):布局的"大小"部分,位置部分见 layoutOf */
+/** 基准半径(px):布局的“大小”部分,位置部分见 layoutOf */
 const BASE_R: Record<string, number> = {
   atk: 44, dash: 30, q: 27, e: 27, rr: 27, potion: 22,
   cons2: 19, cons3: 19, cons4: 19,
@@ -68,10 +69,10 @@ const BASE_POS: Array<{ id: string; dx: number; dy: number; dyIsRatio?: boolean 
  * 按屏幕尺寸算按钮布局(纯函数,可单测)。
  *
  * 规则:
- * - 以 1350×620 为基准比例缩放,并用 `btnScale` 做整体手感缩放;
+ * - 以 1350×620 为基准比例缩放,并用 «btnScale» 做整体手感缩放;
  * - 缩放夹在 [0.72, 1.15]:太小的屏按钮不能缩到点不中,太大的屏也不能糊满屏幕;
- * - **按钮的"命中区"(半径 + 触摸余量)整体推进到屏内**:全面屏的圆角与手势条会吃掉贴边的触摸,
- *   所以夹的是 `r + pad + safeMarginPx`,不是"圆心离边要有多少" —— 一版只夹圆心,
+ * - **按钮的“命中区”(半径 + 触摸余量)整体推进到屏内**:全面屏的圆角与手势条会吃掉贴边的触摸,
+ *   所以夹的是 «r + pad + safeMarginPx»,不是“圆心离边要有多少” —— 一版只夹圆心,
  *   结果 640×360 上背包键的命中区还是探出了屏幕外几像素(测试量出来的)。
  */
 export function layoutOf(w: number, h: number): TouchBtnLayout[] {
@@ -109,22 +110,22 @@ interface TouchBtn extends TouchBtnLayout {
  * 本轮的补全(10-FULL-PLAN 轮 7):
  * - **自动攻击**:开着时,锁定的敌人在普攻射程内就自动按住普攻(单手也能推图);按钮可关;
  * - **按钮状态**:Q/E/R 上有冷却环(冷暖一眼看出)、药剂显示剩余瓶数、技能未解锁时变暗;
- * - 摇杆半径/死区/命中余量/安全边距全部走 `balance.touch`(不再是散落的魔数),布局是纯函数可单测。
+ * - 摇杆半径/死区/命中余量/安全边距全部走 «balance.touch»(不再是散落的魔数),布局是纯函数可单测。
  */
 export class TouchControls {
   private btns: TouchBtn[] = [
-    { id: 'atk', code: 'KeyJ', label: '⚔', sub: '普攻', r: 44, x: 0, y: 0, mode: 'hold', visible: true, held: false },
-    { id: 'dash', code: 'Space', label: '💨', sub: '翻滚', r: 30, x: 0, y: 0, mode: 'tap', visible: true, held: false },
+    { id: 'atk', code: 'KeyJ', label: '⚔', sub: t('touch.atk'), r: 44, x: 0, y: 0, mode: 'hold', visible: true, held: false },
+    { id: 'dash', code: 'Space', label: '💨', sub: t('touch.dash'), r: 30, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'q', code: 'KeyQ', label: 'Q', r: 27, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'e', code: 'KeyE', label: 'E', r: 27, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'rr', code: 'KeyR', label: 'R', r: 27, x: 0, y: 0, mode: 'tap', visible: true, held: false },
-    { id: 'potion', code: 'Digit1', label: '❤', sub: '药', r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
+    { id: 'potion', code: 'Digit1', label: '❤', sub: t('touch.potion'), r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'cons2', code: 'Digit2', label: '🛡', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'cons3', code: 'Digit3', label: '✿', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'cons4', code: 'Digit4', label: '⏳', r: 19, x: 0, y: 0, mode: 'tap', visible: false, held: false },
-    { id: 'interact', code: 'KeyF', label: 'F', sub: '交互', r: 30, x: 0, y: 0, mode: 'tap', visible: false, held: false },
+    { id: 'interact', code: 'KeyF', label: 'F', sub: t('touch.interact'), r: 30, x: 0, y: 0, mode: 'tap', visible: false, held: false },
     { id: 'lantern', code: 'KeyL', label: '🏮', r: 22, x: 0, y: 0, mode: 'tap', visible: false, held: false },
-    { id: 'auto', code: '', label: '🔁', sub: '自动', r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
+    { id: 'auto', code: '', label: '🔁', sub: t('touch.auto'), r: 22, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'bag', code: 'Tab', label: '🎒', r: 20, x: 0, y: 0, mode: 'tap', visible: true, held: false },
     { id: 'pause', code: 'Escape', label: 'Ⅱ', r: 20, x: 0, y: 0, mode: 'tap', visible: true, held: false },
   ];
@@ -173,7 +174,7 @@ export class TouchControls {
     this.byId('cons2').visible = (this.hud.cons.shield ?? 0) > 0;
     this.byId('cons3').visible = (this.hud.cons.cleanse ?? 0) > 0;
     this.byId('cons4').visible = (this.hud.cons.timeslow ?? 0) > 0;
-    this.byId('auto').sub = this.autoAttack ? '自动开' : '自动关';
+    this.byId('auto').sub = this.autoAttack ? t('touch.autoOn') : t('touch.autoOff');
 
     // 命中检测:touchstart 落点在按钮内 → 认领;hold 钮跟踪按住状态
     const pad = TOUCH.btnTouchPadPx;
@@ -196,14 +197,14 @@ export class TouchControls {
         if (t.claimed === b.id && overNow && b.mode === 'hold') b.held = true;
       }
     }
-    // 自动攻击:开着 + 锁定目标在普攻射程内 → 等价于"按住普攻"
+    // 自动攻击:开着 + 锁定目标在普攻射程内 → 等价于“按住普攻”
     const atk = this.byId('atk');
     const autoFire = this.autoAttack && this.autoAttackAllowed() && opts.targetInRange === true;
     this.input.setVirtualDown(atk.code, atk.held || autoFire);
-    atk.sub = autoFire ? '自动' : this.autoAttack ? '普攻·自动' : '普攻';
+    atk.sub = autoFire ? t('touch.auto') : this.autoAttack ? t('touch.atkAuto') : t('touch.atk');
   }
 
-  /** 自动攻击是否被允许(调试/观战外的常规状态下都允许;留成钩子便于以后加"只在未受伤时自动") */
+  /** 自动攻击是否被允许(调试/观战外的常规状态下都允许;留成钩子便于以后加“只在未受伤时自动”) */
   private autoAttackAllowed(): boolean {
     return true;
   }
@@ -305,7 +306,7 @@ export class TouchControls {
   }
 
   /**
-   * 应用布局。屏幕尺寸不变就不重算 —— `layoutOf` 会新建数组与对象,
+   * 应用布局。屏幕尺寸不变就不重算 —— «layoutOf» 会新建数组与对象,
    * 每帧重算在手机上就是白送的 GC 抖动(掉帧多半不是画得多,是分配得多)。
    */
   private layout(w: number, h: number): void {

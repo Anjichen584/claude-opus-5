@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
@@ -31,13 +32,14 @@ export class LootSystem implements System {
     // ---- 击杀掉落 ----
     const lootMult = clock.isNight() ? balance.night.lootMult : 1; // 夜晚掉落翻倍(GDD §9)
     for (const kill of world.read(KillEvent)) {
-      if (kill.kind === '') continue; // 非怪物死亡(保险)
-      // 图鉴收录:首次击杀弹提示(数值现读 balance,这里只记"见过没有+次数")
+      // 非怪物死亡(保险)
+      if (kill.kind === '') continue;
+      // 图鉴收录:首次击杀弹提示(数值现读 balance,这里只记“见过没有+次数”)
       if (markEnemyKill(meta.data.codex, kill.kind)) {
         const entry = enemyEntry(kill.kind);
         if (entry) {
           world.emit(new ToastEvent(
-            `📖 图鉴新条目:${entry.boss ? '★ ' : ''}${entry.name}`, entry.boss ? RARITY_COLORS.legendary : UI.gold));
+            t('loot.codex.new', { star: entry.boss ? '★ ' : '', name: t(entry.name) }), entry.boss ? RARITY_COLORS.legendary : UI.gold));
         }
         meta.save();
       }
@@ -49,7 +51,7 @@ export class LootSystem implements System {
         for (let i = 0; i < motes; i++) {
           this.spawnPickup(world, kill.x, kill.y, new Pickup('stardust', null, Math.ceil(total / motes)));
         }
-        world.emit(new ToastEvent(`✨ 星尘精灵!+${total} 星尘`, RARITY_COLORS.legendary));
+        world.emit(new ToastEvent(t('loot.sprite', { n: total }), RARITY_COLORS.legendary));
         continue;
       }
       // 星尘(必掉,拆成 2~4 颗弹出)
@@ -69,19 +71,19 @@ export class LootSystem implements System {
         const gain = bp.shardsPerBoss + (clock.isNight() ? bp.nightBonus : 0);
         meta.data.blueprintShards += gain;
         meta.save();
-        world.emit(new ToastEvent(`📜 图纸碎片 +${gain}(共 ${meta.data.blueprintShards})`, '#e8c07a'));
-        // 整张图纸:碎片是"保底线路",这里是"惊喜线路" —— 集齐后不再空掉,折成碎片
+        world.emit(new ToastEvent(t('loot.shards', { n: gain, total: meta.data.blueprintShards }), '#e8c07a'));
+        // 整张图纸:碎片是“保底线路”,这里是“惊喜线路” —— 集齐后不再空掉,折成碎片
         if (this.rng.chance(bp.dropChance)) {
           const fresh = BLUEPRINTS.filter((x) => !meta.data.blueprints.includes(x.id));
           if (fresh.length > 0) {
             const picked = this.rng.pick(fresh);
             meta.data.blueprints.push(picked.id);
             meta.save();
-            world.emit(new ToastEvent(`📜 图纸出土「${picked.name}」→ 营地铸台可铸`, '#e8c07a'));
+            world.emit(new ToastEvent(t('loot.bpFound', { name: t(picked.name) }), '#e8c07a'));
           } else {
             meta.data.blueprintShards += 2;
             meta.save();
-            world.emit(new ToastEvent('📜 图纸已集齐 → 碎片 +2', '#e8c07a'));
+            world.emit(new ToastEvent(t('loot.bpAll'), '#e8c07a'));
           }
         }
       }
@@ -89,7 +91,7 @@ export class LootSystem implements System {
         const item = this.factory.make(
           this.rng.pick(['weapon', 'helmet', 'chest', 'boots', 'ring', 'amulet'] as const), 'epic');
         this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
-        world.emit(new ToastEvent('🌿 苔冠巨鹿倒下,角上掉下一件古物', RARITY_COLORS.epic));
+        world.emit(new ToastEvent(t('loot.mossstag'), RARITY_COLORS.epic));
       }
       const rolls = isBoss ? 2 : isMid ? 0 : 1;
       for (let r = 0; r < rolls * lootMult; r++) {
@@ -103,9 +105,10 @@ export class LootSystem implements System {
           const wasPity = this.factory.pityCount >= L.pity;
           let item = this.factory.roll(this.luck);
           if (isElite && (item.rarity === 'common' || item.rarity === 'fine')) {
-            item = this.factory.make(item.slot, 'rare'); // 精英保底蓝
+            // 精英保底蓝
+            item = this.factory.make(item.slot, 'rare');
           }
-          if (wasPity) world.emit(new ToastEvent('保底触发!陨核装备!', RARITY_COLORS.legendary));
+          if (wasPity) world.emit(new ToastEvent(t('loot.pity'), RARITY_COLORS.legendary));
           this.spawnPickup(world, kill.x, kill.y, new Pickup('item', item));
         }
       }
@@ -193,10 +196,10 @@ export class LootSystem implements System {
       case 'potion':
         if (p.potionCharges < L.potionMax) {
           p.potionCharges++;
-          world.emit(new ToastEvent('药剂 +1', UI.hpLow));
+          world.emit(new ToastEvent(t('loot.potion'), UI.hpLow));
         } else {
           p.stardust += 10;
-          world.emit(new ToastEvent('药剂已满 → 星尘 +10', UI.dim));
+          world.emit(new ToastEvent(t('loot.potionFull'), UI.dim));
         }
         world.emit(new SfxEvent('skill'));
         break;
@@ -205,10 +208,10 @@ export class LootSystem implements System {
         if (inv.items.length >= L.invSize) {
           const dust = salvage(item);
           p.stardust += dust;
-          world.emit(new ToastEvent(`背包已满 → 分解 ${item.name} (+${dust}✦)`, UI.dim));
+          world.emit(new ToastEvent(t('loot.bagFull', { name: item.name, dust }), UI.dim));
         } else {
           inv.items.push(item);
-          world.emit(new ToastEvent(`获得 ${item.name}`, RARITY_COLORS[item.rarity]));
+          world.emit(new ToastEvent(t('loot.item', { name: item.name }), RARITY_COLORS[item.rarity]));
           world.emit(new SfxEvent(item.rarity === 'legendary' || item.rarity === 'epic' ? 'ult' : 'skill'));
         }
         break;
@@ -220,10 +223,10 @@ export class LootSystem implements System {
         const held = p.consumables.filter((x) => x === id).length;
         if (held < L.consMax) {
           p.consumables.push(id);
-          world.emit(new ToastEvent(`🧪 获得 ${def?.name ?? id}(2/3/4 使用)`, CONS_VISUAL[id].color));
+          world.emit(new ToastEvent(t('loot.cons', { name: def?.name ?? id }), CONS_VISUAL[id].color));
         } else {
           p.stardust += 15;
-          world.emit(new ToastEvent(`${def?.name ?? id} 已带满(上限 ${L.consMax})→ 星尘 +15`, UI.dim));
+          world.emit(new ToastEvent(t('loot.consFull', { name: def?.name ?? id, max: L.consMax }), UI.dim));
         }
         world.emit(new SfxEvent('skill'));
         break;
@@ -233,14 +236,14 @@ export class LootSystem implements System {
         if (!rune) break;
         if (p.runeBag.includes(rune.id)) {
           p.stardust += 40;
-          world.emit(new ToastEvent(`重复符文 ${rune.name} → 星尘 +40`, UI.dim));
+          world.emit(new ToastEvent(t('loot.runeDup', { name: rune.name }), UI.dim));
         } else {
           p.runeBag.push(rune.id);
           if (markRuneOwned(meta.data.codex, rune.id)) {
-            world.emit(new ToastEvent(`📖 图鉴新符文:「${rune.name}」`, '#B067E8'));
+            world.emit(new ToastEvent(t('loot.runeNew', { name: rune.name }), '#B067E8'));
             meta.save();
           }
-          world.emit(new ToastEvent(`◈ 获得符文「${rune.name}」!Tab 镶嵌`, '#B067E8'));
+          world.emit(new ToastEvent(t('loot.rune', { name: rune.name }), '#B067E8'));
           world.emit(new SfxEvent('ult'));
         }
         break;

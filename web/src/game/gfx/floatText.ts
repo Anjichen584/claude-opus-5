@@ -1,7 +1,7 @@
 /**
  * 伤害飘字的绘制(gfx 层,便于单测)。
  *
- * 从 FeedbackSystem 里抽出来:那里连着音效/存档等依赖,测试不该为了验"几个方块"把它们全拉进来。
+ * 从 FeedbackSystem 里抽出来:那里连着音效/存档等依赖,测试不该为了验“几个方块”把它们全拉进来。
  * 规则:飘字整串都是数字/符号 → 像素字体 + 1 像素描边;含中文 → 整串回退平台字体。
  */
 import { drawPixelText, lineHeight } from './pixelFont';
@@ -24,7 +24,7 @@ export function floatScaleOf(scale: number): number {
   return 1;
 }
 
-/** 画一条飘字,返回占用宽度。y 传入的是"锚点",字块画在锚点上方(和旧的 canvas 基线观感一致) */
+/** 画一条飘字,返回占用宽度。y 传入的是“锚点”,字块画在锚点上方(和旧的 canvas 基线观感一致) */
 export function drawFloatText(ctx: CanvasRenderingContext2D, f: FloaterLike): number {
   const scale = floatScaleOf(f.scale);
   ctx.save();

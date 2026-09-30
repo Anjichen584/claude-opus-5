@@ -3,15 +3,16 @@
  *
  * 闭环:**Boss 掉图纸碎片(已有)→ 铸台按蓝图铸造 → 不满意就重铸词条**。
  * 三段都做成纯函数(craft/reforge 显式传入 rng 与存档),原因有两个:
- * 1. 铸台会在菜单里被反复点,规则必须可测(尤其"碎片不够 / 已有同款 / 背包满"这些**边界**);
+ * 1. 铸台会在菜单里被反复点,规则必须可测(尤其“碎片不够 / 已有同款 / 背包满”这些**边界**);
  * 2. 重铸涉及随机,要能用固定种子复现。
  *
  * 重铸的设计取舍(写在前面,免得后来人当 bug 改):
- * - 重铸**保留基底与稀有度与特效**,只重掷词条 —— 玩家要的是"洗词条",不是重新投胎;
- * - 每次最多重掷 `reforgeRerollMax` 条词条,**总是留至少一条不动**:全洗会让"这次明显不如上次"变得常见,
+ * - 重铸**保留基底与稀有度与特效**,只重掷词条 —— 玩家要的是“洗词条”,不是重新投胎;
+ * - 每次最多重掷 «reforgeRerollMax» 条词条,**总是留至少一条不动**:全洗会让“这次明显不如上次”变得常见,
  *   留一条锚点等于给玩家一个保底(而且它让重铸结果可比较)。
- * - 代价是星尘(`reforgeCost`),失败不返还 —— 但**不会把词条洗没**(条数不变)。
+ * - 代价是星尘(«reforgeCost»),失败不返还 —— 但**不会把词条洗没**(条数不变)。
  */
+import { t } from '@game/i18n';
 import type { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
 import blueprintsData from '@data/blueprints.json';
@@ -49,7 +50,8 @@ export interface CraftCtx {
 export function craftBlocker(id: string, ctx: CraftCtx): CraftBlocker {
   const bp = blueprintOf(id);
   if (!bp) return 'unknown';
-  if (!ctx.owned.includes(id)) return 'owned';         // 没图纸不让造(图纸本身由 Boss 掉落/铸台学会)
+  // 没图纸不让造(图纸本身由 Boss 掉落/铸台学会)
+  if (!ctx.owned.includes(id)) return 'owned';
   if (ctx.inventorySize >= ctx.inventoryMax) return 'bagFull';
   if (ctx.shards < bp.costShards) return 'shards';
   return null;
@@ -61,17 +63,17 @@ export const canCraft = (id: string, ctx: CraftCtx): boolean => craftBlocker(id,
 export function blockerText(b: CraftBlocker, id: string): string {
   const bp = blueprintOf(id);
   switch (b) {
-    case 'owned': return '还没有这张图纸';
-    case 'shards': return `图纸碎片不足(${bp?.costShards ?? '?'} 枚)`;
-    case 'bagFull': return '背包已满';
-    case 'unknown': return '找不到这张蓝图';
+    case 'owned': return t('bp.blocker.owned');
+    case 'shards': return t('bp.blocker.shards', { n: bp?.costShards ?? '?' });
+    case 'bagFull': return t('bp.blocker.bagFull');
+    case 'unknown': return t('bp.blocker.unknown');
     default: return '';
   }
 }
 
 /**
  * 铸造:扣碎片 → 产出一件**必定带指定特效**的装备。
- * 词条按蓝图固定;每条词条按紫橙档(hi)滚动 —— 蓝图买到的是"顶配词条",不是垃圾。
+ * 词条按蓝图固定;每条词条按紫橙档(hi)滚动 —— 蓝图买到的是“顶配词条”,不是垃圾。
  */
 export function craft(id: string, ctx: CraftCtx, rng: Rng, make: (slot: Slot, rarity: Rarity) => Item): Item | null {
   if (!canCraft(id, ctx)) return null;
@@ -83,7 +85,7 @@ export function craft(id: string, ctx: CraftCtx, rng: Rng, make: (slot: Slot, ra
 
 /**
  * 按蓝图造一件,**不扣任何资源**(资源在铸造那一刻已经扣过)。
- * 用在哪:开局把"铸台预约"的成品交到玩家手上 —— 这一步不能二次收费,也不能因为
+ * 用在哪:开局把“铸台预约”的成品交到玩家手上 —— 这一步不能二次收费,也不能因为
  * 局内背包满/碎片数变化而失败(那时玩家已经付过账了)。
  */
 export function buildFromBlueprint(id: string, rng: Rng, make: (slot: Slot, rarity: Rarity) => Item): Item | null {
@@ -130,7 +132,8 @@ export interface ReforgeCtx {
 
 export function reforgeBlocker(item: Item | null, ctx: ReforgeCtx): ReforgeBlocker {
   if (!item) return 'noItem';
-  if (item.affixes.length === 0) return 'noAffix';   // 没词条可洗
+  // 没词条可洗
+  if (item.affixes.length === 0) return 'noAffix';
   if (ctx.stardust < BP.reforgeCost) return 'stardust';
   return null;
 }
@@ -138,8 +141,8 @@ export function reforgeBlocker(item: Item | null, ctx: ReforgeCtx): ReforgeBlock
 export const canReforge = (item: Item | null, ctx: ReforgeCtx): boolean => reforgeBlocker(item, ctx) === null;
 
 /**
- * 重铸:重掷最多 `reforgeRerollMax` 条词条,**至少留一条原样**(见文件头注释)。
- * 返回新的 item(不改原对象:菜单里"确定/取消"要能对比)。
+ * 重铸:重掷最多 «reforgeRerollMax» 条词条,**至少留一条原样**(见文件头注释)。
+ * 返回新的 item(不改原对象:菜单里“确定/取消”要能对比)。
  */
 export function reforge(item: Item, ctx: ReforgeCtx, rng: Rng): Item | null {
   if (!canReforge(item, ctx)) return null;
@@ -170,16 +173,16 @@ export function blueprintProblems(): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const bp of BLUEPRINTS) {
-    if (seen.has(bp.id)) out.push(`蓝图 id 重复:${bp.id}`);
+    if (seen.has(bp.id)) out.push(`duplicate blueprint id: ${bp.id}`);
     seen.add(bp.id);
     const sp = specialDef(bp.special);
-    if (!sp) out.push(`${bp.id}:特效 ${bp.special} 不存在`);
-    else if (sp.slot !== bp.slot) out.push(`${bp.id}:特效属于 ${sp.slot},蓝图却是 ${bp.slot}`);
+    if (!sp) out.push(`${bp.id}: special ${bp.special} does not exist`);
+    else if (sp.slot !== bp.slot) out.push(`${bp.id}: special belongs to ${sp.slot}, blueprint says ${bp.slot}`);
     for (const a of bp.affixes) {
       const def = affixDef(a);
-      if (!def) { out.push(`${bp.id}:词条 ${a} 不存在`); continue; }
-      if (!def.slots.includes(bp.slot)) out.push(`${bp.id}:词条 ${a} 不适用于 ${bp.slot}`);
-      if (affixKindOf(def) === 'conditional') out.push(`${bp.id}:词条 ${a} 是条件词条,蓝图里不该出现(买到的必须是常驻强度)`);
+      if (!def) { out.push(`${bp.id}: affix ${a} does not exist`); continue; }
+      if (!def.slots.includes(bp.slot)) out.push(`${bp.id}: affix ${a} not usable on ${bp.slot}`);
+      if (affixKindOf(def) === 'conditional') out.push(`${bp.id}: affix ${a} is conditional and must not appear in blueprints`);
     }
   }
   return out;

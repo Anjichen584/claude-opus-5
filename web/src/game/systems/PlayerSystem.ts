@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import { AimAssist } from '@game/input/AimAssist';
 import type { Input } from '@engine/input/Input';
@@ -28,7 +29,7 @@ const B = balance.player;
 export class PlayerSystem implements System {
   /**
    * 触屏瞄准助手(粘性锁定 + 续瞄)。
-   * HUD/自动攻击也读它(`aimAssist.target`)—— 玩家看到的锁定圈与真正打的目标必须是同一个。
+   * HUD/自动攻击也读它(«aimAssist.target»)—— 玩家看到的锁定圈与真正打的目标必须是同一个。
    */
   readonly aimAssist = new AimAssist();
   /** 瞄准候选的复用数组(触屏自动瞄准每帧填一次) */
@@ -264,7 +265,7 @@ export class PlayerSystem implements System {
           const id = use(p.consumables.indexOf('shield'));
           if (id) {
             p.shield = applyShield(p.shield, hp.max);
-            world.emit(new ToastEvent(`${balance.consumables.shield.name}:护盾 ${p.shield.amount}`, '#9ad8ff'));
+            world.emit(new ToastEvent(t('ps.shield', { name: balance.consumables.shield.name, n: p.shield.amount }), '#9ad8ff'));
             world.emit(new SfxEvent('skill'));
           }
         }
@@ -281,7 +282,7 @@ export class PlayerSystem implements System {
               if (own.vulnT > 0) own.vulnT = 0;
             }
             p.iframes = Math.max(p.iframes, res.iframes);
-            world.emit(new ToastEvent(`${balance.consumables.cleanse.name}:清除 ${res.removed} 项异常`, '#c9f27e'));
+            world.emit(new ToastEvent(t('ps.cleanse', { name: balance.consumables.cleanse.name, n: res.removed }), '#c9f27e'));
             world.emit(new SfxEvent('skill'));
           }
         }
@@ -294,7 +295,7 @@ export class PlayerSystem implements System {
               if (world.has(foe, Player)) continue;
               const ftr = world.mustGet(foe, Transform);
               if (Math.hypot(ftr.x - tr.x, ftr.y - tr.y) > rPx) continue;
-              // Boss 不能被冻住(反制写在这里,而不是靠"Boss 免疫 buff"这类隐式约定)
+              // Boss 不能被冻住(反制写在这里,而不是靠“Boss 免疫 buff”这类隐式约定)
               const tier = world.has(foe, BossNanmir) || world.has(foe, BossVelsha) || world.has(foe, BossKazra)
                 || world.has(foe, MidBossStag) ? 'boss' : 'normal';
               const fb = world.mustGet(foe, Buffs);
@@ -303,7 +304,7 @@ export class PlayerSystem implements System {
               fb.slowPct = Math.max(fb.slowPct, f);
               hit++;
             }
-            world.emit(new ToastEvent(`${balance.consumables.timeslow.name}:${hit} 个敌人减速`, '#b8c8ff'));
+            world.emit(new ToastEvent(t('ps.timeslow', { name: balance.consumables.timeslow.name, n: hit }), '#b8c8ff'));
             world.emit(new SfxEvent('ult'));
           }
         }
@@ -338,7 +339,7 @@ export class PlayerSystem implements System {
     p.shield = shield;
     if (left <= 0) {
       p.regenDelay = B.regen.delay;
-      world.emit(new PlayerHurtEvent(0, false));   // 破盾也是"被打到"(震屏/闪白照给)
+      world.emit(new PlayerHurtEvent(0, false));   // 破盾也是“被打到”(震屏/闪白照给)
       p.sinceHurtS = 0;
       return;
     }

@@ -6,10 +6,10 @@
  * 每个像素就是一个 fillRect,天然没有模糊边缘。
  *
  * 只覆盖 **数字 + 常用符号**(0-9 . : / - + x , % 空格,共 19 个):中文标签仍走平台字体,
- * 硬塞进 5×7 只会变成马赛克。调用方用 `supports()` 判断,`drawPixelText` 遇到没收录的字符
- * 会退回到 canvas 文字(视觉降级,不留空洞),这样 HUD 里 "12/34" 是像素字、"生命" 还是字体。
+ * 硬塞进 5×7 只会变成马赛克。调用方用 «supports()» 判断,«drawPixelText» 遇到没收录的字符
+ * 会退回到 canvas 文字(视觉降级,不留空洞),这样 HUD 里 “12/34” 是像素字、“生命” 还是字体。
  *
- * 字模权威在 `src/data/font.json`,Unity 侧 `Core/PixelFont.cs` 由同一份数据镜像(ParityTests 逐行比对)。
+ * 字模权威在 «src/data/font.json»,Unity 侧 «Core/PixelFont.cs» 由同一份数据镜像(ParityTests 逐行比对)。
  */
 
 import font from '@data/font.json';
@@ -18,7 +18,7 @@ export const GLYPH_W = font.glyphW;
 export const GLYPH_H = font.glyphH;
 export const SPACING = font.spacing;
 
-/** 字模表:字符 → 7 行 × 5 列('#' 实 / '.' 空) */
+/** 字模表:字符 → 7 行 × 5 列(‘#’ 实 / ‘.’ 空) */
 export const GLYPHS: Readonly<Record<string, readonly string[]>> = font.glyphs;
 /** 收录顺序(与 font.json 键序一致;C# 镜像按同一顺序比对) */
 export const GLYPH_ORDER: readonly string[] = Object.keys(font.glyphs);
@@ -59,7 +59,7 @@ export interface PixelTextOpts {
   /** 整数倍缩放(1 = 5×7,2 = 10×14;小数会被取整,保证清晰) */
   scale?: number;
   color: string;
-  /** 基线对齐:'left' 把 x 当作左边界,'center'/'right' 按整串宽度对齐(与 HUD 的 ctx.textAlign 一致) */
+  /** 基线对齐:‘left’ 把 x 当作左边界,‘center’/‘right’ 按整串宽度对齐(与 HUD 的 ctx.textAlign 一致) */
   align?: 'left' | 'center' | 'right';
   /** 描边色:给每个像素四周补一圈(压在杂乱背景上也读得清),代价是像素数 ×5 */
   outline?: string | null;
@@ -67,7 +67,7 @@ export interface PixelTextOpts {
 
 /**
  * 画一串像素文字。返回整串宽度(px),方便调用方排版。
- * 坐标与尺寸全部取整:同一串字在任何位置、任何缩放下都长一样,不会出现"半个像素"的毛边。
+ * 坐标与尺寸全部取整:同一串字在任何位置、任何缩放下都长一样,不会出现“半个像素”的毛边。
  */
 export function drawPixelText(
   ctx: CanvasRenderingContext2D,
@@ -96,8 +96,8 @@ export function drawPixelText(
 
   // 描边分两趟画:先给每个点亮像素摊一块 (3×3−2×2) 的边框,再统一落本体。
   // 两趟是必须的 —— 单趟时后一个像素的描边会盖掉前一个像素的本体。
-  // 代价是 2N 个 fillRect(N = 点亮像素数),比"8 邻域各画一遍"的 9N 省一个量级,
-  // 视觉上仍是标准的"1 个字体像素粗"的像素描边。
+  // 代价是 2N 个 fillRect(N = 点亮像素数),比“8 邻域各画一遍”的 9N 省一个量级,
+  // 视觉上仍是标准的“1 个字体像素粗”的像素描边。
   if (opts.outline) {
     ctx.fillStyle = opts.outline;
     eachPixel(text, (px0, py0) => {
@@ -137,7 +137,7 @@ export function eachPixel(
 
 /**
  * HUD 便捷入口:能用位图字体就用,不能就退回平台字体(居中/右对齐口径保持一致)。
- * 注意 y 是**顶部**,不是 canvas 的基线 —— HUD 里按"行高"排版更省事。
+ * 注意 y 是**顶部**,不是 canvas 的基线 —— HUD 里按“行高”排版更省事。
  */
 export function drawHudNumber(
   ctx: CanvasRenderingContext2D,

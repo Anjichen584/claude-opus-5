@@ -1,11 +1,11 @@
 /**
  * 存档格式与版本迁移(docs/02-ARCHITECTURE.md §9)。
- * 纯函数、零副作用:存储读写见 meta/Save.ts,这里只管"把任意老档洗成当前版本"。
+ * 纯函数、零副作用:存储读写见 meta/Save.ts,这里只管“把任意老档洗成当前版本”。
  *
  * 迁移规则(接手必读):
  * - 加字段 → 只改 defaults() 与 SaveData,老档缺的字段靠逐层兜底合并补默认,不必升版本;
  * - 改语义/改结构/改存储键 → 升 CURRENT_SAVE_VERSION,并在 migrateSave 里写显式转换;
- * - 永远不因为"读到不认识的档"而清空玩家数据(未来版本档一律备份后另起,见 Save.ts)。
+ * - 永远不因为“读到不认识的档”而清空玩家数据(未来版本档一律备份后另起,见 Save.ts)。
  */
 export const CURRENT_SAVE_VERSION = 2;
 
@@ -27,7 +27,7 @@ export interface Settings {
   hitstop: number;
   /** 色盲模式(轮 37):0 关 / 1 红弱 / 2 绿弱 / 3 蓝黄弱 */
   colorblind: number;
-  /** 界面语言(轮 39):'zh' | 'en';未知值回 zh */
+  /** 界面语言(轮 39):‘zh’ | ‘en’;未知值回 zh */
   language: string;
   /**
    * 触屏:自动攻击(锁定目标进射程就自动开火)。默认取 balance.touch.autoAttack。
@@ -56,7 +56,7 @@ export interface SaveData {
    * II 要求 I 通关 unlockAbyss 次,III 要求 II —— 所以这必须是每层独立的计数,不能只存一个总数。
    */
   abyssClears: number[];
-  /** 无尽模式历史最高层(跨循环连续的"层";0 = 没玩过) */
+  /** 无尽模式历史最高层(跨循环连续的“层”;0 = 没玩过) */
   endlessBest: number;
   /** 无尽模式历史最高循环数 */
   endlessBestLoop: number;
@@ -66,7 +66,7 @@ export interface SaveData {
   weekly: { key: string; cleared: boolean; bestTimeS: number; bestKills: number };
   /** 本地排行榜(四条榜各留前 N 条;见 meta/Leaderboard.ts) */
   leaderboard: Leaderboards;
-  /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存"见过没有+次数" */
+  /** 图鉴(收录):已击杀的怪 / 见过的符文;展示数值现读 balance,只存“见过没有+次数” */
   codex: CodexData;
   settings: Settings;
   /** 累计统计。加字段(noHitClears/dailyClears/.../weeklyClears)走逐层兜底,不升存档版本 */
@@ -81,20 +81,20 @@ export interface SaveData {
     crafts: number;
   };
   /**
-   * 秘境抉择记录(轮 25):最近 `balance.events.eventLogMax` 条,新的在前。
-   * 存的是"哪座碑、第几层、值多少星尘当量" —— 汇总面板回看用,回响之碑也读最近一条。
+   * 秘境抉择记录(轮 25):最近 «balance.events.eventLogMax» 条,新的在前。
+   * 存的是“哪座碑、第几层、值多少星尘当量” —— 汇总面板回看用,回响之碑也读最近一条。
    */
   eventLog: { floor: number; totem: string; value: number }[];
-  /** 每座碑被选过的次数(id → 次数;8 座碑的"回看"第二栏) */
+  /** 每座碑被选过的次数(id → 次数;8 座碑的“回看”第二栏) */
   totemCounts: Record<string, number>;
   /** 成就:已解锁 id → 首次解锁时间戳(只增不减) */
   achievements: { unlocked: Record<string, number> };
   /**
    * 新手引导进度:step = 下一个待完成的步骤下标(5 步全完成 → done=true)。
-   * 存进度而不是只存 done,是为了"中途关掉游戏还能接着引导"。
+   * 存进度而不是只存 done,是为了“中途关掉游戏还能接着引导”。
    */
   tutorial: { step: number; done: boolean };
-  /** 最后写入时间(存档槽界面显示"上次游玩";0 = 未知) */
+  /** 最后写入时间(存档槽界面显示“上次游玩”;0 = 未知) */
   updatedAt: number;
 }
 
@@ -191,7 +191,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     leaderboard: parsed.leaderboard ?? d.leaderboard,
     codex: sanitizeCodex((parsed as Partial<SaveData>).codex),
     tutorial: {
-      // 老档没有 tutorial 字段 → 视为"从没引导过";越界 step 夹回合法区间
+      // 老档没有 tutorial 字段 → 视为“从没引导过”;越界 step 夹回合法区间
       step: Math.max(0, Math.floor(num((parsed as Partial<SaveData>).tutorial?.step))),
       done: (parsed as Partial<SaveData>).tutorial?.done === true,
     },
@@ -239,7 +239,7 @@ export function migrateSave(raw: unknown): MigrateResult {
     luck: Math.max(0, Math.floor(num(data.altar.luck))),
   };
   // 秘境记录(轮 25):逐条洗 —— floor 非负整数、totem 必须是字符串 id、value 夹成有限整数;
-  // 坏档只丢坏行,不整段作废(否则一次坏写就让"回看"永远空白)
+  // 坏档只丢坏行,不整段作废(否则一次坏写就让“回看”永远空白)
   data.eventLog = (Array.isArray(data.eventLog) ? data.eventLog : [])
     .filter((c) => c && typeof c === 'object' && typeof (c as { totem?: unknown }).totem === 'string')
     .slice(0, Math.max(1, Math.floor(balance.events.eventLogMax)))

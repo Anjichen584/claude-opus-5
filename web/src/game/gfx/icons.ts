@@ -4,9 +4,9 @@ import { sprites } from '@engine/render/Sprites';
 /**
  * 图标登记表(第五批美术:物品 / 状态)。
  *
- * 规则和精灵一样:**代码只认登记表里的名字**,名字必须在 `SPRITE_NAMES` 里、
- * 且 `public/sprites/<name>.png` 存在(`gfx/__tests__/icons.test.ts` 守卫)。
- * 未加载时 `drawIcon` 返回 false,调用方走程序化回退(字形/色块),
+ * 规则和精灵一样:**代码只认登记表里的名字**,名字必须在 «SPRITE_NAMES» 里、
+ * 且 «public/sprites/<name>.png» 存在(«gfx/__tests__/icons.test.ts» 守卫)。
+ * 未加载时 «drawIcon» 返回 false,调用方走程序化回退(字形/色块),
  * 所以缺图不会崩溃、只会视觉降级 —— 这正是要有守卫测试的原因。
  */
 export const ITEM_ICON: Record<Slot, string> = {
@@ -18,7 +18,7 @@ export const ITEM_ICON: Record<Slot, string> = {
   amulet: 'icon_item_amulet',
 };
 
-/** 状态/统计图标(结算页与 HUD 用)。键是"这行字在说什么",不是图形本身。 */
+/** 状态/统计图标(结算页与 HUD 用)。键是“这行字在说什么”,不是图形本身。 */
 export const STAT_ICON = {
   kill: 'icon_st_kill',
   dps: 'icon_st_dps',
@@ -31,7 +31,7 @@ export const STAT_ICON = {
 export type StatIconKey = keyof typeof STAT_ICON;
 
 /**
- * 以 (x, y) 为**左上角**画一个图标,缩放到 `size` 高。返回 false = 图未就绪(调用方回退)。
+ * 以 (x, y) 为**左上角**画一个图标,缩放到 «size» 高。返回 false = 图未就绪(调用方回退)。
  */
 export function drawIcon(
   ctx: CanvasRenderingContext2D,

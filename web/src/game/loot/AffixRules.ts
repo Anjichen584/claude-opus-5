@@ -2,19 +2,19 @@
  * 词条规则(2026-09-29,10-FULL-PLAN 轮 18:词条池 8 → 24)。
  *
  * 这一层只做一件事:**给定一件装备的词条 + 当前局面,算出它到底给多少属性**。
- * 之所以抽成纯函数:三类词条里有两类是"会变的"——
+ * 之所以抽成纯函数:三类词条里有两类是“会变的”——
  * - **tradeoff(负面词条)**:加成与代价同时生效(狂血:+18% 攻击 / −8% 生命),
  *   两边必须**一起**进面板,只算加成就是纯加强,词条的取舍设计直接失效;
  * - **conditional(条件词条)**:只在特定局面生效(背水:生命 ≤35%;夜行:夜晚;
  *   弑君:Boss 在场;无瑕:满血;蓄势:站定不动)。条件翻转时要重算,否则面板与实战对不上。
  *
- * 条件翻转的判定收在 `condKeyOf`(一串位串):调用方比较字符串,变了才重算 ——
- * 每帧重算属性是能跑但没必要的开销,而"忘了重算"的表现是"背水永远不触发"。
+ * 条件翻转的判定收在 «condKeyOf»(一串位串):调用方比较字符串,变了才重算 ——
+ * 每帧重算属性是能跑但没必要的开销,而“忘了重算”的表现是“背水永远不触发”。
  */
 import affixPool from '@data/affixes/pool.json';
 
 export type AffixKind = 'normal' | 'tradeoff' | 'conditional';
-/** 条件 id(与 pool.json 的 "cond" 字段一一对应) */
+/** 条件 id(与 pool.json 的 “cond” 字段一一对应) */
 export type CondId = 'lowHp' | 'night' | 'boss' | 'fullHp' | 'poised';
 
 export interface AffixFace {
@@ -87,7 +87,7 @@ export interface EffectiveFace {
   name: string;
   suffix: string;
   value: number;
-  /** 'plus' = 加成面,'minus' = 代价面(tradeoff 的负面) */
+  /** ‘plus’ = 加成面,‘minus’ = 代价面(tradeoff 的负面) */
   side: 'plus' | 'minus';
 }
 

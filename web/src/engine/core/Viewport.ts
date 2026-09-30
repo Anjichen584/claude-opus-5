@@ -2,16 +2,16 @@
  * 强制横屏视口。
  *
  * 手机竖屏打开时按钮布局会乱套(按钮簇/摇杆都按横屏设计),所以强制横屏:
- * - Android:首次触摸手势里尽力 fullscreen + screen.orientation.lock('landscape')(真·锁定);
+ * - Android:首次触摸手势里尽力 fullscreen + screen.orientation.lock(‘landscape’)(真·锁定);
  * - iOS Safari 等不支持 lock 的平台:把画布 CSS 旋转 90° 伪装横屏(所有平台的兜底)。
  *
- * 旋转模式下窗口仍是竖的,但游戏逻辑一律通过 vw()/vh() 拿"横屏视口",
+ * 旋转模式下窗口仍是竖的,但游戏逻辑一律通过 vw()/vh() 拿“横屏视口”,
  * 指针坐标经 mapClient() 从窗口坐标系转回横屏坐标系 —— 引擎其余部分无感。
  *
  * 只对触屏设备生效:桌面浏览器把窗口拉窄不应该被转 90°。
  */
 
-/** 当前是否处于"竖屏旋转"模式(画布被 CSS 转了 90°) */
+/** 当前是否处于“竖屏旋转”模式(画布被 CSS 转了 90°) */
 let rotated = false;
 
 const hasWindow = (): boolean => typeof window !== 'undefined';
@@ -44,7 +44,7 @@ export function viewH(): number {
 
 /**
  * 窗口客户端坐标 → 横屏逻辑坐标(client px,未除 uiScale)。
- * 旋转推导:画布经 `rotate(90deg) translateY(-100%)` 后,
+ * 旋转推导:画布经 «rotate(90deg) translateY(-100%)» 后,
  * 画布点 (x,y) 落在屏幕 (innerWidth - y, x),反解得 x = cy, y = innerWidth - cx。
  */
 export function mapClient(cx: number, cy: number): { x: number; y: number } {
@@ -69,7 +69,7 @@ export function applyViewportTo(canvas: HTMLCanvasElement): void {
 
 /**
  * 尽力真·锁横屏(必须在用户手势回调里调用)。
- * Android Chrome:先进全屏再 lock('landscape'),成功后系统会自己转屏;
+ * Android Chrome:先进全屏再 lock(‘landscape’),成功后系统会自己转屏;
  * iOS / 桌面:API 缺失或抛错,静默放弃,由 CSS 旋转兜底。
  */
 export function tryLockLandscape(): void {

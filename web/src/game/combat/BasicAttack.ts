@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import { M } from '@game/constants';
 import type { Klass } from '@game/meta/Leaderboard';
 import { TOUCH } from '@game/input/AimAssist';
@@ -31,7 +32,7 @@ export interface ComboBasic {
   moveSlow: number;
   /** 第 3 段前冲距离(m) */
   lunge3M: number;
-  /** 第 3 段命中施加"破甲"(s),0 = 不施加 */
+  /** 第 3 段命中施加“破甲”(s),0 = 不施加 */
   vuln3S: number;
 }
 
@@ -104,8 +105,8 @@ export const KLASS_SKIN: Record<Klass, 'arrow' | 'orb'> = {
 
 /**
  * 从 balance 派生某职业的普攻档案。
- * 近战职业缺 `classes.<k>.combo` 时回退 `player.combo`(守卫线/旧档都不会炸);
- * 远程职业缺 `bow` 直接报错 —— 那是配置事故,静默回退会让职业变成近战。
+ * 近战职业缺 «classes.<k>.combo» 时回退 «player.combo»(守卫线/旧档都不会炸);
+ * 远程职业缺 «bow» 直接报错 —— 那是配置事故,静默回退会让职业变成近战。
  */
 export function basicSpec(klass: Klass, b: ClassTable): BasicSpec {
   const kind = KLASS_KIND[klass];
@@ -125,7 +126,7 @@ export function basicSpec(klass: Klass, b: ClassTable): BasicSpec {
     };
   }
   const raw = b.classes[klass]?.bow;
-  if (!raw) throw new Error(`${klass} 缺少 classes.${klass}.bow 配置`);
+  if (!raw) throw new Error(`${klass} is missing classes.${klass}.bow config`);
   return {
     kind: 'shot',
     rateS: raw.rateS,
@@ -206,7 +207,7 @@ export function shotStep(spec: ShotBasic, prevStage: number): ShotStep {
 }
 
 /**
- * 前冲冲量(m/s):距离在 `burstS` 内走完,之后由物理阻尼吃掉。
+ * 前冲冲量(m/s):距离在 «burstS» 内走完,之后由物理阻尼吃掉。
  * 返回 0 表示这一步不前冲(第 1/2 段)。
  */
 export function lungeImpulse(step: ComboStep, burstS = 0.12): number {
@@ -217,9 +218,9 @@ export function lungeImpulse(step: ComboStep, burstS = 0.12): number {
 /** 出招期间的移动倍率(近战与远程口径统一,供移动积分调用) */
 /**
  * 普攻的有效射程(px)。
- * - 近战组合技:直接用 `rangeM`;
- * - 远程射击:用 `speedM × lifeS` 的 **70%** —— 弹丸最后那段已经飞过目标,
- *   拿满距离当"该开火的距离"会让自动攻击在够不着的时候空挥。
+ * - 近战组合技:直接用 «rangeM»;
+ * - 远程射击:用 «speedM × lifeS» 的 **70%** —— 弹丸最后那段已经飞过目标,
+ *   拿满距离当“该开火的距离”会让自动攻击在够不着的时候空挥。
  */
 export function basicRangePx(spec: BasicSpec, pxPerM: number): number {
   if (spec.kind === 'combo') return spec.rangeM * pxPerM;
@@ -234,18 +235,18 @@ export function moveSlowOf(spec: BasicSpec): number {
 export function describeBasic(spec: BasicSpec): string {
   if (spec.kind === 'combo') {
     const fin = spec.mults[spec.mults.length - 1];
-    const bits = [`${spec.attackTimeS.length} 段连击`, `终结段 ×${fin}`];
-    if (spec.knockback3M > 0) bits.push(`击退 ${spec.knockback3M}m`);
-    if (spec.vuln3S > 0) bits.push(`破甲 ${spec.vuln3S}s`);
-    if (spec.lunge3M > 0) bits.push(`前冲 ${spec.lunge3M}m`);
+    const bits = [t('basic.combo', { n: spec.attackTimeS.length }), t('basic.finisher', { mult: fin })];
+    if (spec.knockback3M > 0) bits.push(t('basic.knockback', { m: spec.knockback3M }));
+    if (spec.vuln3S > 0) bits.push(t('basic.vuln', { s: spec.vuln3S }));
+    if (spec.lunge3M > 0) bits.push(t('basic.lunge', { m: spec.lunge3M }));
     return bits.join(' · ');
   }
   return [
-    `${spec.rateS}s 间隔`,
-    `每 ${spec.heavyEvery} 发强化 ×${spec.heavyMult}`,
-    spec.pierce > 0 ? `强化发穿透 ${spec.pierce}` : '',
-    spec.splashM > 0 ? `溅射 ${spec.splashM}m` : '',
-    spec.moveSlowPct >= 1 ? '可走射' : `施法减速至 ${Math.round(spec.moveSlowPct * 100)}%`,
+    t('basic.rate', { s: spec.rateS }),
+    t('basic.heavy', { every: spec.heavyEvery, mult: spec.heavyMult }),
+    spec.pierce > 0 ? t('basic.pierce', { n: spec.pierce }) : '',
+    spec.splashM > 0 ? t('basic.splash', { m: spec.splashM }) : '',
+    spec.moveSlowPct >= 1 ? t('basic.moveShoot') : t('basic.castSlow', { pct: Math.round(spec.moveSlowPct * 100) }),
   ]
     .filter(Boolean)
     .join(' · ');

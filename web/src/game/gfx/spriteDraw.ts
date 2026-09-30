@@ -33,7 +33,7 @@ function whiteOf(img: HTMLImageElement): HTMLCanvasElement {
 }
 
 /**
- * 以"底部中心"为锚点绘制精灵(俯视角脚底贴地)。
+ * 以“底部中心”为锚点绘制精灵(俯视角脚底贴地)。
  * 返回 false = 图未加载,调用方应走程序化回退绘制。
  */
 export function drawSprite(

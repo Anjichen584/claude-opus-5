@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import balance from '@data/balance.json';
@@ -27,7 +28,7 @@ const SKILL_KEY: Record<string, string> = {
 interface Rect { x: number; y: number; w: number; h: number }
 
 const SLOT_NAMES: Record<Slot, string> = {
-  weapon: '武器', helmet: '头盔', chest: '胸甲', boots: '靴子', ring: '戒指', amulet: '护符',
+  weapon: 'slot.weapon', helmet: 'slot.helmet', chest: 'slot.chest', boots: 'slot.boots', ring: 'slot.ring', amulet: 'slot.amulet',
 };
 
 /**
@@ -82,7 +83,7 @@ export class InventoryUI {
 
   /**
    * 重铸背包里的第 idx 件装备(右键 / 手柄 Y)。
-   * 只洗词条:部位/稀有度/特效都不动 —— 所以它是"打磨",不是"换新"(理由见 loot/Blueprint.ts 文件头)。
+   * 只洗词条:部位/稀有度/特效都不动 —— 所以它是“打磨”,不是“换新”(理由见 loot/Blueprint.ts 文件头)。
    */
   private tryReforge(world: World, pe: Entity, idx: number): void {
     const inv = world.mustGet(pe, Inventory);
@@ -91,9 +92,9 @@ export class InventoryUI {
     const ctx = { stardust: p.stardust };
     const blocker = reforgeBlocker(item, ctx);
     if (blocker !== null) {
-      const msg = blocker === 'noAffix' ? '这件装备没有词条可洗'
-        : blocker === 'stardust' ? `星尘不足(重铸需 ✦${balance.blueprint.reforgeCost})`
-          : '把鼠标移到背包里的装备上再右键';
+      const msg = blocker === 'noAffix' ? t('inv.reforge.noAffix')
+        : blocker === 'stardust' ? t('inv.reforge.poor', { cost: balance.blueprint.reforgeCost })
+          : t('inv.reforge.hint');
       world.emit(new ToastEvent(msg, UI.dim));
       return;
     }
@@ -103,7 +104,7 @@ export class InventoryUI {
     inv.items[idx] = out;
     const changed = out.affixes.filter((a, i) => a.value !== item!.affixes[i].value).length;
     world.emit(new ToastEvent(
-      `🔁 重铸 ${out.name}:重掷 ${changed} 条词条(-✦${balance.blueprint.reforgeCost})`, RARITY_COLORS[out.rarity],
+      t('inv.reforge.done', { name: out.name, n: changed, cost: balance.blueprint.reforgeCost }), RARITY_COLORS[out.rarity],
     ));
   }
 
@@ -140,24 +141,24 @@ export class InventoryUI {
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText('装备与背包', px + 18, py + 28);
+    ctx.fillText(t('inv.title'), px + 18, py + 28);
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('[Tab] 关闭 · 点背包穿戴 · 点装备卸下', px + 150, py + 28);
+    ctx.fillText(t('inv.hint'), px + 150, py + 28);
     ctx.fillStyle = UI.gold;
     ctx.textAlign = 'right';
-    ctx.fillText(`✦ 星尘 ${p.stardust}`, px + panelW - 18, py + 28);
+    ctx.fillText(t('inv.dust', { n: p.stardust }), px + panelW - 18, py + 28);
 
     // ---- 左:属性面板 + 装备位 ----
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
     const statLines = [
-      `生命  ${Math.ceil(hp.hp)}/${hp.max}`,
-      `攻击  ${stats.atk}`,
-      `暴击  ${(stats.critRate * 100).toFixed(0)}% / ${(stats.critDmg * 100).toFixed(0)}%`,
-      `移速  ${stats.moveSpeed.toFixed(1)}m/s`,
-      `冷却  -${(p.cdr * 100).toFixed(0)}%  元素 +${(p.elemDmg * 100).toFixed(0)}%`,
+      t('inv.stat.hp', { hp: Math.ceil(hp.hp), max: hp.max }),
+      t('inv.stat.atk', { atk: stats.atk }),
+      t('inv.stat.crit', { rate: (stats.critRate * 100).toFixed(0), dmg: (stats.critDmg * 100).toFixed(0) }),
+      t('inv.stat.speed', { spd: stats.moveSpeed.toFixed(1) }),
+      t('inv.stat.cdr', { cdr: (p.cdr * 100).toFixed(0), elem: (p.elemDmg * 100).toFixed(0) }),
     ];
     statLines.forEach((s, i) => ctx.fillText(s, px + 18, py + 56 + i * 17));
 
@@ -173,7 +174,7 @@ export class InventoryUI {
       this.drawCell(ctx, x, y, cell, item ?? null, this.hoverEq === slot);
       ctx.fillStyle = UI.dim;
       ctx.font = '11px monospace';
-      ctx.fillText(SLOT_NAMES[slot], x + cell + 6, y + cell / 2 + 4);
+      ctx.fillText(t(SLOT_NAMES[slot]), x + cell + 6, y + cell / 2 + 4);
       this.eqRects.push({ rect: { x, y, w: cell, h: cell }, slot });
     });
 
@@ -196,9 +197,9 @@ export class InventoryUI {
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText('符文(点击镶嵌到对应技能,精英/Boss/商店获取):', px + 18, runeY - 8);
+    ctx.fillText(t('inv.rune.header'), px + 18, runeY - 8);
     if (p.runeBag.length === 0) {
-      ctx.fillText('—— 尚未获得符文 ——', px + 18, runeY + 26);
+      ctx.fillText(t('inv.rune.none'), px + 18, runeY + 26);
     }
     p.runeBag.forEach((id, i) => {
       const rune = RUNE_POOL.get(id);
@@ -238,12 +239,12 @@ export class InventoryUI {
         ctx.fillStyle = rune.element ? elementColor(rune.element as Element) : UI.text;
         ctx.font = 'bold 13px monospace';
         const iconOk = rune.element ? drawElementIcon(ctx, rune.element, tx + 19, ty - 3, 18) : false;
-        ctx.fillText(`◈ ${rune.name} [${SKILL_KEY[rune.skill] ?? '?'}技能]`, tx + (iconOk ? 32 : 10), ty + 2);
+        ctx.fillText(t('inv.rune.row', { name: rune.name, key: SKILL_KEY[rune.skill] ?? '?' }), tx + (iconOk ? 32 : 10), ty + 2);
         ctx.fillStyle = UI.text;
         ctx.font = '11px monospace';
         ctx.fillText(rune.desc, tx + 10, ty + 20);
         ctx.fillStyle = UI.dim;
-        ctx.fillText(p.equippedRunes[rune.skill] === rune.id ? '点击卸下' : '点击镶嵌(替换该技能现有符文)', tx + 10, ty + 34);
+        ctx.fillText(p.equippedRunes[rune.skill] === rune.id ? t('inv.rune.unsocket') : t('inv.rune.socket'), tx + 10, ty + 34);
       }
     }
 
@@ -286,7 +287,7 @@ export class InventoryUI {
     for (const a of item.affixes) lines.push([`${a.name} +${a.value}${a.suffix}`, '#9fc3e8']);
     if (item.specialDesc) lines.push([`★ ${item.specialDesc}`, UI.gold]);
     if (compare) {
-      lines.push(['— 已装备 —', UI.dim]);
+      lines.push([t('inv.tooltip.equipped'), UI.dim]);
       lines.push([compare.name, RARITY_COLORS[compare.rarity]]);
       lines.push([`${compare.baseStatName} +${compare.baseValue}`, UI.dim]);
       for (const a of compare.affixes) lines.push([`${a.name} +${a.value}${a.suffix}`, UI.dim]);

@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import { M, RARITY_COLORS, UI } from '@game/constants';
@@ -17,7 +18,7 @@ import { bindOf } from '@game/meta/Bindings';
 
 /**
  * 秘境房三选一图腾(轮 22 深化):碑池 6 座,每次抽 3 座(见 loot/EventRules.ts 的表)。
- * 结算走纯函数 `resolveTotem`,所以"该给什么"不写在这里 —— 这里只负责**落到世界**(改组件/掉东西/发提示)。
+ * 结算走纯函数 «resolveTotem»,所以“该给什么”不写在这里 —— 这里只负责**落到世界**(改组件/掉东西/发提示)。
  * 选择其一后全部石化;不能选的碑(星尘不足/会把自己祭死)会明确说出原因。
  */
 export class EventSystem implements System {
@@ -31,7 +32,7 @@ export class EventSystem implements System {
     private readonly factory: ItemFactory,
     /** 每次抉择后立刻回调(宿主负责落存档:中途退出也不丢记录) */
     private readonly onChoice?: (c: TotemChoice) => void,
-    /** 当前层(宿主给:`() => run.floor`);拿不到就记 0,不猜 */
+    /** 当前层(宿主给:«() => run.floor»);拿不到就记 0,不猜 */
     private readonly floorOf?: () => number,
   ) {}
 
@@ -76,7 +77,7 @@ export class EventSystem implements System {
     const tr = world.mustGet(best, Transform);
     const kind = totem.kind as TotemKind;
 
-    // 先问"能不能选"(纯函数):不能选就说清原因,而且**不封印**别的碑(玩家可以改选)
+    // 先问“能不能选”(纯函数):不能选就说清原因,而且**不封印**别的碑(玩家可以改选)
     const blocker = totemBlocker(kind, { hp: hp.hp, stardust: p.stardust, runesLeft: this.runesLeft(world, pe) });
     if (blocker !== null) {
       world.emit(new ToastEvent(`${totemName(kind)}:${totemBlockerText(blocker)}`, UI.dim));
@@ -86,7 +87,7 @@ export class EventSystem implements System {
     const res = resolveTotem(kind, this.rng, { hp: hp.hp, stardust: p.stardust, runesLeft: 0 }, {
       runeId: this.pickUnusedRune(world, pe),
       consPool: CONSUMABLE_IDS,
-      // 回响之碑要"上一次抉择值多少"(本局内累计;没记录 = 0 → 走兜底星尘)
+      // 回响之碑要“上一次抉择值多少”(本局内累计;没记录 = 0 → 走兜底星尘)
       lastValue: this.choices.length > 0 ? this.choices[0].value : 0,
     });
 
@@ -101,42 +102,42 @@ export class EventSystem implements System {
         world.add(drop, new Transform(tr.x, tr.y + 20));
         world.add(drop, new Velocity());
         world.add(drop, new Pickup('item', item));
-        world.emit(new ToastEvent(`🩸 血之契约:生命上限 ×${res.hpMult},获得 ${item.name}`, RARITY_COLORS.epic));
+        world.emit(new ToastEvent(t('ev.blood', { mult: res.hpMult, name: item.name }), RARITY_COLORS.epic));
         break;
       }
       case 'blessing': {
         p.runBuffAtk += res.atk;
         p.runBuffSpeed += res.speed;
         recompute(world, pe);
-        world.emit(new ToastEvent(`✨ 星辰祝福:攻击+${res.atk * 100}% 移速+${res.speed * 100}%(本局)`, UI.gold));
+        world.emit(new ToastEvent(t('ev.blessing', { atk: res.atk * 100, spd: res.speed * 100 }), UI.gold));
         break;
       }
       case 'fountain': {
         p.stardust += res.dust;
-        world.emit(new ToastEvent(`⛲ 星尘涌泉:+${res.dust}✦`, UI.gold));
+        world.emit(new ToastEvent(t('ev.fountain', { dust: res.dust }), UI.gold));
         break;
       }
       case 'gamble': {
         p.stardust -= res.spent;
         p.stardust += res.dust;
         world.emit(new ToastEvent(
-          res.won ? `🎲 赌赢了!✦${res.spent} → ✦${res.dust}(×${res.mult})` : `🎲 赌输了,✦${res.spent} 进了商人的袖子`,
+          res.won ? t('ev.gamble.win', { spent: res.spent, dust: res.dust, mult: res.mult }) : t('ev.gamble.lose', { spent: res.spent }),
           res.won ? UI.gold : UI.hpLow));
         break;
       }
       case 'sacrifice': {
         hp.hp = Math.max(1, hp.hp - res.hpCost);   // 安全阀:无论如何留一口气
         for (const id of res.cons) p.consumables.push(id);
-        const names = res.cons.map((id) => consumableDef(id)?.name ?? id).join('、');
-        world.emit(new ToastEvent(`🕯 献祭之坛:-${res.hpCost} 生命 → ${names}`, CONS_VISUAL.shield.color));
+        const names = res.cons.map((id) => consumableDef(id)?.name ?? id).join(', ');
+        world.emit(new ToastEvent(t('ev.sacrifice', { hp: res.hpCost, names }), CONS_VISUAL.shield.color));
         break;
       }
       case 'echo': {
         p.stardust += res.dust;
         world.emit(new ToastEvent(
           res.fromValue > 0
-            ? `🔁 回响之碑:上一次抉择的 ${Math.round(res.frac * 100)}% → +${res.dust}✦`
-            : `🔁 回响之碑:还没有可回响的抉择 → +${res.dust}✦(兜底)`,
+            ? t('ev.echo', { pct: Math.round(res.frac * 100), dust: res.dust })
+            : t('ev.echo.none', { dust: res.dust }),
           '#7fd6d6'));
         break;
       }
@@ -145,17 +146,17 @@ export class EventSystem implements System {
         p.runHpMult *= res.hpMult;
         recompute(world, pe);
         hp.hp = hp.max;
-        world.emit(new ToastEvent(`💚 疗愈之碑:生命回满,上限 ×${res.hpMult}`, '#8ee08e'));
+        world.emit(new ToastEvent(t('ev.mend', { mult: res.hpMult }), '#8ee08e'));
         break;
       }
       case 'relic': {
         if (res.runeId) {
           p.runeBag.push(res.runeId);
           const rune = RUNE_POOL.get(res.runeId);
-          world.emit(new ToastEvent(`☄ 陨星残骸:「${rune?.name ?? res.runeId}」—— Tab 镶嵌`, '#B067E8'));
+          world.emit(new ToastEvent(t('ev.relic', { name: rune?.name ?? res.runeId }), '#B067E8'));
         } else {
           p.stardust += res.dust;
-          world.emit(new ToastEvent(`☄ 残骸里只剩灰烬:符文已集齐 → ✦${res.dust}`, UI.dim));
+          world.emit(new ToastEvent(t('ev.relic.ash', { dust: res.dust }), UI.dim));
         }
         break;
       }

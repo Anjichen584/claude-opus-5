@@ -47,7 +47,7 @@ describe('图鉴条目表', () => {
     expect(e.speed).toBe(balance.enemies.oakgolem.speed);
     const r = runeEntry('rune_emberseed')!;
     expect(r.name).toBe(runePool.runes[0].name);
-    expect(r.klassName).toBe('狂澜剑士');
+    expect(r.klassName).toBe('class.blade');
     expect(r.skillSlot).toBe('Q');
   });
 

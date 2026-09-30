@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World, Entity } from '@engine/ecs/World';
 import type { Input } from '@engine/input/Input';
 import balance from '@data/balance.json';
@@ -17,9 +18,9 @@ import { CONS_VISUAL, consumableDef } from '@game/loot/Consumables';
  * 商店交互:走近摊位(<1m)按 F 购买;走近**商人**(<3m)按 F 议价(轮 22)。
  * GameScene 通过 nearbyStand / nearbyMerchant 渲染价格提示与议价提示。
  *
- * 议价的两条纪律(都是为了让"按一下"变成"想一下"):
+ * 议价的两条纪律(都是为了让“按一下”变成“想一下”):
  * - **一家店只能议一次**:不然玩家会站在原地连点直到大成功,博弈消失;
- * - 目标是**当前最贵的未售出商品**:商人替玩家做了"你最想买哪个"的判断,
+ * - 目标是**当前最贵的未售出商品**:商人替玩家做了“你最想买哪个”的判断,
  *   否则随机挑一件便宜的降 15%,玩家只会觉得这个按钮没用。
  */
 export class ShopSystem implements System {
@@ -29,7 +30,7 @@ export class ShopSystem implements System {
   nearbyMerchant: Entity | null = null;
   /**
    * 议价用的随机源。**每局开始时由 GameScene 重播种**(reseed)—— 固定种子会让
-   * "每局第一家店的议价结果永远一样"(实测跑 40 次同结果),而议价恰恰是最需要意外感的机制。
+   * “每局第一家店的议价结果永远一样”(实测跑 40 次同结果),而议价恰恰是最需要意外感的机制。
    * 仍然用可播种 Rng 而不是 Math.random:同一次进店的重放结果一致,便于复现玩家反馈。
    */
   private haggleRng = new Rng(0x5A66);
@@ -46,7 +47,7 @@ export class ShopSystem implements System {
   private tryHaggle(world: World, merchantE: Entity, luck: number): void {
     const merchant = world.mustGet(merchantE, Merchant);
     if (merchant.haggled) {
-      world.emit(new ToastEvent('商人摆摆手:「价说过了,一次。」', UI.dim));
+      world.emit(new ToastEvent(t('shop.haggle.once'), UI.dim));
       return;
     }
     let target: Entity | null = null;
@@ -57,7 +58,7 @@ export class ShopSystem implements System {
       if (st.price > bestPrice) { bestPrice = st.price; target = e; }
     }
     if (target === null) {
-      world.emit(new ToastEvent('没什么可议的了(货架都空了)', UI.dim));
+      world.emit(new ToastEvent(t('shop.haggle.empty'), UI.dim));
       return;
     }
     merchant.haggled = true;
@@ -66,9 +67,9 @@ export class ShopSystem implements System {
     st.price = hagglePrice(st.price, outcome);
     st.haggled = 1;
     const label = st.wares === 'item' && st.item ? st.item.name
-      : st.wares === 'rune' ? '符文' : st.wares === 'cons' ? '消耗品' : '药剂';
+      : st.wares === 'rune' ? t('shop.wares.rune') : st.wares === 'cons' ? t('shop.wares.cons') : t('shop.wares.potion');
     world.emit(new ToastEvent(
-      `${HAGGLE_TEXT[outcome]}:${label} → ✦${st.price}`, outcome === 'fail' ? UI.hpLow : UI.gold));
+      `${t(HAGGLE_TEXT[outcome])}:${label} → ✦${st.price}`, outcome === 'fail' ? UI.hpLow : UI.gold));
     world.emit(new SfxEvent(outcome === 'fail' ? 'hurt' : 'skill'));
   }
 
@@ -120,27 +121,27 @@ export class ShopSystem implements System {
 
     const stand = world.mustGet(best, ShopStand);
     if (p.stardust < stand.price) {
-      world.emit(new ToastEvent(`星尘不足(需 ✦${stand.price})`, UI.hpLow));
+      world.emit(new ToastEvent(t('shop.poor', { price: stand.price }), UI.hpLow));
       return;
     }
 
     switch (stand.wares) {
       case 'item': {
         if (inv.items.length >= balance.loot.invSize) {
-          world.emit(new ToastEvent('背包已满,先清背包', UI.hpLow));
+          world.emit(new ToastEvent(t('shop.bagFull'), UI.hpLow));
           return;
         }
         inv.items.push(stand.item!);
-        world.emit(new ToastEvent(`购入 ${stand.item!.name}`, RARITY_COLORS[stand.item!.rarity]));
+        world.emit(new ToastEvent(t('shop.bought', { name: stand.item!.name }), RARITY_COLORS[stand.item!.rarity]));
         break;
       }
       case 'potion': {
         if (p.potionCharges >= balance.loot.potionMax) {
-          world.emit(new ToastEvent('药剂已满', UI.dim));
+          world.emit(new ToastEvent(t('shop.potionFull'), UI.dim));
           return;
         }
         p.potionCharges++;
-        world.emit(new ToastEvent('药剂 +1', UI.hpLow));
+        world.emit(new ToastEvent(t('loot.potion'), UI.hpLow));
         break;
       }
       case 'cons': {
@@ -149,23 +150,23 @@ export class ShopSystem implements System {
         const def = consumableDef(id);
         const held = p.consumables.filter((x) => x === id).length;
         if (held >= balance.loot.consMax) {
-          world.emit(new ToastEvent(`${def?.name ?? id} 已带满(${held}/${balance.loot.consMax})`, UI.dim));
+          world.emit(new ToastEvent(t('shop.consFull', { name: def?.name ?? id, held, max: balance.loot.consMax }), UI.dim));
           return;
         }
         p.consumables.push(id);
-        world.emit(new ToastEvent(`购入 ${def?.name ?? id}(2/3/4 使用)`, CONS_VISUAL[id].color));
+        world.emit(new ToastEvent(t('shop.boughtCons', { name: def?.name ?? id }), CONS_VISUAL[id].color));
         break;
       }
       case 'rune': {
         const rune = stand.runeId ? RUNE_POOL.get(stand.runeId) : undefined;
         if (!rune) return;
         if (p.runeBag.includes(rune.id)) {
-          world.emit(new ToastEvent('已拥有该符文', UI.dim));
+          world.emit(new ToastEvent(t('shop.runeOwned'), UI.dim));
           return;
         }
         p.runeBag.push(rune.id);
         if (markRuneOwned(meta.data.codex, rune.id)) meta.save();
-        world.emit(new ToastEvent(`◈ 购入符文「${rune.name}」`, '#B067E8'));
+        world.emit(new ToastEvent(t('shop.boughtRune', { name: rune.name }), '#B067E8'));
         break;
       }
     }

@@ -21,8 +21,8 @@ export interface RunMod {
 }
 
 /**
- * 词条池:数据在 `src/data/challenges.json`(双端 parity 会逐键比对 C# 镜像)。
- * 铁律:每条都必须"有得有失",否则会出现白给的一天或没人玩的一天 —— 由单测守卫。
+ * 词条池:数据在 «src/data/challenges.json»(双端 parity 会逐键比对 C# 镜像)。
+ * 铁律:每条都必须“有得有失”,否则会出现白给的一天或没人玩的一天 —— 由单测守卫。
  */
 export const MOD_POOL: readonly RunMod[] = challenges.daily.mods as readonly RunMod[];
 

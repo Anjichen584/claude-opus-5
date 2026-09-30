@@ -25,7 +25,7 @@ export class SettingsUI {
   }
 
   open = false;
-  /** 营地/标题打开时显示"返回标题"按钮(战斗中用暂停面板自己的放弃) */
+  /** 营地/标题打开时显示“返回标题”按钮(战斗中用暂停面板自己的放弃) */
   showQuitToTitle = false;
   /** 正在等待新键的动作 id */
   private capturing: string | null = null;
@@ -49,7 +49,7 @@ export class SettingsUI {
 
   constructor(private readonly input: Input) {}
 
-  /** 打开时每帧调用,消费全部输入。返回 'close' | 'title' | null。 */
+  /** 打开时每帧调用,消费全部输入。返回 ‘close’ | ‘title’ | null。 */
   update(): 'close' | 'title' | null {
     const s = meta.data.settings;
 
@@ -94,7 +94,8 @@ export class SettingsUI {
     if (setBar(this.sfxBar, (v) => {
       s.sfxVol = v;
       sfx.setVolume(v);
-      sfx.play('hit1'); // 试听
+      // 试听
+      sfx.play('hit1');
     })) return null;
     if (setBar(this.shakeBar, (v) => {
       s.screenShake = v;
@@ -187,7 +188,7 @@ export class SettingsUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('⚙ 设置', w / 2, py + 32);
+    ctx.fillText(tr('settings.title'), w / 2, py + 32);
 
     // ---- 音量 ----
     const bar = (label: string, y: number, val: number): Rect => {
@@ -230,7 +231,7 @@ export class SettingsUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.text;
     ctx.font = '13px monospace';
-    ctx.fillText(COLORBLIND_NAMES[s.colorblind] ?? '关', this.cbRect.x + this.cbRect.w / 2, this.cbRect.y + 15);
+    ctx.fillText(tr(COLORBLIND_NAMES[s.colorblind] ?? 'cb.off'), this.cbRect.x + this.cbRect.w / 2, this.cbRect.y + 15);
     // 语言切换(轮 39):点击循环 中文/English
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.text;
@@ -244,7 +245,7 @@ export class SettingsUI {
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.text;
     ctx.font = '13px monospace';
-    ctx.fillText(LOCALE_NAMES[(s.language as 'zh' | 'en')] ?? '中文', this.langRect.x + this.langRect.w / 2, this.langRect.y + 15);
+    ctx.fillText(LOCALE_NAMES[(s.language as 'zh' | 'en')] ?? LOCALE_NAMES.zh, this.langRect.x + this.langRect.w / 2, this.langRect.y + 15);
     const pal = COLORBLIND_PALETTES[s.colorblind] ?? COLORBLIND_PALETTES[0];
     ([pal.fire, pal.ice, pal.bolt, pal.toxin]).forEach((c, i) => {
       ctx.fillStyle = c;
@@ -272,7 +273,7 @@ export class SettingsUI {
       const keyR: Rect = { x: x + 128, y, w: 104, h: 32 };
       ctx.fillStyle = UI.text;
       ctx.font = '12px monospace';
-      ctx.fillText(a.label, x, y + 21);
+      ctx.fillText(tr(a.label), x, y + 21);
       const cap = this.capturing === a.id;
       ctx.fillStyle = cap ? '#2a3147' : '#1a1f30';
       ctx.fillRect(keyR.x, keyR.y, keyR.w, keyR.h);

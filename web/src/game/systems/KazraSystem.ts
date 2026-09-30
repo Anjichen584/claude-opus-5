@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -41,13 +42,13 @@ export class KazraSystem implements System {
       const ratio = hp.hp / hp.max;
       if (boss.phase === 1 && ratio <= B.phase2At) {
         boss.phase = 2;
-        world.emit(new ToastEvent('🔥 卡兹拉钻入流沙……小心脚下!', '#ff9a6b'));
-        world.emit(new BossPhaseEvent('烬语暴君 · 卡兹拉', 2, '「流沙突袭」', '#ff9a6b', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.kazra.p2t'), '#ff9a6b'));
+        world.emit(new BossPhaseEvent(t('boss.kazra.name'), 2, t('boss.kazra.p2'), '#ff9a6b', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       } else if (boss.phase === 2 && ratio <= B.phase3At) {
         boss.phase = 3;
-        world.emit(new ToastEvent('🔥🔥 卡兹拉熔核暴走:大地在燃烧!', '#ff9a6b'));
-        world.emit(new BossPhaseEvent('烬语暴君 · 卡兹拉', 3, '「熔核暴走」', '#ff5f3f', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.kazra.p3t'), '#ff9a6b'));
+        world.emit(new BossPhaseEvent(t('boss.kazra.name'), 3, t('boss.kazra.p3'), '#ff5f3f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const haste = boss.phase === 3 ? 0.7 : 1;
@@ -132,12 +133,13 @@ export class KazraSystem implements System {
                 world.add(s, new Buffs());
                 world.add(s, new CinderRat());
               }
-              world.emit(new ToastEvent('卡兹拉唤出了烬鼠群!', '#ff9a6b'));
+              world.emit(new ToastEvent(t('boss.kazra.summon'), '#ff9a6b'));
             }
           }
           break;
         }
-        case 'burrowing': { // 地下潜行:0.4s 后在玩家脚下放预警
+        // 地下潜行:0.4s 后在玩家脚下放预警
+        case 'burrowing': {
           vel.vx = 0;
           vel.vy = 0;
           boss.t -= dt;

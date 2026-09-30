@@ -11,7 +11,7 @@ import { dealDamage } from '@game/combat/DamagePipeline';
 export class CombatSystem implements System {
   update(world: World, _dt: number): void {
     for (const sweep of world.read(MeleeSweep)) {
-      // 障碍(树/岩)也在扇形里:挥空也砍得到墙,窄道就有"自己开个口子"的解法
+      // 障碍(树/岩)也在扇形里:挥空也砍得到墙,窄道就有“自己开个口子”的解法
       const srcStats = sweep.source !== null ? world.get(sweep.source, Stats) : undefined;
       const propDmg = (srcStats?.atk ?? 0) * sweep.mult;
       if (propDmg > 0) {
@@ -62,7 +62,7 @@ export class CombatSystem implements System {
           knockbackM: sweep.knockbackM,
         });
 
-        // 破甲(守卫第三段重击):命中即挂易伤,和元素"脆蚀"共用同一条 Buffs.vulnT 通道
+        // 破甲(守卫第三段重击):命中即挂易伤,和元素“脆蚀”共用同一条 Buffs.vulnT 通道
         if (sweep.applyVulnS > 0) {
           let b = world.get(target, Buffs);
           if (!b) {

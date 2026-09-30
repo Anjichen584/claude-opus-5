@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -40,13 +41,13 @@ export class VelshaSystem implements System {
       const ratio = hp.hp / hp.max;
       if (boss.phase === 1 && ratio <= B.phase2At) {
         boss.phase = 2;
-        world.emit(new ToastEvent('❄ 薇尔莎:「让暴风雪…吞没你」', '#8fdcff'));
-        world.emit(new BossPhaseEvent('冰语女王 · 薇尔莎', 2, '「暴风雪」', '#8fdcff', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.velsha.p2t'), '#8fdcff'));
+        world.emit(new BossPhaseEvent(t('boss.velsha.name'), 2, t('boss.velsha.p2'), '#8fdcff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       } else if (boss.phase === 2 && ratio <= B.phase3At) {
         boss.phase = 3;
-        world.emit(new ToastEvent('❄❄ 薇尔莎狂怒:寒风呼啸!', '#8fdcff'));
-        world.emit(new BossPhaseEvent('冰语女王 · 薇尔莎', 3, '「寒风冲锋」', '#bfe8ff', tr.x, tr.y));
+        world.emit(new ToastEvent(t('boss.velsha.p3t'), '#8fdcff'));
+        world.emit(new BossPhaseEvent(t('boss.velsha.name'), 3, t('boss.velsha.p3'), '#bfe8ff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const haste = boss.phase === 3 ? 0.65 : 1; // P3 全冷却×0.65
@@ -125,7 +126,7 @@ export class VelshaSystem implements System {
                 world.add(s, new Buffs());
                 world.add(s, new SnowPuff());
               }
-              world.emit(new ToastEvent('薇尔莎召唤了雪绒球!', '#8fdcff'));
+              world.emit(new ToastEvent(t('boss.velsha.summon'), '#8fdcff'));
             }
           }
 

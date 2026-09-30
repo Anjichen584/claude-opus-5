@@ -76,7 +76,7 @@ export class Input {
   }
 
   // ---- 手柄虚拟光标(轮 38):菜单/面板期开启;摇杆移光标,A = 点击 ----
-  /** 宿主每帧设置:当前是否处于"该用光标"的 UI 态 */
+  /** 宿主每帧设置:当前是否处于“该用光标”的 UI 态 */
   padCursorOn = false;
   padCX = 320;
   padCY = 180;
@@ -137,7 +137,7 @@ export class Input {
     if (t) t.claimed = owner;
   }
 
-  /** 注入一次"按下"(触屏按钮 → 复用键盘语义) */
+  /** 注入一次“按下”(触屏按钮 → 复用键盘语义) */
   injectPress(code: string): void {
     this.pressed.add(code);
   }
@@ -289,7 +289,7 @@ export class Input {
     return { x, y };
   }
 
-  /** 每帧末调用,清除"本帧按下"状态 */
+  /** 每帧末调用,清除“本帧按下”状态 */
   endFrame(): void {
     this.pressed.clear();
     this.mousePressed = false;

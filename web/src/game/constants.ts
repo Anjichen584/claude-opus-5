@@ -37,15 +37,19 @@ export const ELEMENT_COLORS = {
 /**
  * 色盲调色板(轮 37):0=关 1=红弱(protan) 2=绿弱(deutan) 3=蓝黄弱(tritan)。
  * 设计准则:同一模式下四色在对应色觉下仍两两可分(亮度差 + 色相错开);
- * 不做全屏滤镜(伤画面且费),只换"语义色" —— 元素/预警/地带全走这张表。
+ * 不做全屏滤镜(伤画面且费),只换“语义色” —— 元素/预警/地带全走这张表。
  */
 export const COLORBLIND_PALETTES: ReadonlyArray<{ fire: string; ice: string; bolt: string; toxin: string }> = [
-  { fire: '#ff7a45', ice: '#6fd3ff', bolt: '#ffd94f', toxin: '#9de04f' }, // 关(默认)
-  { fire: '#ff9a2f', ice: '#4fc3ff', bolt: '#fff066', toxin: '#b07fff' }, // 红弱:毒改紫,火提亮橙
-  { fire: '#ff8a3d', ice: '#3fb8ff', bolt: '#ffe066', toxin: '#c46fff' }, // 绿弱:毒改亮紫,冰加深
-  { fire: '#ff5f6f', ice: '#4fe0c8', bolt: '#f2f2f2', toxin: '#9de04f' }, // 蓝黄弱:雷改亮白,冰改青
+  // 关(默认)
+  { fire: '#ff7a45', ice: '#6fd3ff', bolt: '#ffd94f', toxin: '#9de04f' },
+  // 红弱:毒改紫,火提亮橙
+  { fire: '#ff9a2f', ice: '#4fc3ff', bolt: '#fff066', toxin: '#b07fff' },
+  // 绿弱:毒改亮紫,冰加深
+  { fire: '#ff8a3d', ice: '#3fb8ff', bolt: '#ffe066', toxin: '#c46fff' },
+  // 蓝黄弱:雷改亮白,冰改青
+  { fire: '#ff5f6f', ice: '#4fe0c8', bolt: '#f2f2f2', toxin: '#9de04f' },
 ];
-export const COLORBLIND_NAMES = ['关', '红弱', '绿弱', '蓝黄弱'] as const;
+export const COLORBLIND_NAMES = ['cb.off', 'cb.protan', 'cb.deutan', 'cb.tritan'] as const;
 
 /** 应用色盲模式(整表替换;越界回默认) */
 export function applyColorblind(mode: number): void {

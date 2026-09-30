@@ -1,4 +1,5 @@
 import type { Input } from '@engine/input/Input';
+import { t } from '@game/i18n';
 import balance from '@data/balance.json';
 import { basicSpec, describeBasic } from '@game/combat/BasicAttack';
 import { UI } from '@game/constants';
@@ -27,11 +28,8 @@ export type CampPanel = 'none' | 'expedition' | 'altar' | 'classpick' | 'daily' 
 const inside = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
-/** 铸台里显示的部位名(玩家看得懂的一句话,不是内部 key) */
-const SLOT_LABEL: Record<string, string> = {
-  weapon: '武器', helmet: '头盔', chest: '胸甲', boots: '靴子', ring: '戒指', amulet: '项链',
-};
-const slotLabel = (s: string): string => SLOT_LABEL[s] ?? s;
+/** 铸台里显示的部位名(键进 i18n 表:slot.weapon…) */
+const slotLabel = (s: string): string => t(`slot.${s}`);
 
 /**
  * 按宽度硬折行:画布没有自动换行(measureText 只给宽度),中文按字宽 ≈ 字号算。
@@ -59,7 +57,7 @@ function panelBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 
 /**
  * 星陨营地面板层:出征(章节+出发)/ 星陨祭坛(三系升级)/ 职业试炼(换角色)/ 星辉铸台(蓝图)。
- * 出战职业/章节的唯一存储在此;铸台的"已学蓝图"存 meta.data.blueprints(只增不减)。
+ * 出战职业/章节的唯一存储在此;铸台的“已学蓝图”存 meta.data.blueprints(只增不减)。
  */
 export class CampUI {
   panel: CampPanel = 'none';
@@ -75,7 +73,7 @@ export class CampUI {
   /** 选中的深渊难度档(0 = 普通远征;轮 23)。解锁状态每帧现读存档,不缓存(通关后应立刻可选) */
   selectedAbyss = NORMAL;
   /**
-   * 无尽模式开关(轮 24)。与章节/难度**不冲突**:无尽是"打完三章继续循环",所以它可以叠在任何深渊档上
+   * 无尽模式开关(轮 24)。与章节/难度**不冲突**:无尽是“打完三章继续循环”,所以它可以叠在任何深渊档上
    * (深渊 III + 无尽 = 最硬的一套组合)。挑战局(每日/周常)固定关掉无尽 —— 挑战要全服同条件。
    */
   endless = false;
@@ -97,7 +95,7 @@ export class CampUI {
     this.panel = p;
   }
 
-  /** 面板打开时每帧调用。返回 'start'(出发)| 'classChanged' | null;消费输入。 */
+  /** 面板打开时每帧调用。返回 ‘start’(出发)| ‘classChanged’ | null;消费输入。 */
   update(): 'start' | 'startDaily' | 'startWeekly' | 'classChanged' | 'crafted' | null {
     if (this.panel === 'none') return null;
     if (this.input.wasPressed('Escape') || this.input.wasPressed('KeyF') || this.input.wasPressed('PadB')) {
@@ -175,7 +173,8 @@ export class CampUI {
       if (r.act === 'codex_totem') { this.codexTab = 'totem'; this.codexPick = null; }
       if (r.act.startsWith('cx_')) this.codexPick = r.act.slice(3);
     }
-    if (!hit) this.panel = 'none'; // 点面板外关闭
+    // 点面板外关闭
+    if (!hit) this.panel = 'none';
     return null;
   }
 
@@ -210,13 +209,13 @@ export class CampUI {
     const prog = achvProgress(meta.data);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🏆 星陨殿堂 · 成就', w / 2, py + 62);
+    ctx.fillText(t('camp.hall.achv.title'), w / 2, py + 62);
     ctx.font = '12px monospace';
     ctx.fillStyle = prog.unlocked >= prog.total ? UI.gold : UI.dim;
     ctx.fillText(
       prog.unlocked >= prog.total
-        ? `★ 全成就达成 ${prog.unlocked}/${prog.total}`
-        : `成就 ${prog.unlocked}/${prog.total} · ${(prog.pct * 100).toFixed(0)}%`,
+        ? t('camp.achv.all', { n: prog.unlocked, total: prog.total })
+        : t('camp.achv.progress', { n: prog.unlocked, total: prog.total, pct: (prog.pct * 100).toFixed(0) }),
       w / 2, py + 82);
     ctx.fillStyle = UI.text;
     ctx.fillText(summaryLine(meta.data), w / 2, py + 100);
@@ -232,7 +231,7 @@ export class CampUI {
       ctx.textAlign = 'left';
       ctx.fillStyle = '#5a6377';
       ctx.font = '11px monospace';
-      ctx.fillText(cat, gx, ry + 12);
+      ctx.fillText(t(`achv.cat.${cat}`), gx, ry + 12);
       ctx.textAlign = 'center';
       const sub = ACHIEVEMENTS.filter((a) => a.cat === cat).length;
       const cellW = Math.min(150, Math.floor((pw - 100) / Math.max(1, sub)) - 6);
@@ -255,10 +254,10 @@ export class CampUI {
         ctx.font = '10px monospace';
         ctx.fillStyle = got ? UI.text : UI.dim;
         ctx.textAlign = 'left';
-        ctx.fillText(a.name, cx + 26, cy + 14);
+        ctx.fillText(t(a.name), cx + 26, cy + 14);
         ctx.font = '9px monospace';
         ctx.fillStyle = UI.dim;
-        ctx.fillText(got ? '已达成' : `${Math.min(cur, goal)}/${goal}`, cx + 26, cy + 27);
+        ctx.fillText(got ? t('camp.achv.done') : `${Math.min(cur, goal)}/${goal}`, cx + 26, cy + 27);
         ctx.textAlign = 'center';
 
         // 进度条(未解锁才画)
@@ -278,9 +277,9 @@ export class CampUI {
     ctx.font = '11px monospace';
     ctx.fillStyle = UI.dim;
     ctx.fillText(
-      recent ? `最近解锁:${recent.icon} ${recent.name}(${recent.desc})` : '还没有解锁任何成就 —— 出去打一局吧',
+      recent ? t('camp.achv.recent', { icon: recent.icon, name: t(recent.name), desc: t(recent.desc, recent.params) }) : t('camp.achv.none'),
       w / 2, py + ph - 26);
-    ctx.fillText('[Esc/F] 关闭 · 成就跨局保留', w / 2, py + ph - 12);
+    ctx.fillText(t('camp.achv.footer'), w / 2, py + ph - 12);
   }
 
   // ---- 图鉴(收录) ----
@@ -292,19 +291,19 @@ export class CampUI {
     const prog = codexProgress(meta.data.codex);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('📖 星陨图鉴', w / 2, py + 32);
+    ctx.fillText(t('camp.codex.title'), w / 2, py + 32);
     ctx.font = '12px monospace';
     ctx.fillStyle = UI.dim;
     ctx.fillText(
-      `怪物 ${prog.enemyFound}/${prog.enemyTotal} · 符文 ${prog.runeFound}/${prog.runeTotal}` +
-      (prog.enemyFound >= prog.enemyTotal && prog.runeFound >= prog.runeTotal ? ' · ★ 全收录!' : ''),
+      t('camp.codex.progress', { ef: prog.enemyFound, et: prog.enemyTotal, rf: prog.runeFound, rt: prog.runeTotal }) +
+      (prog.enemyFound >= prog.enemyTotal && prog.runeFound >= prog.runeTotal ? t('camp.codex.complete') : ''),
       w / 2, py + 52);
 
     // 页签
     const tabs: Array<{ id: 'enemy' | 'rune' | 'totem'; label: string; act: string }> = [
-      { id: 'enemy', label: `👾 怪物 ${prog.enemyFound}/${prog.enemyTotal}`, act: 'codex_enemy' },
-      { id: 'rune', label: `◈ 符文 ${prog.runeFound}/${prog.runeTotal}`, act: 'codex_rune' },
-      { id: 'totem', label: `🗿 秘境 ${meta.data.eventLog.length}/${balance.events.eventLogMax}`, act: 'codex_totem' },
+      { id: 'enemy', label: t('camp.codex.tab.enemy', { n: prog.enemyFound, total: prog.enemyTotal }), act: 'codex_enemy' },
+      { id: 'rune', label: t('camp.codex.tab.rune', { n: prog.runeFound, total: prog.runeTotal }), act: 'codex_rune' },
+      { id: 'totem', label: t('camp.codex.tab.totem', { n: meta.data.eventLog.length, total: balance.events.eventLogMax }), act: 'codex_totem' },
     ];
     tabs.forEach((t, i) => {
       const r: Rect = { x: px + 24 + i * 172, y: py + 64, w: 164, h: 30 };
@@ -320,13 +319,13 @@ export class CampUI {
       this.rects.push({ rect: r, act: t.act });
     });
 
-    // 秘境记录(轮 25):8 座碑 × 选择次数 + 累计星尘当量 + 最近记录 —— 秘境抉择"都有记录可回看"
+    // 秘境记录(轮 25):8 座碑 × 选择次数 + 累计星尘当量 + 最近记录 —— 秘境抉择“都有记录可回看”
     if (this.codexTab === 'totem') {
       this.renderTotemPanel(ctx, px, pw, ph, py + 106);
       ctx.textAlign = 'center';
       ctx.fillStyle = UI.dim;
       ctx.font = '11px monospace';
-      ctx.fillText('记录跨局保留(最近 12 条)· 回响之碑按最近一次抉择的价值结算 · [Esc/F] 关闭', w / 2, py + ph - 12);
+      ctx.fillText(t('camp.totem.footer'), w / 2, py + ph - 12);
       return;
     }
 
@@ -366,18 +365,18 @@ export class CampUI {
     else {
       ctx.fillStyle = UI.dim;
       ctx.font = '12px monospace';
-      ctx.fillText('点左侧格子查看条目', dx + 12, gy - 8);
-      ctx.fillText('★ = Boss · 未收录显示 ?', dx + 12, gy + 10);
+      ctx.fillText(t('camp.codex.pickHint'), dx + 12, gy - 8);
+      ctx.fillText(t('camp.codex.legend'), dx + 12, gy + 10);
     }
     ctx.textAlign = 'center';
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('图鉴跨局保留 · 数值来自 balance.json(调平衡不会让老档失真)· [Esc/F] 关闭', w / 2, py + ph - 12);
+    ctx.fillText(t('camp.codex.footer'), w / 2, py + ph - 12);
   }
 
   /**
    * 秘境记录面板(轮 25)。左栏 8 座碑 + 选择次数 + 累计星尘当量,右栏最近记录时间线。
-   * 为什么要有这一屏:碑池扩到 8 座之后,玩家会遇到"这座碑我上次选了什么、值不值"的问题 ——
+   * 为什么要有这一屏:碑池扩到 8 座之后,玩家会遇到“这座碑我上次选了什么、值不值”的问题 ——
    * 记录是**回响之碑的输入**,也是玩家自己复盘哪座碑在什么局面下划算的依据。
    */
   private renderTotemPanel(
@@ -407,7 +406,7 @@ export class CampUI {
       const n = sum.counts[id] ?? 0;
       ctx.font = '11px monospace';
       ctx.fillStyle = n > 0 ? UI.gold : '#3a4154';
-      ctx.fillText(n > 0 ? `×${n} · ${sum.byId[id] >= 0 ? '+' : ''}${sum.byId[id]}✦` : '未选过', gx + 330, y + 22);
+      ctx.fillText(n > 0 ? `×${n} · ${sum.byId[id] >= 0 ? '+' : ''}${sum.byId[id]}✦` : t('camp.totem.never'), gx + 330, y + 22);
       ctx.textAlign = 'center';
     });
 
@@ -422,24 +421,24 @@ export class CampUI {
     ctx.textAlign = 'left';
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 13px monospace';
-    ctx.fillText(`累计星尘当量 ${sum.total >= 0 ? '+' : ''}${sum.total}✦`, dx + 12, gy - 8);
+    ctx.fillText(t('camp.totem.total', { sign: sum.total >= 0 ? '+' : '', n: sum.total }), dx + 12, gy - 8);
     ctx.font = '11px monospace';
     ctx.fillStyle = UI.dim;
-    ctx.fillText(`记录 ${meta.data.eventLog.length}/${balance.events.eventLogMax} 条 · 新的在上`, dx + 12, gy + 10);
+    ctx.fillText(t('camp.totem.count', { n: meta.data.eventLog.length, max: balance.events.eventLogMax }), dx + 12, gy + 10);
 
     const rows = meta.data.eventLog.slice(0, 9);
     if (rows.length === 0) {
       ctx.fillStyle = UI.dim;
       ctx.font = '12px monospace';
-      ctx.fillText('还没有记录 —— 第 2/5 间房的石碑就是秘境', dx + 12, gy + 40);
-      ctx.fillText('每次抉择都会记下:哪座碑、第几层、值多少', dx + 12, gy + 58);
+      ctx.fillText(t('camp.totem.empty1'), dx + 12, gy + 40);
+      ctx.fillText(t('camp.totem.empty2'), dx + 12, gy + 58);
     }
     rows.forEach((r, i) => {
       const y = gy + 42 + i * 22;
       const v = totemVisual(r.totem);
       ctx.fillStyle = v.color;
       ctx.font = '12px monospace';
-      ctx.fillText(`${v.icon} 第${r.floor}层 ${v.name}`, dx + 12, y);
+      ctx.fillText(t('camp.totem.row', { icon: v.icon, floor: r.floor, name: t(v.name) }), dx + 12, y);
       ctx.textAlign = 'right';
       ctx.fillStyle = r.value >= 0 ? UI.gold : UI.hpLow;
       ctx.fillText(`${r.value >= 0 ? '+' : ''}${r.value}✦`, dx + dw - 12, y);
@@ -455,7 +454,7 @@ export class CampUI {
       return r?.element === 'fire' ? '🔥' : r?.element === 'ice' ? '❄' : r?.element === 'bolt' ? '⚡' : r?.element === 'toxin' ? '☠' : '◈';
     }
     if (isBossKey(key)) return '★';
-    const name = enemyEntry(key)?.name ?? key;
+    const name = t(enemyEntry(key)?.name ?? key);
     return name.slice(0, 1);
   }
 
@@ -468,17 +467,17 @@ export class CampUI {
     if (this.codexTab === 'enemy') {
       const e = enemyEntry(key);
       if (!e) return;
-      line(`${e.boss ? '★ ' : ''}${e.name}`, 14, e.boss ? UI.gold : UI.text, 'bold 15px monospace');
-      line(`出没:第${e.chapter}章 ${e.chapterName}`, 36, UI.dim);
+      line(`${e.boss ? '★ ' : ''}${t(e.name)}`, 14, e.boss ? UI.gold : UI.text, 'bold 15px monospace');
+      line(t('camp.codex.habitat', { ch: e.chapter, name: t(e.chapterName) }), 36, UI.dim);
       const kills = meta.data.codex.enemies[key] ?? 0;
-      line(`击杀:${kills}`, 54, UI.dim);
-      line('── 属性 ──', 78, '#5a6377');
-      line(`血量 ${e.hp}   攻击 ${e.atk}`, 96);
-      line(`防御 ${e.def}   速度 ${e.speed} m/s`, 112);
-      line(`体型 ${e.bodyRadius} m`, 128, UI.dim);
-      line('── 行为 ──', 152, '#5a6377');
+      line(t('camp.codex.kills', { n: kills }), 54, UI.dim);
+      line(t('camp.codex.statsHeader'), 78, '#5a6377');
+      line(t('camp.codex.hpatk', { hp: e.hp, atk: e.atk }), 96);
+      line(t('camp.codex.defspd', { def: e.def, spd: e.speed }), 112);
+      line(t('camp.codex.size', { r: e.bodyRadius }), 128, UI.dim);
+      line(t('camp.codex.behaviorHeader'), 152, '#5a6377');
       // 按 15 字折行
-      const chars = [...e.hint];
+      const chars = [...t(e.hint)];
       for (let i = 0; i < chars.length; i += 15) {
         line(chars.slice(i, i + 15).join(''), 170 + (i / 15) * 16, UI.text);
       }
@@ -486,10 +485,10 @@ export class CampUI {
       const r = runeEntry(key);
       if (!r) return;
       line(`◈ ${r.name}`, 14, '#B067E8', 'bold 15px monospace');
-      line(`职业:${r.klassName} · 技能位 ${r.skillSlot}`, 36, UI.dim);
-      line(`元素:${r.element ?? '无(纯净星辉)'}`, 54, UI.dim);
-      line(`次数:${meta.data.codex.runes[key] ?? 0}`, 70, UI.dim);
-      line('── 效果 ──', 94, '#5a6377');
+      line(t('camp.codex.rune.meta', { klass: t(r.klassName), slot: r.skillSlot }), 36, UI.dim);
+      line(t('camp.codex.rune.element', { el: r.element ?? t('camp.codex.rune.pure') }), 54, UI.dim);
+      line(t('camp.codex.rune.count', { n: meta.data.codex.runes[key] ?? 0 }), 70, UI.dim);
+      line(t('camp.codex.effectHeader'), 94, '#5a6377');
       const chars = [...r.desc];
       for (let i = 0; i < chars.length; i += 15) {
         line(chars.slice(i, i + 15).join(''), 112 + (i / 15) * 16, UI.text);
@@ -511,8 +510,8 @@ export class CampUI {
   /** 页签条(今日 / 本周),两页共用 */
   private renderChallengeTabs(ctx: CanvasRenderingContext2D, w: number, py: number): void {
     const tabs: Array<{ act: string; key: 'today' | 'week'; label: string }> = [
-      { act: 'tabToday', key: 'today', label: '🗓 今日挑战' },
-      { act: 'tabWeek', key: 'week', label: '🏅 本周挑战' },
+      { act: 'tabToday', key: 'today', label: t('camp.daily.tabToday') },
+      { act: 'tabWeek', key: 'week', label: t('camp.daily.tabWeek') },
     ];
     tabs.forEach((t, i) => {
       const rw = 132;
@@ -542,11 +541,11 @@ export class CampUI {
 
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🗓 混沌祭坛', w / 2, py + 30);
+    ctx.fillText(t('camp.daily.title'), w / 2, py + 30);
     this.renderChallengeTabs(ctx, w, py + 42);
     ctx.font = '12px monospace';
     ctx.fillStyle = UI.text;
-    ctx.fillText(`${this.daily.key} · 每日 0 点刷新 · 全服同种子 · 章节固定第一章`, w / 2, py + 88);
+    ctx.fillText(this.daily.key + t('camp.daily.subtitle'), w / 2, py + 88);
 
     // 今日词条(3 条)
     const ch = this.daily.mods;
@@ -574,18 +573,18 @@ export class CampUI {
     // 记录
     ctx.font = '12px monospace';
     if (d.key === this.daily.key && (d.cleared || d.bestTimeS > 0)) {
-      const t = Math.floor(d.bestTimeS / 60);
+      const mm = Math.floor(d.bestTimeS / 60);
       const sec = Math.floor(d.bestTimeS % 60).toString().padStart(2, '0');
       ctx.fillStyle = d.cleared ? UI.gold : UI.dim;
       ctx.fillText(
         d.cleared
-          ? `✅ 今日已通关 · 最佳 ${t}:${sec} · 击杀 ${d.bestKills}`
-          : `今日最佳 ${t}:${sec} · 击杀 ${d.bestKills}(尚未通关)`,
+          ? t('camp.daily.cleared', { time: `${mm}:${sec}`, kills: d.bestKills })
+          : t('camp.daily.best', { time: `${mm}:${sec}`, kills: d.bestKills }),
         w / 2, py + 240,
       );
     } else {
       ctx.fillStyle = UI.dim;
-      ctx.fillText('今日尚未挑战 —— 章节固定第一章,词条全服一致', w / 2, py + 240);
+      ctx.fillText(t('camp.daily.none'), w / 2, py + 240);
     }
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 84, w: 220, h: 46 };
@@ -596,12 +595,12 @@ export class CampUI {
     ctx.strokeRect(go.x, go.y, go.w, go.h);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 16px monospace';
-    ctx.fillText(done ? '⚔ 再挑战一次' : '⚔ 开始挑战', w / 2, go.y + 30);
+    ctx.fillText(done ? t('camp.daily.retry') : t('camp.daily.start'), w / 2, go.y + 30);
     this.rects.push({ rect: go, act: 'goDaily' });
 
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('[Tab] 切今日/本周 · [Enter] 开始 · [Esc/F] 关闭 · 词条只在本局生效', w / 2, py + ph - 16);
+    ctx.fillText(t('camp.daily.footer'), w / 2, py + ph - 16);
   }
 
   /** 本周页:1 条铁律(结构性)+ 2 条抽取的每日词条 + 结构摘要 + 记录 */
@@ -618,11 +617,11 @@ export class CampUI {
 
     ctx.fillStyle = '#8fd4c8';
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🏅 周常挑战 · 混沌祭坛', w / 2, py + 30);
+    ctx.fillText(t('camp.weekly.title'), w / 2, py + 30);
     this.renderChallengeTabs(ctx, w, py + 42);
     ctx.font = '12px monospace';
     ctx.fillStyle = UI.text;
-    ctx.fillText(`${this.weekly.key}(${weeklyLabel(this.weekly.key)})· 周一刷新 · 本周内成绩可比`, w / 2, py + 88);
+    ctx.fillText(`${this.weekly.key}(${weeklyLabel(this.weekly.key)})` + t('camp.weekly.subtitle'), w / 2, py + 88);
 
     // 三张卡:第 0 张是铁律,其余是本周从每日池抽到的词条
     const cw = (pw - 48 - 16) / 3;
@@ -640,37 +639,37 @@ export class CampUI {
       ctx.fillText(m.name, rx + cw / 2, ry + 30);
       ctx.fillStyle = UI.dim;
       ctx.font = '10px monospace';
-      ctx.fillText(isRule ? '本周铁律' : '周词条', rx + cw / 2, ry + 16);
+      ctx.fillText(isRule ? t('camp.weekly.rule') : t('camp.weekly.mod'), rx + cw / 2, ry + 16);
       ctx.fillStyle = UI.text;
       ctx.font = '11px monospace';
       m.desc.split('、').forEach((line, li) => ctx.fillText(line, rx + cw / 2, ry + 58 + li * 16));
     });
 
-    // 结构摘要(把铁律"改了什么"翻译成人话)
+    // 结构摘要(把铁律“改了什么”翻译成人话)
     const bits: string[] = [];
-    if (st.extraWaves > 0) bits.push(`每房 +${st.extraWaves} 波`);
-    if (st.shopClosed) bits.push('商店关门');
-    if (st.altarOff) bits.push('祭坛成长失效');
-    if (st.eliteShift !== 0) bits.push(`精英房${st.eliteShift < 0 ? '提前' : '推后'} ${Math.abs(st.eliteShift)} 间`);
-    if (st.forcedLayout !== null) bits.push(`地形定死「${LAYOUT_LABELS[st.forcedLayout]}」`);
+    if (st.extraWaves > 0) bits.push(t('camp.weekly.extraWaves', { n: st.extraWaves }));
+    if (st.shopClosed) bits.push(t('camp.weekly.shopClosed'));
+    if (st.altarOff) bits.push(t('camp.weekly.altarOff'));
+    if (st.eliteShift !== 0) bits.push(t(st.eliteShift < 0 ? 'camp.weekly.eliteEarly' : 'camp.weekly.eliteLate', { n: Math.abs(st.eliteShift) }));
+    if (st.forcedLayout !== null) bits.push(t('camp.weekly.forcedLayout', { name: t(LAYOUT_LABELS[st.forcedLayout]) }));
     ctx.font = '12px monospace';
     ctx.fillStyle = bits.length > 0 ? '#8fd4c8' : UI.dim;
-    ctx.fillText(bits.length > 0 ? `本周结构:${bits.join(' · ')}` : '本周结构:无(纯词条)', w / 2, py + 232);
+    ctx.fillText(bits.length > 0 ? t('camp.weekly.structure', { s: bits.join(' · ') }) : t('camp.weekly.structureNone'), w / 2, py + 232);
 
     ctx.font = '12px monospace';
     if (rec.key === this.weekly.key && (rec.cleared || rec.bestTimeS > 0)) {
-      const t = Math.floor(rec.bestTimeS / 60);
+      const mm = Math.floor(rec.bestTimeS / 60);
       const sec = Math.floor(rec.bestTimeS % 60).toString().padStart(2, '0');
       ctx.fillStyle = rec.cleared ? UI.gold : UI.dim;
       ctx.fillText(
         rec.cleared
-          ? `✅ 本周已通关 · 最佳 ${t}:${sec} · 击杀 ${rec.bestKills}`
-          : `本周最佳 ${t}:${sec} · 击杀 ${rec.bestKills}(尚未通关)`,
+          ? t('camp.weekly.cleared', { time: `${mm}:${sec}`, kills: rec.bestKills })
+          : t('camp.weekly.best', { time: `${mm}:${sec}`, kills: rec.bestKills }),
         w / 2, py + 254,
       );
     } else {
       ctx.fillStyle = UI.dim;
-      ctx.fillText('本周尚未挑战 —— 铁律一周一换,打完记一笔', w / 2, py + 254);
+      ctx.fillText(t('camp.weekly.none'), w / 2, py + 254);
     }
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 84, w: 220, h: 46 };
@@ -681,19 +680,19 @@ export class CampUI {
     ctx.strokeRect(go.x, go.y, go.w, go.h);
     ctx.fillStyle = '#8fd4c8';
     ctx.font = 'bold 16px monospace';
-    ctx.fillText(done ? '⚔ 再刷一次周常' : '⚔ 开始周常挑战', w / 2, go.y + 30);
+    ctx.fillText(done ? t('camp.weekly.retry') : t('camp.weekly.start'), w / 2, go.y + 30);
     this.rects.push({ rect: go, act: 'goWeekly' });
 
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('[Tab] 切今日/本周 · [Enter] 开始 · [Esc/F] 关闭', w / 2, py + ph - 16);
+    ctx.fillText(t('camp.weekly.footer'), w / 2, py + ph - 16);
   }
 
   /** 殿堂页签条(成就 / 排行榜) */
   private renderHallTabs(ctx: CanvasRenderingContext2D, w: number, py: number): void {
     const tabs: Array<{ act: string; key: 'achv' | 'board'; label: string }> = [
-      { act: 'hallAchv', key: 'achv', label: '🏆 成就' },
-      { act: 'hallBoard', key: 'board', label: '🥇 排行榜' },
+      { act: 'hallAchv', key: 'achv', label: t('camp.hall.tabAchv') },
+      { act: 'hallBoard', key: 'board', label: t('camp.hall.tabBoard') },
     ];
     tabs.forEach((t, i) => {
       const rw = 132;
@@ -720,11 +719,11 @@ export class CampUI {
     const filled = boardsFilled(meta.data);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🥇 星陨殿堂 · 排行榜', w / 2, py + 62);
+    ctx.fillText(t('camp.board.title'), w / 2, py + 62);
     ctx.font = '12px monospace';
     ctx.fillStyle = filled >= BOARD_IDS.length ? UI.gold : UI.dim;
     ctx.fillText(
-      `本地榜(不上云)· 已开榜 ${filled}/${BOARD_IDS.length} · 每榜保留前 ${balance.leaderboard.topN}`,
+      t('camp.board.subtitle', { filled, total: BOARD_IDS.length, top: balance.leaderboard.topN }),
       w / 2, py + 82);
 
     const colW = (pw - 44) / 2;
@@ -740,21 +739,22 @@ export class CampUI {
       ctx.fillRect(bx, by, colW, headH);
       ctx.fillStyle = list.length > 0 ? UI.gold : UI.dim;
       ctx.font = 'bold 12px monospace';
-      ctx.fillText(BOARD_LABEL[id], bx + 6, by + 16);
+      ctx.fillText(t(BOARD_LABEL[id]), bx + 6, by + 16);
       ctx.fillStyle = UI.dim;
       ctx.font = '10px monospace';
-      ctx.fillText(BOARD_HINT[id], bx + 6, by + headH + 12);
+      ctx.fillText(t(BOARD_HINT[id]), bx + 6, by + headH + 12);
 
       if (list.length === 0) {
         ctx.fillStyle = UI.dim;
         ctx.font = '11px monospace';
-        ctx.fillText('—— 还没有记录,出征一次就上榜 ——', bx + 6, by + headH + 32);
+        ctx.fillText(t('camp.board.empty'), bx + 6, by + headH + 32);
         return;
       }
       list.forEach((e, rank) => {
         const ry = by + headH + 22 + rank * rowH;
         if (rank === 0) {
-          ctx.fillStyle = 'rgba(232,192,122,0.10)'; // 榜首底色
+          // 榜首底色
+          ctx.fillStyle = 'rgba(232,192,122,0.10)';
           ctx.fillRect(bx, ry - 11, colW, rowH);
         }
         ctx.textAlign = 'left';
@@ -768,7 +768,7 @@ export class CampUI {
         ctx.fillStyle = UI.dim;
         ctx.font = '10px monospace';
         const kls = balance.classes[e.klass].name;
-        ctx.fillText(`${kls} · 第${e.chapter}章`, bx + 82, ry);
+        ctx.fillText(t('camp.board.row', { kls, ch: e.chapter }), bx + 82, ry);
         const tag = tagLabel(e.tag);
         if (tag) {
           ctx.fillStyle = '#8fd4c8';
@@ -783,14 +783,19 @@ export class CampUI {
     ctx.textAlign = 'center';
     ctx.font = '11px monospace';
     const fmt = (s: number): string => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+    const segState = (cleared: boolean, timeS: number, kills: number): string =>
+      cleared ? t('camp.board.seg.cleared', { time: fmt(timeS) })
+        : kills > 0 ? t('camp.board.seg.kills', { n: kills }) : t('camp.board.seg.none');
     ctx.fillStyle = UI.dim;
     ctx.fillText(
-      `🗓 今日 ${d.key || '—'} ${d.cleared ? `已通关 ${fmt(d.bestTimeS)}` : d.bestKills > 0 ? `击杀 ${d.bestKills}` : '未挑战'}`
-      + `   ·   🏅 本周 ${wk.key || '—'} ${wk.cleared ? `已通关 ${fmt(wk.bestTimeS)}` : wk.bestKills > 0 ? `击杀 ${wk.bestKills}` : '未挑战'}`,
+      t('camp.board.challenge', {
+        dk: d.key || '—', ds: segState(d.cleared, d.bestTimeS, d.bestKills),
+        wk: wk.key || '—', ws: segState(wk.cleared, wk.bestTimeS, wk.bestKills),
+      }),
       w / 2, py + ph - 30);
     ctx.fillStyle = UI.dim;
     ctx.font = '10px monospace';
-    ctx.fillText('[Tab] 切成就/排行榜 · [Esc/F] 关闭 · 榜单只存在本机存档', w / 2, py + ph - 12);
+    ctx.fillText(t('camp.board.footer'), w / 2, py + ph - 12);
   }
 
   // ---- 出征 ----
@@ -802,7 +807,7 @@ export class CampUI {
     panelBox(ctx, px, py, pw, ph);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🌀 远征传送门', w / 2, py + 34);
+    ctx.fillText(t('camp.exp.title'), w / 2, py + 34);
 
     const chs: Array<1 | 2 | 3> = [1, 2, 3];
     chs.forEach((ch, i) => {
@@ -817,10 +822,10 @@ export class CampUI {
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
       ctx.fillStyle = locked ? UI.dim : sel ? UI.gold : UI.text;
       ctx.font = 'bold 13px monospace';
-      ctx.fillText(locked ? `🔒 第${ch}章` : `第${ch}章`, rect.x + rect.w / 2, rect.y + 26);
+      ctx.fillText(locked ? t('camp.exp.chapterLocked', { ch }) : t('camp.exp.chapter', { ch }), rect.x + rect.w / 2, rect.y + 26);
       ctx.font = '11px monospace';
       ctx.fillStyle = UI.dim;
-      ctx.fillText(locked ? `通关${cfg.unlockClears}次解锁` : cfg.name, rect.x + rect.w / 2, rect.y + 48);
+      ctx.fillText(locked ? t('camp.exp.unlockAfter', { n: cfg.unlockClears }) : cfg.name, rect.x + rect.w / 2, rect.y + 48);
       this.rects.push({ rect, act: `ch${ch}` });
     });
 
@@ -831,7 +836,7 @@ export class CampUI {
     ctx.textAlign = 'center';
     ctx.font = '11px monospace';
     ctx.fillStyle = UI.dim;
-    ctx.fillText('深渊难度(乘区只作用于本局;解锁后永久可选)', w / 2, py + 138);
+    ctx.fillText(t('camp.exp.abyssHeader'), w / 2, py + 138);
     tiers.forEach((idx, i) => {
       const rect: Rect = { x: px + 24 + i * (tierW + 8), y: py + 148, w: tierW, h: 62 };
       const unlocked = abyssUnlocked(idx, prog);
@@ -841,19 +846,19 @@ export class CampUI {
       ctx.strokeStyle = sel ? UI.hpLow : unlocked ? '#3a4154' : '#2a2f3d';
       ctx.lineWidth = sel ? 2.5 : 1.5;
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-      const name = idx === NORMAL ? '远征' : ABYSS_LEVELS[idx - 1].name;
+      const name = idx === NORMAL ? t('camp.exp.normal') : t(ABYSS_LEVELS[idx - 1].name);
       ctx.font = 'bold 12px monospace';
       ctx.fillStyle = unlocked ? (sel ? UI.hpLow : UI.text) : UI.dim;
       ctx.fillText(unlocked ? name : `🔒 ${name}`, rect.x + rect.w / 2, rect.y + 22);
       ctx.font = '10px monospace';
       ctx.fillStyle = UI.dim;
       const line2 = unlocked
-        ? (idx === NORMAL ? '基准' : `血×${ABYSS_LEVELS[idx - 1].hpMult} 掉×${ABYSS_LEVELS[idx - 1].lootMult}`)
+        ? (idx === NORMAL ? t('camp.exp.baseline') : t('camp.exp.abyssMult', { hp: ABYSS_LEVELS[idx - 1].hpMult, loot: ABYSS_LEVELS[idx - 1].lootMult }))
         : (lockReason(idx, prog) ?? '');
       ctx.fillText(line2, rect.x + rect.w / 2, rect.y + 38);
       if (unlocked && (meta.data.abyssClears[idx - 1] ?? 0) > 0 && idx > 0) {
         ctx.fillStyle = UI.gold;
-        ctx.fillText(`已通关 ${meta.data.abyssClears[idx - 1]} 次`, rect.x + rect.w / 2, rect.y + 52);
+        ctx.fillText(t('camp.exp.abyssClears', { n: meta.data.abyssClears[idx - 1] }), rect.x + rect.w / 2, rect.y + 52);
       }
       this.rects.push({ rect, act: `ab${idx}` });
     });
@@ -874,15 +879,15 @@ export class CampUI {
     ctx.fillStyle = endlessOk ? (this.endless ? UI.hpLow : UI.text) : UI.dim;
     const best = meta.data.endlessBest;
     const tail = endlessOk
-      ? (best > 0 ? ` · 最高 ${best} 层 / 循环 ${meta.data.endlessBestLoop + 1}` : ' · 未挑战')
+      ? (best > 0 ? t('camp.exp.endlessBest', { best, loop: meta.data.endlessBestLoop + 1 }) : t('camp.exp.endlessNone'))
       : ` · 🔒 ${endlessLockReason(meta.data.stats.clears)}`;
-    ctx.fillText(`${endlessOk ? (this.endless ? '☑' : '☐') : '🔒'} ♾ 无尽模式(三章循环,撑到第几层)${tail}`,
+    ctx.fillText(`${endlessOk ? (this.endless ? '☑' : '☐') : '🔒'} ${t('camp.exp.endless')}${tail}`,
       er.x + er.w / 2, er.y + 22);
     this.rects.push({ rect: er, act: 'endlessToggle' });
     if (this.endless && endlessOk) {
       ctx.fillStyle = UI.dim;
       ctx.font = '10px monospace';
-      ctx.fillText('无尽可叠深渊难度;挑战局(每日/周常)固定关掉无尽', w / 2, py + ph - 28);
+      ctx.fillText(t('camp.exp.endlessHint'), w / 2, py + ph - 28);
     }
 
     const go: Rect = { x: w / 2 - 110, y: py + ph - 78, w: 220, h: 46 };
@@ -893,39 +898,39 @@ export class CampUI {
     ctx.strokeRect(go.x, go.y, go.w, go.h);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 16px monospace';
-    ctx.fillText('⚔ 出发!', w / 2, go.y + 30);
+    ctx.fillText(t('camp.exp.go'), w / 2, go.y + 30);
     this.rects.push({ rect: go, act: 'go' });
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('[Enter] 出发 · [Esc/F] 关闭', w / 2, py + ph - 14);
+    ctx.fillText(t('camp.exp.footer'), w / 2, py + ph - 14);
   }
 
   // ---- 星辉铸台:学图纸 / 按图纸铸造 ----
 
   /**
    * 学会图纸:花碎片把它写进存档。
-   * 为什么把"学会"和"铸造"拆成两步:图纸是**长期投资**(学了永久留着,可反复铸),
+   * 为什么把“学会”和“铸造”拆成两步:图纸是**长期投资**(学了永久留着,可反复铸),
    * 铸造是**当次消费**(扣碎片换一件开局装备)。合成一步会让玩家误以为图纸是一次性的。
    */
   private tryLearn(): 'crafted' | null {
     const bp = blueprintOf(this.forgePick);
-    if (!bp) { this.forgeNotice = '找不到这张蓝图'; return null; }
-    if (meta.data.blueprints.includes(bp.id)) { this.forgeNotice = '这张图纸已经会了'; return null; }
+    if (!bp) { this.forgeNotice = t('camp.forge.noBp'); return null; }
+    if (meta.data.blueprints.includes(bp.id)) { this.forgeNotice = t('camp.forge.known'); return null; }
     if (meta.data.blueprintShards < bp.costShards) {
-      this.forgeNotice = `碎片不足:${meta.data.blueprintShards}/${bp.costShards}(Boss 掉落,夜战 +1)`;
+      this.forgeNotice = t('camp.forge.needShards', { have: meta.data.blueprintShards, need: bp.costShards });
       return null;
     }
     meta.data.blueprintShards -= bp.costShards;
     meta.data.blueprints.push(bp.id);
     meta.save();
-    this.forgeNotice = `已学会「${bp.name}」—— 现在可以铸造了(图纸永久保留)`;
+    this.forgeNotice = t('camp.forge.learned', { name: t(bp.name) });
     return 'crafted';
   }
 
   /** 铸造:扣碎片 → 预约下局开局携带这件蓝图成品(部位/特效/词条都是定的) */
   private tryCraft(): 'crafted' | null {
     const bp = blueprintOf(this.forgePick);
-    if (!bp) { this.forgeNotice = '找不到这张蓝图'; return null; }
+    if (!bp) { this.forgeNotice = t('camp.forge.noBp'); return null; }
     const blocker = craftBlocker(bp.id, {
       shards: meta.data.blueprintShards,
       owned: meta.data.blueprints,
@@ -933,14 +938,14 @@ export class CampUI {
     });
     if (blocker !== null) { this.forgeNotice = blockerText(blocker, bp.id); return null; }
     if (meta.data.craftQueued || meta.data.craftQueuedId) {
-      this.forgeNotice = '铸台已在淬火:下局的开局装备已预订(不能同时预约两件)';
+      this.forgeNotice = t('camp.forge.busy');
       return null;
     }
     meta.data.blueprintShards -= balance.blueprint.craftCost;
     meta.data.craftQueuedId = bp.id;
     meta.data.stats.crafts++;
     meta.save();
-    this.forgeNotice = `铸造完成:下局开局自带「${bp.name}」成品`;
+    this.forgeNotice = t('camp.forge.done', { name: t(bp.name) });
     return 'crafted';
   }
 
@@ -953,10 +958,10 @@ export class CampUI {
     panelBox(ctx, px, py, pw, ph);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('📜 星辉铸台 · 蓝图', w / 2, py + 32);
+    ctx.fillText(t('camp.forge.title'), w / 2, py + 32);
     ctx.font = '12px monospace';
     ctx.fillStyle = UI.dim;
-    ctx.fillText(`📜 碎片 ${meta.data.blueprintShards} · 已学 ${meta.data.blueprints.length}/${BLUEPRINTS.length} · 铸造价 ${balance.blueprint.craftCost} 碎片/件`,
+    ctx.fillText(t('camp.forge.subtitle', { shards: meta.data.blueprintShards, learned: meta.data.blueprints.length, total: BLUEPRINTS.length, cost: balance.blueprint.craftCost }),
       w / 2, py + 54);
 
     // 左:图纸列表
@@ -973,10 +978,10 @@ export class CampUI {
       ctx.textAlign = 'left';
       ctx.font = 'bold 13px monospace';
       ctx.fillStyle = learned ? UI.text : UI.dim;
-      ctx.fillText(bp.name, rect.x + 10, rect.y + 15);
+      ctx.fillText(t(bp.name), rect.x + 10, rect.y + 15);
       ctx.font = '11px monospace';
       ctx.fillStyle = learned ? '#8fd4c8' : UI.dim;
-      ctx.fillText(`${learned ? '已学' : '未学'} · ${slotLabel(bp.slot)} · 📜${bp.costShards}`, rect.x + 10, rect.y + 29);
+      ctx.fillText(`${learned ? t('camp.forge.tagLearned') : t('camp.forge.tagUnlearned')} · ${slotLabel(bp.slot)} · 📜${bp.costShards}`, rect.x + 10, rect.y + 29);
       ctx.textAlign = 'center';
       this.rects.push({ rect, act: `bp_${bp.id}` });
     });
@@ -993,27 +998,27 @@ export class CampUI {
     ctx.strokeRect(dx, py + 70, dw, 196);
     if (!bp) {
       ctx.fillStyle = UI.dim;
-      ctx.fillText('左边点一张图纸看详情', dx + 12, py + 96);
+      ctx.fillText(t('camp.forge.pickHint'), dx + 12, py + 96);
       return;
     }
     const sp = specialDef(bp.special);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 14px monospace';
-    ctx.fillText(`${bp.name} · ${bp.rarity === 'legendary' ? '橙装' : bp.rarity}`, dx + 12, py + 92);
+    ctx.fillText(`${t(bp.name)} · ${bp.rarity === 'legendary' ? t('rarity.legendary') : bp.rarity}`, dx + 12, py + 92);
     ctx.fillStyle = UI.text;
     ctx.font = '12px monospace';
-    ctx.fillText(`部位:${slotLabel(bp.slot)}`, dx + 12, py + 114);
+    ctx.fillText(t('camp.forge.slot', { s: slotLabel(bp.slot) }), dx + 12, py + 114);
     ctx.fillStyle = '#B067E8';
-    ctx.fillText(`特效:${sp?.itemName ?? bp.special}`, dx + 12, py + 132);
+    ctx.fillText(t('camp.forge.special', { s: sp?.itemName ?? bp.special }), dx + 12, py + 132);
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
     ctx.fillText(wrap(sp?.desc ?? '', 30).join(' / '), dx + 12, py + 148);
     ctx.fillStyle = UI.text;
-    ctx.fillText(`固定词条:${bp.affixes.join(' · ')}`, dx + 12, py + 172);
+    ctx.fillText(t('camp.forge.affixes', { s: bp.affixes.join(' · ') }), dx + 12, py + 172);
     ctx.fillStyle = UI.dim;
     ctx.fillText(`「${bp.lore}」`, dx + 12, py + 190);
     ctx.fillStyle = meta.data.craftQueuedId === bp.id ? UI.gold : UI.dim;
-    ctx.fillText(meta.data.craftQueuedId === bp.id ? '状态:已预约(下局开局携带)' : '铸造后下局开局直接上身', dx + 12, py + 212);
+    ctx.fillText(meta.data.craftQueuedId === bp.id ? t('camp.forge.queued') : t('camp.forge.willCarry'), dx + 12, py + 212);
 
     // 按钮
     const learned = meta.data.blueprints.includes(bp.id);
@@ -1035,14 +1040,14 @@ export class CampUI {
       ctx.fillText(label, r.x + r.w / 2, r.y + 22);
       ctx.textAlign = 'left';
     };
-    paintBtn(learnRect, learned ? '已学会' : `学会 📜${bp.costShards}`, canLearn);
-    paintBtn(craftRect, `铸造 📜${balance.blueprint.craftCost}`, canCraftNow);
+    paintBtn(learnRect, learned ? t('camp.forge.btnLearned') : t('camp.forge.btnLearn', { n: bp.costShards }), canLearn);
+    paintBtn(craftRect, t('camp.forge.btnCraft', { n: balance.blueprint.craftCost }), canCraftNow);
     this.rects.push({ rect: learnRect, act: 'forgeLearn' });
     this.rects.push({ rect: craftRect, act: 'forgeCraft' });
 
     ctx.fillStyle = this.forgeNotice ? UI.gold : UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText(this.forgeNotice || '点左侧选图纸 · 学会后可反复铸造 · [Esc/F] 关闭', w / 2, py + ph - 14);
+    ctx.fillText(this.forgeNotice || t('camp.forge.footer'), w / 2, py + ph - 14);
   }
 
   // ---- 祭坛 ----
@@ -1054,14 +1059,14 @@ export class CampUI {
     panelBox(ctx, px, py, pw, ph);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('⭐ 星陨祭坛(永久成长)', w / 2, py + 34);
+    ctx.fillText(t('camp.altar.title'), w / 2, py + 34);
     ctx.font = '12px monospace';
-    ctx.fillText(`✦ 星尘 ${meta.data.stardust}`, w / 2, py + 56);
+    ctx.fillText(t('camp.altar.dust', { n: meta.data.stardust }), w / 2, py + 56);
 
     const branches: Array<{ key: 'hp' | 'atk' | 'luck'; name: string; per: string }> = [
-      { key: 'hp', name: '生命祝福', per: `+3%生命/级` },
-      { key: 'atk', name: '攻击祝福', per: `+3%攻击/级` },
-      { key: 'luck', name: '幸运祝福', per: `+3幸运/级` },
+      { key: 'hp', name: t('camp.altar.hp.name'), per: t('camp.altar.hp.per') },
+      { key: 'atk', name: t('camp.altar.atk.name'), per: t('camp.altar.atk.per') },
+      { key: 'luck', name: t('camp.altar.luck.name'), per: t('camp.altar.luck.per') },
     ];
     branches.forEach((b, i) => {
       const bw = (pw - 48 - 24) / 3;
@@ -1084,12 +1089,12 @@ export class CampUI {
       ctx.fillText(b.per, rect.x + bw / 2, rect.y + 62);
       ctx.fillStyle = maxed ? UI.dim : afford ? UI.hp : UI.dim;
       ctx.font = '12px monospace';
-      ctx.fillText(maxed ? '已满级' : `升级 ✦${cost}`, rect.x + bw / 2, rect.y + 104);
+      ctx.fillText(maxed ? t('camp.altar.max') : t('camp.altar.upgrade', { n: cost }), rect.x + bw / 2, rect.y + 104);
       this.rects.push({ rect, act: `up_${b.key}` });
     });
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('点击分支升级 · [Esc/F] 关闭', w / 2, py + ph - 14);
+    ctx.fillText(t('camp.altar.footer'), w / 2, py + ph - 14);
   }
 
   // ---- 职业试炼 ----
@@ -1101,10 +1106,10 @@ export class CampUI {
     panelBox(ctx, px, py, pw, ph);
     ctx.fillStyle = UI.gold;
     ctx.font = 'bold 18px monospace';
-    ctx.fillText('🏵 职业试炼场', w / 2, py + 34);
+    ctx.fillText(t('camp.class.title'), w / 2, py + 34);
 
     // 普攻描述**从 balance 现算**(combat/BasicAttack.describeBasic),不在 UI 里再抄一份 ——
-    // 改平衡表时营地面板会跟着变,不会出现"面板说三段、实际四段"的漂移。
+    // 改平衡表时营地面板会跟着变,不会出现“面板说三段、实际四段”的漂移。
     const classes: Array<{ klass: Klass; icon: string; desc: string }> = [
       { klass: 'blade', icon: '⚔', desc: describeBasic(basicSpec('blade', balance)) },
       { klass: 'ranger', icon: '🏹', desc: describeBasic(basicSpec('ranger', balance)) },
@@ -1133,12 +1138,12 @@ export class CampUI {
       const lines: string[] = [];
       for (let k = 0; k < parts.length; k += 2) lines.push(parts.slice(k, k + 2).join(' '));
       lines.slice(0, 3).forEach((ln, li) => ctx.fillText(ln, rect.x + bw / 2, rect.y + 74 + li * 11));
-      if (sel) ctx.fillText('(出战中)', rect.x + bw / 2, rect.y + 94);
+      if (sel) ctx.fillText(t('camp.class.active'), rect.x + bw / 2, rect.y + 94);
       this.rects.push({ rect, act: `kl_${c.klass}` });
     });
     ctx.fillStyle = UI.dim;
     ctx.font = '11px monospace';
-    ctx.fillText('点击切换出战职业(营地内立即换人试招)· [Esc/F] 关闭', w / 2, py + ph - 14);
+    ctx.fillText(t('camp.class.footer'), w / 2, py + ph - 14);
   }
 
   private tryUpgrade(key: 'hp' | 'atk' | 'luck'): void {

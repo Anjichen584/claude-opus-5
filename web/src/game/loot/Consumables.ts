@@ -11,7 +11,7 @@
  * | 时缓 | 只对**普通敌人**全效,精英/Boss 打折(bossFactor) | 时长上限;不能重叠刷新成无限 |
  * | 元素瓶 | 只附一种元素,持续 elementS;有**充能上限** | 覆盖已有附魔;不改变普攻形态 |
  *
- * 数值全部读 `balance.consumables`(项目硬规则)。
+ * 数值全部读 «balance.consumables»(项目硬规则)。
  */
 import balance from '@data/balance.json';
 import type { Element } from '@game/components';
@@ -39,7 +39,7 @@ export const consumableDef = (id: ConsumableId): ConsumableDef | undefined =>
   consumableDefs().find((d) => d.id === id);
 
 /**
- * 展示用图标/颜色。数值(价格、时长、比例)一律在 balance.json,这里只放"长什么样"——
+ * 展示用图标/颜色。数值(价格、时长、比例)一律在 balance.json,这里只放“长什么样”——
  * 和 Item.glyph 同一口径:美术表现不进数值表。
  */
 export const CONS_VISUAL: Record<ConsumableId, { glyph: string; color: string }> = {
@@ -62,7 +62,7 @@ export const shieldCap = (hpMax: number): number => Math.max(1, Math.round(hpMax
 
 /**
  * 喝护盾药:吸收量 = 上限（**不叠加**,只刷新);返回新状态,不改入参。
- * "不叠加"是刻意的:叠加会让玩家屯 3 瓶药硬吃 Boss 大招,把走位这一层玩没了。
+ * “不叠加”是刻意的:叠加会让玩家屯 3 瓶药硬吃 Boss 大招,把走位这一层玩没了。
  */
 export function applyShield(_cur: ShieldState | null, hpMax: number): ShieldState {
   return { amount: shieldCap(hpMax), t: (C.shield as { durS: number }).durS };
@@ -76,7 +76,7 @@ export function absorbDamage(shield: ShieldState | null, damage: number): [numbe
   return [damage - eaten, left > 0 ? { ...shield, amount: left } : null];
 }
 
-/** 护盾计时(到期即消失,不做"慢慢衰减") */
+/** 护盾计时(到期即消失,不做“慢慢衰减”) */
 export function tickShield(shield: ShieldState | null, dt: number): ShieldState | null {
   if (!shield) return null;
   const t = shield.t - dt;
@@ -108,7 +108,7 @@ export function cleanse(_debuffs: DebuffSummary): CleanseResult {
 // ---------------- 时缓 ----------------
 
 export interface SlowTarget {
-  /** 'normal' 普通敌人 / 'elite' 精英 / 'boss' Boss */
+  /** ‘normal’ 普通敌人 / ‘elite’ 精英 / ‘boss’ Boss */
   tier: 'normal' | 'elite' | 'boss';
 }
 

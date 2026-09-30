@@ -95,21 +95,28 @@ export function drawKnight(ctx: CanvasRenderingContext2D, x: number, y: number, 
   // 腿(交替摆动)
   px(ctx, c('#4a5568'), -2 * P + legSwing, -3 * P, 1.8 * P, 3 * P);
   px(ctx, c('#4a5568'), 0.5 * P - legSwing, -3 * P, 1.8 * P, 3 * P);
-  px(ctx, c('#2f3745'), -2 * P + legSwing, -1 * P, 1.8 * P, 1 * P); // 靴
+  // 靴
+  px(ctx, c('#2f3745'), -2 * P + legSwing, -1 * P, 1.8 * P, 1 * P);
   px(ctx, c('#2f3745'), 0.5 * P - legSwing, -1 * P, 1.8 * P, 1 * P);
 
   // 躯干钢甲
   px(ctx, c('#8fa2ba'), -2.6 * P, top + 5 * P, 5.4 * P, 5 * P);
-  px(ctx, c('#aab7c9'), -2.6 * P, top + 5 * P, 5.4 * P, 2 * P); // 胸口高光
-  px(ctx, c('#5f6f85'), -2.6 * P, top + 9 * P, 5.4 * P, 1 * P); // 甲缘阴影
-  px(ctx, c('#7a4a21'), -2.6 * P, top + 8 * P, 5.4 * P, 1 * P); // 腰带
-  px(ctx, c('#f2a33c'), 0.2 * P, top + 8 * P, 1 * P, 1 * P); // 带扣
+  // 胸口高光
+  px(ctx, c('#aab7c9'), -2.6 * P, top + 5 * P, 5.4 * P, 2 * P);
+  // 甲缘阴影
+  px(ctx, c('#5f6f85'), -2.6 * P, top + 9 * P, 5.4 * P, 1 * P);
+  // 腰带
+  px(ctx, c('#7a4a21'), -2.6 * P, top + 8 * P, 5.4 * P, 1 * P);
+  // 带扣
+  px(ctx, c('#f2a33c'), 0.2 * P, top + 8 * P, 1 * P, 1 * P);
 
   // 头盔
   px(ctx, c('#c6d2e0'), -2.2 * P, top, 4.6 * P, 5 * P);
   px(ctx, c('#9db2c7'), -2.2 * P, top + 3.6 * P, 4.6 * P, 1.4 * P);
-  px(ctx, c('#1d2430'), -0.4 * P, top + 2 * P, 2.6 * P, 1.2 * P); // 面甲缝
-  px(ctx, c('#f2a33c'), -1.2 * P, top - 1.2 * P, 3 * P, 1.2 * P); // 橙羽
+  // 面甲缝
+  px(ctx, c('#1d2430'), -0.4 * P, top + 2 * P, 2.6 * P, 1.2 * P);
+  // 橙羽
+  px(ctx, c('#f2a33c'), -1.2 * P, top - 1.2 * P, 3 * P, 1.2 * P);
   px(ctx, c('#d98a2b'), 1 * P, top - 0.6 * P, 1.4 * P, 0.8 * P);
 
   // 剑(攻击时挥动,平时背持)
@@ -117,10 +124,14 @@ export function drawKnight(ctx: CanvasRenderingContext2D, x: number, y: number, 
   const swing = swingAngle(pose.attackStage, pose.attackProg);
   ctx.translate(2 * P, top + 6 * P);
   ctx.rotate(swing);
-  px(ctx, c('#7a4a21'), 0, -0.7 * P, 2 * P, 1.4 * P); // 柄
-  px(ctx, c('#f2a33c'), 2 * P, -1.2 * P, 1 * P, 2.4 * P); // 护手
-  px(ctx, c('#dfe8f2'), 3 * P, -0.8 * P, 7 * P, 1.6 * P); // 刃
-  px(ctx, c('#ffffff'), 3 * P, -0.8 * P, 7 * P, 0.6 * P); // 刃口高光
+  // 柄
+  px(ctx, c('#7a4a21'), 0, -0.7 * P, 2 * P, 1.4 * P);
+  // 护手
+  px(ctx, c('#f2a33c'), 2 * P, -1.2 * P, 1 * P, 2.4 * P);
+  // 刃
+  px(ctx, c('#dfe8f2'), 3 * P, -0.8 * P, 7 * P, 1.6 * P);
+  // 刃口高光
+  px(ctx, c('#ffffff'), 3 * P, -0.8 * P, 7 * P, 0.6 * P);
   ctx.restore();
 
   ctx.restore();
@@ -187,9 +198,12 @@ export function drawDummy(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.translate(Math.round(x), Math.round(y));
   if (wobble > 0.01) ctx.rotate(Math.sin(phase) * wobble * 0.12);
 
-  px(ctx, '#6b4a2a', -1.2 * P, -9 * P, 2.4 * P, 9 * P); // 主桩
-  px(ctx, '#54371e', -1.2 * P, -9 * P, 0.8 * P, 9 * P); // 阴影侧
-  px(ctx, '#6b4a2a', -4.5 * P, -7.4 * P, 9 * P, 1.6 * P); // 横杆
+  // 主桩
+  px(ctx, '#6b4a2a', -1.2 * P, -9 * P, 2.4 * P, 9 * P);
+  // 阴影侧
+  px(ctx, '#54371e', -1.2 * P, -9 * P, 0.8 * P, 9 * P);
+  // 横杆
+  px(ctx, '#6b4a2a', -4.5 * P, -7.4 * P, 9 * P, 1.6 * P);
   px(ctx, '#54371e', -4.5 * P, -6.6 * P, 9 * P, 0.8 * P);
   // 草垛头
   px(ctx, '#d9b45b', -2.2 * P, -12.6 * P, 4.4 * P, 3.6 * P);
@@ -277,8 +291,10 @@ export function drawBlightWolf(
   px(ctx, c('#584a78'), -6.6 * P, -5.8 * P, 1.8 * P, 1.2 * P);
   // 头
   px(ctx, c('#6b5b8f'), 3.6 * P, -7.2 * P, 3.4 * P, 3 * P);
-  px(ctx, c('#584a78'), 6 * P, -6 * P, 1.6 * P, 1.4 * P); // 吻部
-  px(ctx, c('#4a4060'), 3.8 * P, -8 * P, 1 * P, 1 * P); // 耳
+  // 吻部
+  px(ctx, c('#584a78'), 6 * P, -6 * P, 1.6 * P, 1.4 * P);
+  // 耳
+  px(ctx, c('#4a4060'), 3.8 * P, -8 * P, 1 * P, 1 * P);
   px(ctx, c('#4a4060'), 5.2 * P, -8 * P, 1 * P, 1 * P);
   // 眼(低吼时橙色发亮)
   px(ctx, c(growling ? '#f2a33c' : '#7fd8e8'), 4.6 * P, -6.6 * P, 1 * P, 0.7 * P);
@@ -346,7 +362,8 @@ export function drawOakGolem(
   // 躯干(粗木 + 年轮)
   px(ctx, c('#7a5a33'), -4.4 * P, -11 * P + stomp * 0.4, 8.8 * P, 8 * P);
   px(ctx, c('#8f6c40'), -4.4 * P, -11 * P + stomp * 0.4, 8.8 * P, 2.4 * P);
-  px(ctx, c('#5c4326'), -1.4 * P, -8 * P, 2.8 * P, 2.2 * P); // 年轮芯
+  // 年轮芯
+  px(ctx, c('#5c4326'), -1.4 * P, -8 * P, 2.8 * P, 2.2 * P);
   px(ctx, c('#4a3620'), -0.7 * P, -7.4 * P, 1.4 * P, 1 * P);
   // 背部裂纹弱点(朝后,提示绕背 ×2)
   px(ctx, c('#f2a33c'), -4.4 * P, -9 * P, 0.8 * P, 3 * P);
@@ -403,7 +420,8 @@ export function drawBossNanmir(
   // 巨臂
   px(ctx, c('#4a3620'), -8.4 * P, -12 * P + breathe * 0.5, 2.8 * P, 8 * P);
   px(ctx, c('#4a3620'), 5.6 * P, -12 * P + breathe * 0.5, 2.8 * P, 8 * P);
-  px(ctx, c('#5c4326'), -8.8 * P, -5 * P, 3.6 * P, 2.4 * P); // 拳
+  // 拳
+  px(ctx, c('#5c4326'), -8.8 * P, -5 * P, 3.6 * P, 2.4 * P);
   px(ctx, c('#5c4326'), 5.2 * P, -5 * P, 3.6 * P, 2.4 * P);
   // 头 + 苔冠
   px(ctx, c('#6f5230'), -2.6 * P, -16 * P + breathe * 0.3, 5.2 * P, 3.4 * P);

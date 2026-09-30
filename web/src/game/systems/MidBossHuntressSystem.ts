@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -23,15 +24,15 @@ export const HUNTRESS_TUNING = {
 } as const;
 
 /**
- * 第二章中 Boss 霜噬女猎(双线镜像:Unity `Dungeon/CreatureAI.cs` 的 FrostHuntress 段)。
+ * 第二章中 Boss 霜噬女猎(双线镜像:Unity «Dungeon/CreatureAI.cs» 的 FrostHuntress 段)。
  *
- * 与巨鹿完全反向的设计:巨鹿要贴脸(冲撞),她要距离(弓)。三个招式 = 三种"读法":
- * 1. **瞬影冰矢**:蹲身 0.35s → 瞬步拉开 → 三连追踪冰矢(每发独立瞄准) —— 教玩家"她会跑,追要预判";
- * 2. **冰牙陷阵**:玩家脚下 + 环绕两处延时冰爆(错拍结算) —— 教玩家"站着不动就挨炸";
+ * 与巨鹿完全反向的设计:巨鹿要贴脸(冲撞),她要距离(弓)。三个招式 = 三种“读法”:
+ * 1. **瞬影冰矢**:蹲身 0.35s → 瞬步拉开 → 三连追踪冰矢(每发独立瞄准) —— 教玩家“她会跑,追要预判”;
+ * 2. **冰牙陷阵**:玩家脚下 + 环绕两处延时冰爆(错拍结算) —— 教玩家“站着不动就挨炸”;
  * 3. **猎杀凝视**(核心博弈):1.5s 蓄力,直线 6 段冰枪预警;蓄力期间她**受伤加深**
  *    (Buffs.vulnT,与脆蚀共用通道)且**任何命中都会打断** → 打断 = interruptStunS 硬直
  *    (奖励窗口)。玩家的选择:冲进直线赌打断(高风险高收益),还是横向拉开躲枪(稳)。
- *    —— 巨鹿的博弈是"骗它撞墙",她的博弈是"敢不敢打断"。
+ *    —— 巨鹿的博弈是“骗它撞墙”,她的博弈是“敢不敢打断”。
  *
  * P2(<50%)狂怒:冰矢 +1、陷阱 +1、移速 ×1.15、冷却 ×0.85 —— 数值全走 balance。
  * 三招独立冷却只重置用掉的那招(与巨鹿同一课,有轮换回归测试)。
@@ -64,8 +65,8 @@ export class MidBossHuntressSystem implements System {
         hs.phase = 2;
         hs.blinkCd = Math.min(hs.blinkCd, 0.5);
         hs.trapCd = Math.min(hs.trapCd, 1.0);
-        world.emit(new ToastEvent('❄ 霜噬女猎狂怒:霜雾凝弓,箭上生牙!', '#8fd4ff'));
-        world.emit(new BossPhaseEvent('霜噬女猎', 2, '「狂怒」', '#8fd4ff', tr.x, tr.y));
+        world.emit(new ToastEvent(t('mb.huntress.rage'), '#8fd4ff'));
+        world.emit(new BossPhaseEvent(t('mb.huntress.name'), 2, t('mb.phase.rage'), '#8fd4ff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = hs.phase === 2;
@@ -74,7 +75,7 @@ export class MidBossHuntressSystem implements System {
       hs.trapCd -= dt;
       hs.markCd -= dt;
 
-      // 外来硬直(眩晕):蓄力中被控也要连预警一起撤(只停动作会留下一排"幽灵冰枪")
+      // 外来硬直(眩晕):蓄力中被控也要连预警一起撤(只停动作会留下一排“幽灵冰枪”)
       const stun = buffs !== undefined && buffs.stunT > 0;
       if (stun && hs.state !== 'stagger') {
         if (hs.state === 'markChannel') this.cancelMark(world, hs);
@@ -112,7 +113,7 @@ export class MidBossHuntressSystem implements System {
           vel.vx = (mx / m) * spd;
           vel.vy = (my / m) * spd;
 
-          // 三招轮换:就绪里挑"过期最久"的(与巨鹿同规则,推广到三招)
+          // 三招轮换:就绪里挑“过期最久”的(与巨鹿同规则,推广到三招)
           const ready: Array<['blink' | 'traps' | 'mark', number]> = [];
           if (hs.blinkCd <= 0) ready.push(['blink', hs.blinkCd]);
           if (hs.trapCd <= 0) ready.push(['traps', hs.trapCd]);
@@ -137,12 +138,12 @@ export class MidBossHuntressSystem implements System {
         }
 
         case 'blinkWind': {
-          // 蹲身预警:告诉玩家"她要跑了"
+          // 蹲身预警:告诉玩家“她要跑了”
           vel.vx = 0;
           vel.vy = 0;
           hs.t -= dt;
           if (hs.t <= 0) {
-            // 瞬步:沿"玩家 → 她"的方向再拉开 rangeM(夹回场内)
+            // 瞬步:沿“玩家 → 她”的方向再拉开 rangeM(夹回场内)
             const bx = tr.x - nx * S.blink.rangeM * M;
             const by = tr.y - ny * S.blink.rangeM * M;
             const pad = 1.2 * M;
@@ -197,7 +198,7 @@ export class MidBossHuntressSystem implements System {
             this.cancelMark(world, hs);
             hs.state = 'stagger';
             hs.t = S.mark.interruptStunS;
-            world.emit(new ToastEvent('🏹 猎杀凝视被打断 — 输出窗口!', '#e8c07a'));
+            world.emit(new ToastEvent(t('mb.huntress.interrupted'), '#e8c07a'));
             world.emit(new SfxEvent('reaction'));
             break;
           }
@@ -304,10 +305,10 @@ export class MidBossHuntressSystem implements System {
     const buffs = world.get(self, Buffs);
     if (buffs) buffs.vulnT = Math.max(buffs.vulnT, mk.channelS);
     world.emit(new SfxEvent('growl'));
-    world.emit(new ToastEvent('❄ 猎杀凝视 — 打断她,或离开直线!', '#8fd4ff'));
+    world.emit(new ToastEvent(t('mb.huntress.gaze'), '#8fd4ff'));
   }
 
-  /** 打断/被控:撤掉还没结算的冰枪预警(不能只停动作留下"幽灵冰枪") */
+  /** 打断/被控:撤掉还没结算的冰枪预警(不能只停动作留下“幽灵冰枪”) */
   private cancelMark(world: World, hs: MidBossHuntress): void {
     for (const id of hs.laneIds) world.destroy(id);
     world.flushDestroyed();

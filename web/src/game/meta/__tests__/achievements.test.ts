@@ -74,7 +74,7 @@ describe('成就定义', () => {
   it('分类里的成就加起来等于总数', () => {
     const sum = ACHV_CATS.reduce((s, c) => s + achvInCat(c).length, 0);
     expect(sum).toBe(ACHV_TOTAL);
-    expect(achvById('first_clear')?.name).toBe('序章通关');
+    expect(achvById('first_clear')?.name).toBe('achv.first_clear.name');
     expect(achvById('nope')).toBeUndefined();
   });
 });

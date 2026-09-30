@@ -189,7 +189,7 @@ export class Pickup {
     public item: import('@game/loot/Items').Item | null = null,
     public value = 0,
     public runeId: string | null = null,
-    /** kind='cons' 时的消耗品 id(见 loot/Consumables.ts) */
+    /** kind=‘cons’ 时的消耗品 id(见 loot/Consumables.ts) */
     public consId: import('@game/loot/Consumables').ConsumableId | null = null,
   ) {}
 }
@@ -393,7 +393,7 @@ export class ShopStand {
     public price: number,
     public item: import('@game/loot/Items').Item | null = null,
     public runeId: string | null = null,
-    /** wares='cons' 时卖的是哪种消耗品 */
+    /** wares=‘cons’ 时卖的是哪种消耗品 */
     public consId: import('@game/loot/Consumables').ConsumableId | null = null,
     /** 本摊常规价(特惠/议价前):UI 画划线的原价 */
     public listPrice = price,
@@ -402,7 +402,7 @@ export class ShopStand {
 
 /**
  * 流浪商人(轮 22):房中央站着的 NPC,走近按 F **议价** —— 一家店只能议一次。
- * 单独一个组件而不是复用 ShopStand:商人不卖东西、不参与"最近的摊位"抢占,
+ * 单独一个组件而不是复用 ShopStand:商人不卖东西、不参与“最近的摊位”抢占,
  * 交互距离也更宽(3m),否则玩家常常站不到他跟前。
  */
 export class Merchant {
@@ -475,7 +475,7 @@ export class BossVelsha {
   animT = 0;
 }
 
-/** 第一章中 Boss:苔冠巨鹿(推图中段的"半个 Boss") */
+/** 第一章中 Boss:苔冠巨鹿(推图中段的“半个 Boss”) */
 export class MidBossStag {
   phase: 1 | 2 = 1;
   /**
@@ -597,7 +597,7 @@ export class LeafWisp {
 
 /** 霜尘蛾:二章巡飞撒雾怪 —— 不追人,飞过的地方留冻雾(图鉴第 30 只) */
 export class FrostMoth {
-  /** 巡飞朝向(周期性重选,画"8"字) */
+  /** 巡飞朝向(周期性重选,画“8”字) */
   heading = Math.random() * Math.PI * 2;
   turnT = 0;
   mistT = 0.6;
@@ -696,7 +696,7 @@ export class MeleeSweep {
     public stage: number,
     public element: Element | null = null,
     public knockbackM = 0,
-    /** >0 时命中施加"破甲"(守卫第三段重击):写目标 Buffs.vulnT */
+    /** >0 时命中施加“破甲”(守卫第三段重击):写目标 Buffs.vulnT */
     public applyVulnS = 0,
   ) {}
 }

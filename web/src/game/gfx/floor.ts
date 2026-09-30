@@ -1,7 +1,7 @@
 /**
  * 房间地面装饰烘焙(gfx 层,纯观感、不参与碰撞)。
  *
- * 布局模板(RoomLayouts.floorOf)给出"这块地长什么样",这里只负责画:
+ * 布局模板(RoomLayouts.floorOf)给出“这块地长什么样”,这里只负责画:
  *   water 溪畔浅滩 = 沙岸 + 水带 + 波纹;path 土路/林荫路 = 踩出来的土色带;
  *   moss 苔痕 / sand 砂地 = 软边椭圆。配色按章节换材质(林地/雪原/荒漠)。
  * 所有随机细节都来自传入的 Rng,保证同一房间烘焙结果稳定(不会逐帧抖)。
@@ -40,7 +40,7 @@ type Palette = { base: string; edge: string; spark: string };
 
 /**
  * 冰面(第二章的冰湖/晶簇洞):底色 + 边缘亮圈 + **放射状裂纹** + 星点反光。
- * 裂纹是这个模板的"签名":玩家一眼就能认出"这间房是冰湖",而不是又一块白地。
+ * 裂纹是这个模板的“签名”:玩家一眼就能认出“这间房是冰湖”,而不是又一块白地。
  */
 function paintIce(
   ctx: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number,

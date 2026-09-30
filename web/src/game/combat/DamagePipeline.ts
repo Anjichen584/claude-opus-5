@@ -256,7 +256,8 @@ function triggerReaction(
     });
 
   switch (id) {
-    case 'steam': { // 蒸爆:范围 AOE,可继续引爆邻怪印记(多米诺)
+    // 蒸爆:范围 AOE,可继续引爆邻怪印记(多米诺)
+    case 'steam': {
       world.emit(new RingFxEvent(tTr.x, tTr.y, RX.steam.radiusM * M, color));
       for (const e of enemiesAround(RX.steam.radiusM)) {
         const tr = world.mustGet(e, Transform);
@@ -268,7 +269,8 @@ function triggerReaction(
       }
       break;
     }
-    case 'overload': { // 超载:单体大额 + 强击退
+    // 超载:单体大额 + 强击退
+    case 'overload': {
       dealDamage(world, {
         source: o.source, target: o.target, mult: RX.overload.mult, element: null,
         hitAngle: o.hitAngle, atkOverride: triggerAmount, canCrit: false,
@@ -276,14 +278,16 @@ function triggerReaction(
       });
       break;
     }
-    case 'miasma': { // 燃瘴:毒火云
+    // 燃瘴:毒火云
+    case 'miasma': {
       const z = world.create();
       world.add(z, new Transform(tTr.x, tTr.y));
       const srcAtk = (o.source !== null ? world.get(o.source, Stats)?.atk : undefined) ?? triggerAmount;
       world.add(z, new Zone(RX.miasma.radiusM * M, RX.miasma.lifeS, RX.miasma.intervalS, srcAtk, RX.miasma.mult, 'fire', 'player', color));
       break;
     }
-    case 'chain': { // 冻链:电弧弹射 + 减速
+    // 冻链:电弧弹射 + 减速
+    case 'chain': {
       let n = 0;
       for (const e of enemiesAround(RX.chain.rangeM)) {
         if (n >= RX.chain.targets) break;
@@ -300,12 +304,14 @@ function triggerReaction(
       }
       break;
     }
-    case 'brittle': { // 脆蚀:易伤 debuff
+    // 脆蚀:易伤 debuff
+    case 'brittle': {
       const b = world.get(o.target, Buffs);
       if (b) b.vulnT = RX.brittle.vulnS;
       break;
     }
-    case 'numb': { // 麻痹:眩晕
+    // 麻痹:眩晕
+    case 'numb': {
       const b = world.get(o.target, Buffs);
       if (b) b.stunT = RX.numb.stunS;
       break;

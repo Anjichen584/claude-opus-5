@@ -2,10 +2,10 @@
  * 技能特效档案(第五批之三):技能 id → 用哪张贴图、怎么回退。
  *
  * 为什么单独一张表:特效的失败模式是**静默降级**(贴图没加载就退回程序化,线上看不出异常),
- * 而技能与贴图的对应关系散落在 `SkillSystem.ts` 的 30+ 处 emit 里,没人能一眼看出"哪个技能还没贴图"。
- * 这张表把对应关系集中起来,由 `gfx/__tests__/skillFx.test.ts` 守卫。
+ * 而技能与贴图的对应关系散落在 «SkillSystem.ts» 的 30+ 处 emit 里,没人能一眼看出“哪个技能还没贴图”。
+ * 这张表把对应关系集中起来,由 «gfx/__tests__/skillFx.test.ts» 守卫。
  *
- * 注意:这里是**声明**,实际发射在 `skills/SkillSystem.ts`(它把 sprite 名塞进 FxEvent)。
+ * 注意:这里是**声明**,实际发射在 «skills/SkillSystem.ts»(它把 sprite 名塞进 FxEvent)。
  * 两边不一致时测试会红 —— 这正是这张表存在的意义。
  */
 
@@ -17,18 +17,18 @@ export interface SkillFxSpec {
 }
 
 export const SKILL_FX: Record<string, SkillFxSpec> = {
-  blade_q_cleave: { sprite: null, note: '三段弧光(fx_slash)已够表达,不额外做贴图' },
-  blade_e_tidestep: { sprite: null, note: '突进用拖尾残影(fx_dash_trail,由 DashGhostEvent 统一画)' },
-  blade_r_starfall: { sprite: 'fx_swordfall', note: '星陨:下落的星剑,是剑士的职业签名' },
-  ranger_q_fan: { sprite: null, note: '三连射是弹丸本身,不需要地面贴图' },
-  ranger_e_nova: { sprite: 'fx_nova', note: '疾风回旋:环形风刃(轮 35 收官)' },
-  ranger_r_storm: { sprite: 'fx_arrowrain', note: '箭雨落点标记,玩家靠它判断安全区' },
-  arcanist_q_seeker: { sprite: null, note: '追踪弹丸自表达' },
-  arcanist_e_blink: { sprite: 'fx_blink', note: '星幕闪现:终点星芒闪灭(起点仍用小环)' },
-  arcanist_r_tempest: { sprite: 'fx_vortex', note: '元素风暴:四色漩涡,一眼看出"这团里有四种元素"' },
-  warden_q_quake: { sprite: 'fx_crack', note: '岩震击:地面裂纹,让"砸地"有重量' },
-  warden_e_charge: { sprite: 'fx_shockwave', note: '冲锋终点撞击' },
-  warden_r_roar: { sprite: 'fx_shockwave', note: '大地怒吼:三层冲击波由近及远' },
+  blade_q_cleave: { sprite: null, note: 'three-stage arc (fx_slash) reads well enough; no extra sprite' },
+  blade_e_tidestep: { sprite: null, note: 'dash uses trail ghosts (fx_dash_trail, drawn via DashGhostEvent)' },
+  blade_r_starfall: { sprite: 'fx_swordfall', note: 'Starfall: falling star-swords, the blade signature' },
+  ranger_q_fan: { sprite: null, note: 'triple shot is the projectile itself; no ground sprite needed' },
+  ranger_e_nova: { sprite: 'fx_nova', note: 'Gale Nova: ring of wind blades (round 35 finish)' },
+  ranger_r_storm: { sprite: 'fx_arrowrain', note: 'arrow-rain landing marker; players read safe zones from it' },
+  arcanist_q_seeker: { sprite: null, note: 'homing projectile expresses itself' },
+  arcanist_e_blink: { sprite: 'fx_blink', note: 'Starveil Blink: endpoint star flash (origin keeps the small ring)' },
+  arcanist_r_tempest: { sprite: 'fx_vortex', note: 'Elemental Tempest: four-color vortex, four elements at a glance' },
+  warden_q_quake: { sprite: 'fx_crack', note: 'Quake Strike: ground cracks give the slam weight' },
+  warden_e_charge: { sprite: 'fx_shockwave', note: 'charge endpoint impact' },
+  warden_r_roar: { sprite: 'fx_shockwave', note: 'Earth Roar: three shockwaves, near to far' },
 };
 
 /**

@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
@@ -25,15 +26,15 @@ export const REAPER_TUNING = {
 } as const;
 
 /**
- * 第三章中 Boss 沙暴刽子(双线镜像:Unity `Dungeon/CreatureAI.cs` 的 SandReaper 段)。
+ * 第三章中 Boss 沙暴刽子(双线镜像:Unity «Dungeon/CreatureAI.cs» 的 SandReaper 段)。
  *
  * 中 Boss 三性格的收官:巨鹿=莽(骗它撞墙)、女猎=溜(赌打断)、**刽子=钓(骗它劈空)**。
- * 三个招式 = 三种"读法":
- * 1. **沙缚镰钩**:直线细预警 → 掷钩,命中把玩家**拉到脸前**+小伤 —— 教玩家"细线也要躲,
- *    被钩到就要吃接下来的斩";
+ * 三个招式 = 三种“读法”:
+ * 1. **沙缚镰钩**:直线细预警 → 掷钩,命中把玩家**拉到脸前**+小伤 —— 教玩家“细线也要躲,
+ *    被钩到就要吃接下来的斩”;
  * 2. **处刑斩**(核心博弈):锁定玩家当前位置亮大圆 → 跳劈过去。**劈空 = 刀卡进沙里
  *    missStunS 满硬直**(奖励窗口);劈中只有 hitStunS 半硬直。与巨鹿撞墙同构,
- *    但躲的是"一个点"而不是"一条线",且常和镰钩连成组合技(被拉到脸前 → 立刻要躲圈);
+ *    但躲的是“一个点”而不是“一条线”,且常和镰钩连成组合技(被拉到脸前 → 立刻要躲圈);
  * 3. **沙暴漩涡**:以**自己**为中心环形铺沙暴区 —— 领域封锁,逼玩家不许白嫖贴脸。
  *
  * P2(<50%)狂怒:钩速 ×1.25、漩涡 +1、移速 ×1.15、冷却 ×0.85 —— 数值全走 balance。
@@ -68,8 +69,8 @@ export class MidBossReaperSystem implements System {
         rp.phase = 2;
         rp.hookCd = Math.min(rp.hookCd, 0.5);
         rp.cleaveCd = Math.min(rp.cleaveCd, 1.0);
-        world.emit(new ToastEvent('🌪 沙暴刽子狂怒:黄沙漫卷,刀更快了!', REAPER_TUNING.sandColor));
-        world.emit(new BossPhaseEvent('沙暴刽子', 2, '「狂怒」', REAPER_TUNING.sandColor, tr.x, tr.y));
+        world.emit(new ToastEvent(t('mb.reaper.rage'), REAPER_TUNING.sandColor));
+        world.emit(new BossPhaseEvent(t('mb.reaper.name'), 2, t('mb.phase.rage'), REAPER_TUNING.sandColor, tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = rp.phase === 2;
@@ -78,7 +79,7 @@ export class MidBossReaperSystem implements System {
       rp.cleaveCd -= dt;
       rp.stormCd -= dt;
 
-      // 外来硬直:钩在飞也要收回(不能留一只"幽灵钩"继续拉人)
+      // 外来硬直:钩在飞也要收回(不能留一只“幽灵钩”继续拉人)
       const stun = buffs !== undefined && buffs.stunT > 0;
       if (stun && rp.state !== 'stagger') {
         vel.vx = 0;
@@ -196,7 +197,7 @@ export class MidBossReaperSystem implements System {
               pv.vx += (pbx / pm) * S.hook.pullV;
               pv.vy += (pby / pm) * S.hook.pullV;
             }
-            world.emit(new ToastEvent('⛓ 被镰钩拽了过去!', REAPER_TUNING.sandColor));
+            world.emit(new ToastEvent(t('mb.reaper.hook'), REAPER_TUNING.sandColor));
             world.emit(new SfxEvent('reaction'));
             rp.state = 'recover';
             rp.t = 0.45;
@@ -241,7 +242,7 @@ export class MidBossReaperSystem implements System {
             } else {
               rp.state = 'stagger';
               rp.t = S.cleave.missStunS;
-              world.emit(new ToastEvent('刀卡进了沙里 — 输出窗口!', '#e8c07a'));
+              world.emit(new ToastEvent(t('mb.reaper.stuck'), '#e8c07a'));
               world.emit(new SfxEvent('reaction'));
             }
           }

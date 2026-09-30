@@ -1,7 +1,7 @@
 /**
  * 房间布局模板(web 主线 · GDD §9 房间生成)。
  *
- * 之前每间房都是"同一块空地 + 纯随机撒点",玩家看不出房间个性,怪也没有可绕的地形。
+ * 之前每间房都是“同一块空地 + 纯随机撒点”,玩家看不出房间个性,怪也没有可绕的地形。
  * 现在分两步:
  *   ① 模板摆位(tmpl*):scatter 林间散布 / pillars 石柱阵 / grove 密林 / lane 林荫走廊 /
  *      narrow 窄道 / ring 环形擂台 / shore 溪畔浅滩 / boss Boss 场 / calm 静谧房间。
@@ -50,21 +50,21 @@ export const LAYOUT_IDS = [
 export type LayoutId = (typeof LAYOUT_IDS)[number];
 
 export const LAYOUT_LABELS: Record<LayoutId, string> = {
-  scatter: '林间散布',
-  pillars: '石柱阵',
-  grove: '密林',
-  lane: '林荫走廊',
-  narrow: '窄道',
-  ring: '环形擂台',
-  shore: '溪畔浅滩',
-  boss: 'Boss 场',
-  calm: '静谧房间',
-  icefield: '冰湖裂面',
-  drift: '雪丘夹道',
-  crystal: '晶簇洞',
-  dunes: '沙丘起伏',
-  windrun: '风走廊',
-  ruins: '荒漠废墟',
+  scatter: 'layout.scatter',
+  pillars: 'layout.pillars',
+  grove: 'layout.grove',
+  lane: 'layout.lane',
+  narrow: 'layout.narrow',
+  ring: 'layout.ring',
+  shore: 'layout.shore',
+  boss: 'layout.boss',
+  calm: 'layout.calm',
+  icefield: 'layout.icefield',
+  drift: 'layout.drift',
+  crystal: 'layout.crystal',
+  dunes: 'layout.dunes',
+  windrun: 'layout.windrun',
+  ruins: 'layout.ruins',
 };
 
 /** 地面装饰:只影响背景烘焙,不参与碰撞(浅滩是可以趟过去的) */
@@ -108,7 +108,7 @@ export const LAYOUT_RULES = {
   maxProps: L.maxProps,
   /** 门洞净宽(窄道/废墟共用;≥ 2×(岩半径+玩家半径)=1.44 才走得过去) */
   doorM: L.doorM,
-  /** 模板个性:中央净空半径(冰湖/晶簇洞的"舞台") */
+  /** 模板个性:中央净空半径(冰湖/晶簇洞的“舞台”) */
   centerFreeM: L.centerFreeM,
   /** 废墟断墙柱距 */
   ruinsWallSpacingM: L.ruinsWallSpacingM,
@@ -128,7 +128,7 @@ export function propRadius(pk: PropKind): number {
 }
 export const isSolid = (pk: PropKind): boolean => propRadius(pk) > 0;
 
-/** 该点是否落在"冰面"里(blob = 椭圆;冰湖裂面的玩法舞台,轮 12 机制化) */
+/** 该点是否落在“冰面”里(blob = 椭圆;冰湖裂面的玩法舞台,轮 12 机制化) */
 export function insideIce(floor: FloorFeature, xM: number, yM: number): boolean {
   if (floor.kind !== 'ice' || floor.shape !== 'blob') return false;
   const rx = floor.wM / 2;
@@ -139,7 +139,7 @@ export function insideIce(floor: FloorFeature, xM: number, yM: number): boolean 
   return dx * dx + dy * dy <= 1;
 }
 
-/** 该点是否落在"风带"里(带状,方向 = +x;轮 17 推力地形) */
+/** 该点是否落在“风带”里(带状,方向 = +x;轮 17 推力地形) */
 export function insideWind(floor: FloorFeature, xM: number, yM: number): boolean {
   if (floor.kind !== 'wind' || floor.shape !== 'band') return false;
   return (
@@ -148,7 +148,7 @@ export function insideWind(floor: FloorFeature, xM: number, yM: number): boolean
   );
 }
 
-/** 该点是否落在"浅滩"水面里(水面不立树/石) */
+/** 该点是否落在“浅滩”水面里(水面不立树/石) */
 export function insideWater(floor: FloorFeature, xM: number, yM: number, padM = 0): boolean {
   if (floor.kind !== 'water' || floor.shape !== 'band') return false;
   return (
@@ -249,7 +249,7 @@ const tmplNarrow = (ctx: LayoutCtx): Prop[] => {
   const span = x1 - x0;
   const cy = H / 2;
   const wall = (y: number, doorX: number): Prop[] => {
-    // 墙砖间距 < 2*(岩 0.4 + 玩家 0.32) = 1.44m 才是"砌死的墙"(test 里有这条不变量)
+    // 墙砖间距 < 2*(岩 0.4 + 玩家 0.32) = 1.44m 才是“砌死的墙”(test 里有这条不变量)
     const n = Math.max(2, Math.round(span / LAYOUT_RULES.wallSpacingM));
     const out: Prop[] = [];
     for (let i = 0; i <= n; i++) {
@@ -325,7 +325,7 @@ const tmplShore = (ctx: LayoutCtx): Prop[] => {
 };
 
 /**
- * 冰湖裂面(第二章):中央一大片冰面当"舞台",外圈一圈碎岩像冻结的裂缝。
+ * 冰湖裂面(第二章):中央一大片冰面当“舞台”,外圈一圈碎岩像冻结的裂缝。
  * 冰面中央必须留空 —— 不然冰面就成了装饰,玩家不会在上面打。
  */
 const tmplIcefield = (ctx: LayoutCtx): Prop[] => {
@@ -351,7 +351,7 @@ const tmplIcefield = (ctx: LayoutCtx): Prop[] => {
 
 /**
  * 雪丘夹道(第二章):两道斜向雪堆(岩块砌成)斜切房间,中间留一条宽走廊。
- * 与"窄道"的区别:墙是斜的、只留一条主通道(没有门洞),走位压力来自"只能沿一条线拉扯"。
+ * 与“窄道”的区别:墙是斜的、只留一条主通道(没有门洞),走位压力来自“只能沿一条线拉扯”。
  */
 const tmplDrift = (ctx: LayoutCtx): Prop[] => {
   const [W, H] = [ctx.widthM, ctx.heightM];
@@ -373,7 +373,7 @@ const tmplDrift = (ctx: LayoutCtx): Prop[] => {
 
 /**
  * 晶簇洞(第二章):四角放射状冰晶丛(岩),中央空场。
- * 视觉上是"发育中的晶洞",玩法上是四个可绕背的掩体角落。
+ * 视觉上是“发育中的晶洞”,玩法上是四个可绕背的掩体角落。
  */
 const tmplCrystal = (ctx: LayoutCtx): Prop[] => {
   const [W, H] = [ctx.widthM, ctx.heightM];
@@ -396,7 +396,7 @@ const tmplCrystal = (ctx: LayoutCtx): Prop[] => {
 
 /**
  * 沙丘起伏(第三章):一条横贯的沙丘带(可通行,不是障碍),丘脊上零散岩块与滚草。
- * 沙丘带里不放实心件 —— 沙丘是"地形起伏感",不是墙。
+ * 沙丘带里不放实心件 —— 沙丘是“地形起伏感”,不是墙。
  */
 const tmplDunes = (ctx: LayoutCtx): Prop[] => {
   const [W, H] = [ctx.widthM, ctx.heightM];
@@ -414,7 +414,7 @@ const tmplDunes = (ctx: LayoutCtx): Prop[] => {
 
 /**
  * 荒漠废墟(第三章):两列断墙(柱距 ruinsWallSpacingM)夹出一条纵向街,每列各开一个门洞。
- * 与前两个"横向"模板互补:废墟是**纵向**推进,适合守卫/近战职业贴墙打。
+ * 与前两个“横向”模板互补:废墟是**纵向**推进,适合守卫/近战职业贴墙打。
  */
 const tmplRuins = (ctx: LayoutCtx): Prop[] => {
   const [W, H] = [ctx.widthM, ctx.heightM];
@@ -615,56 +615,56 @@ export function auditLayout(res: LayoutResult, ctx: LayoutCtx): string[] {
   const solids = res.props.filter((p) => isSolid(p.pk));
   const loose = solids.filter((p) => p.role === 'loose');
 
-  if (res.props.length > R.maxProps) bad.push(`物件过多 ${res.props.length} > ${R.maxProps}`);
-  if (loose.length > R.maxLooseSolids) bad.push(`散件过密 ${loose.length} > ${R.maxLooseSolids}`);
-  if (solids.filter((p) => p.role === 'wall').length > R.maxWallProps) bad.push('墙体过多');
+  if (res.props.length > R.maxProps) bad.push(`too many props ${res.props.length} > ${R.maxProps}`);
+  if (loose.length > R.maxLooseSolids) bad.push(`loose solids too dense ${loose.length} > ${R.maxLooseSolids}`);
+  if (solids.filter((p) => p.role === 'wall').length > R.maxWallProps) bad.push('too many wall props');
 
   for (const p of res.props) {
     if (p.xM < 1.1 || p.xM > W - 1.1 || p.yM < 0.9 || p.yM > H - 0.9) {
-      bad.push(`${p.pk} 越界 (${p.xM.toFixed(1)}, ${p.yM.toFixed(1)})`);
+      bad.push(`${p.pk} out of bounds (${p.xM.toFixed(1)}, ${p.yM.toFixed(1)})`);
     }
   }
   for (const p of loose) {
-    if (p.xM < R.entryClearXM) bad.push(`入口净空被占 (x=${p.xM.toFixed(1)})`);
-    if (p.xM > W - R.exitClearXM) bad.push(`出口净空被占 (x=${p.xM.toFixed(1)})`);
+    if (p.xM < R.entryClearXM) bad.push(`entry clear zone blocked (x=${p.xM.toFixed(1)})`);
+    if (p.xM > W - R.exitClearXM) bad.push(`exit clear zone blocked (x=${p.xM.toFixed(1)})`);
   }
   for (const p of solids) {
     for (const r of reserved) {
       const d = Math.hypot(p.xM - r.xM, p.yM - r.yM);
-      if (d < r.rM + R.reservedClearM) bad.push(`压住交互区 (${p.pk} @${d.toFixed(1)}m)`);
+      if (d < r.rM + R.reservedClearM) bad.push(`interactive zone covered (${p.pk} @${d.toFixed(1)}m)`);
     }
-    if (insideWater(res.floor, p.xM, p.yM, 0.3)) bad.push(`水里立了 ${p.pk}`);
+    if (insideWater(res.floor, p.xM, p.yM, 0.3)) bad.push(`solid ${p.pk} placed in water`);
   }
   for (let i = 0; i < loose.length; i++) {
     for (let j = i + 1; j < loose.length; j++) {
       const d = Math.hypot(loose[i].xM - loose[j].xM, loose[i].yM - loose[j].yM);
-      if (d < R.minGapM) bad.push(`散件过近 ${d.toFixed(2)}m < ${R.minGapM}m`);
+      if (d < R.minGapM) bad.push(`solids too close ${d.toFixed(2)}m < ${R.minGapM}m`);
     }
   }
   // 模板个性:窄道走廊得是空的、环形中央得是空的、浅滩水面得是空的
   if (res.id === 'narrow') {
     // 实心件中心离中线 ≥ minCorridorM/2 + 岩半径 ⇒ 通道净宽 ≥ minCorridorM
     const freeHalf = R.minCorridorM / 2 + propRadius('rock');
-    for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('窄道通道被堵');
+    for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('narrow lane blocked');
   }
   if (res.id === 'icefield' || res.id === 'crystal') {
-    // 中央净空:冰面/晶洞的"舞台"必须能站人,否则模板个性就失去意义
+    // 中央净空:冰面/晶洞的“舞台”必须能站人,否则模板个性就失去意义
     const cx = res.id === 'icefield' ? W * 0.52 : W / 2;
     const cy = res.id === 'icefield' ? H / 2 : H / 2;
     for (const p of solids) {
-      if (Math.hypot(p.xM - cx, p.yM - cy) < R.centerFreeM) bad.push(`${res.id} 中央净空被堵`);
+      if (Math.hypot(p.xM - cx, p.yM - cy) < R.centerFreeM) bad.push(`${res.id} center clear zone blocked`);
     }
   }
   if (res.id === 'drift') {
     // 与窄道同一条不变量:走廊净宽 ≥ minCorridorM(墙心离中线 ≥ minCorridorM/2 + 岩半径)
     const freeHalf = R.minCorridorM / 2 + propRadius('rock') - 1e-6;
-    for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('雪丘走廊被堵');
+    for (const p of solids) if (Math.abs(p.yM - H / 2) < freeHalf) bad.push('drift corridor blocked');
   }
   if (res.id === 'dunes') {
     // 沙丘带是地形起伏,不是墙:带内不许有实心件
     const bandY = H * 0.52;
     const bandH = Math.max(2.6, H * 0.2);
-    for (const p of solids) if (Math.abs(p.yM - bandY) < bandH / 2) bad.push('沙丘带里立了实心件');
+    for (const p of solids) if (Math.abs(p.yM - bandY) < bandH / 2) bad.push('solid placed in dune band');
   }
   if (res.id === 'ruins') {
     // 每列断墙必须留一个 ≥ doorM 的门洞(否则玩家会被关在墙里)
@@ -673,14 +673,14 @@ export function auditLayout(res: LayoutResult, ctx: LayoutCtx): string[] {
       if (col.length < 2) continue;
       let best = 0;
       for (let i = 1; i < col.length; i++) best = Math.max(best, col[i] - col[i - 1]);
-      if (best < R.doorM) bad.push(`废墟墙列缺口过窄 ${best.toFixed(2)}m < ${R.doorM}m`);
+      if (best < R.doorM) bad.push(`ruins wall gap too narrow ${best.toFixed(2)}m < ${R.doorM}m`);
     }
   }
   if (res.id === 'ring') {
     const cx = W * 0.58;
     const cy = H / 2;
     const rad = Math.min(W, H) * 0.28;
-    for (const p of solids) if (Math.hypot(p.xM - cx, p.yM - cy) < rad * 0.8) bad.push('环形擂台中央被堵');
+    for (const p of solids) if (Math.hypot(p.xM - cx, p.yM - cy) < rad * 0.8) bad.push('ring arena center blocked');
   }
   return bad;
 }
@@ -697,7 +697,7 @@ export function buildLayout(id: LayoutId, ctx: LayoutCtx): LayoutResult {
   };
 }
 
-/** 房间类型 → 模板清单('battle' 用权重表抽,其余从 byKind 均抽) */
+/** 房间类型 → 模板清单(‘battle’ 用权重表抽,其余从 byKind 均抽) */
 export type LayoutCtxKind = 'battle' | 'elite' | 'boss' | 'calm';
 
 export function pickLayout(kind: LayoutCtxKind, rng: Rng, chapter = 1): LayoutId {

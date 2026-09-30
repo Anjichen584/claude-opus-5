@@ -3,8 +3,8 @@
  * 存:星尘钱包、祭坛等级、保底计数、统计、设置、引导进度。局内进度不存(roguelite)。
  *
  * **3 个存档槽**(2026-09-29):
- * - 0 号槽沿用历史键 `sk_save_v2` —— 老玩家的档自动落在 0 号槽,**零迁移成本**;
- * - 1/2 号槽是 `sk_save_v2_slot1` / `…slot2`;
+ * - 0 号槽沿用历史键 «sk_save_v2» —— 老玩家的档自动落在 0 号槽,**零迁移成本**;
+ * - 1/2 号槽是 «sk_save_v2_slot1» / «…slot2»;
  * - 槽元信息(是否存在/上次游玩)读槽键本身,不做单独的索引文件(少一处会不同步的状态)。
  */
 import { CURRENT_SAVE_VERSION, defaultSave, migrateSave, type SaveData } from './migrations';
@@ -58,7 +58,7 @@ class MetaStore {
     try {
       const res = migrateSave(JSON.parse(raw));
       if (res.reason === 'future') {
-        // 未来档不能当成自己的数据展示,但槽仍然是"有档"(提示玩家换新版打开)
+        // 未来档不能当成自己的数据展示,但槽仍然是“有档”(提示玩家换新版打开)
         return { index: i, exists: true, active: i === this.slotIndex, summary: emptySlotSummary() };
       }
       const d = res.data;

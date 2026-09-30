@@ -1,16 +1,16 @@
 /**
  * 角色动作序列(docs/04-ART-PIPELINE.md §3、10-FULL-PLAN M3 动画批次)。
  *
- * 这一层的全部职责:**给定"角色在干嘛"和"过了多久",说是哪张图**。
+ * 这一层的全部职责:**给定“角色在干嘛”和“过了多久”,说是哪张图**。
  * 之所以抽成纯函数,是因为这里出错的后果都很隐蔽 ——
  * 帧号越界(黑块/白块)、一次性动作循环播放(攻击动作自己转圈)、
- * 缺一整套序列时静默变样(和双帧那次"一大一小"一样,只有玩家看得出来)。
+ * 缺一整套序列时静默变样(和双帧那次“一大一小”一样,只有玩家看得出来)。
  *
- * 回退链(**永远是"降级"而不是"消失"**):
- *   `{base}_{action}_{i}`  ← 完整序列(≥1 帧,数据驱动帧数)
- *   `{base}_walk`          ← 历史两帧资产(只做走路)
- *   `{base}`               ← 站立单帧(一定有)
- * 判定"有没有"由调用方传 `has(name)`,所以这个模块不碰资源加载,可纯函数单测。
+ * 回退链(**永远是“降级”而不是“消失”**):
+ *   «{base}_{action}_{i}»  ← 完整序列(≥1 帧,数据驱动帧数)
+ *   «{base}_walk»          ← 历史两帧资产(只做走路)
+ *   «{base}»               ← 站立单帧(一定有)
+ * 判定“有没有”由调用方传 «has(name)»,所以这个模块不碰资源加载,可纯函数单测。
  */
 import balance from '@data/balance.json';
 
@@ -35,7 +35,7 @@ export const ACTION_PRIORITY: AnimAction[] = ['die', 'dash', 'atk', 'cast', 'hur
 
 /**
  * 动作时钟所需的计时器(玩家/敌人都能用 —— 字段名保持中性)。
- * 每个"一次性动作"都吃**自己开始了多久**:用全局时间会让第 2 次攻击从第 3 帧开始播。
+ * 每个“一次性动作”都吃**自己开始了多久**:用全局时间会让第 2 次攻击从第 3 帧开始播。
  */
 export interface AnimClocks {
   /** 翻滚已进行(秒) */
@@ -51,9 +51,9 @@ export interface AnimClocks {
 }
 
 /**
- * "剩余时间 → 已进行时间"(动作时钟的唯一换算口径)。
- * 计时器给的是**剩余**(`dashT/attackT/...` 都是倒数),动画要的是**已进行**;
- * 剩余 ≤ 0 表示"这个动作没在进行" → 返回 undefined,由 clockFor 归 0。
+ * “剩余时间 → 已进行时间”(动作时钟的唯一换算口径)。
+ * 计时器给的是**剩余**(«dashT/attackT/...» 都是倒数),动画要的是**已进行**;
+ * 剩余 ≤ 0 表示“这个动作没在进行” → 返回 undefined,由 clockFor 归 0。
  */
 export function elapsed(remaining: number | undefined, total: number | undefined): number | undefined {
   if (remaining === undefined || total === undefined) return undefined;
@@ -71,11 +71,11 @@ export interface ClockInputs {
 
 /**
  * 组件字段 → 动作时钟。
- * 抽成纯函数的原因:**漏传一个字段的后果是"某个动作永远停在第一帧"** ——
- * 这类 bug 在画面上看就是"拉弓僵住",很容易被当成美术问题去查(本轮真踩了:漏传 cast)。
+ * 抽成纯函数的原因:**漏传一个字段的后果是“某个动作永远停在第一帧”** ——
+ * 这类 bug 在画面上看就是“拉弓僵住”,很容易被当成美术问题去查(本轮真踩了:漏传 cast)。
  * 现在漏字段会被单测抓住。
  *
- * 注:远程职业的普攻就是 `cast`(见 GameScene 的动作判定),所以 cast 用**普攻的计时器**。
+ * 注:远程职业的普攻就是 «cast»(见 GameScene 的动作判定),所以 cast 用**普攻的计时器**。
  */
 export function clocksOf(c: ClockInputs): AnimClocks {
   return {
@@ -88,7 +88,7 @@ export function clocksOf(c: ClockInputs): AnimClocks {
 }
 
 /**
- * 本帧该用哪个时钟喂 `spriteFor`。
+ * 本帧该用哪个时钟喂 «spriteFor»。
  * - 循环动作(待机/走路)用全局时间:切换时机与动作起点无关,取模后自然不会漂;
  * - 一次性动作用各自的已进行时间,并**夹在 [0, 总时长]** 内(动作结束后计时器可能被清零或为负)。
  */
@@ -109,7 +109,7 @@ export interface ActorState {
   /** 已死亡(播放死亡序列,不循环) */
   dead?: boolean;
   dashing?: boolean;
-  /** 正在普攻(具体播哪个动作由 `attackAction()` 决定) */
+  /** 正在普攻(具体播哪个动作由 «attackAction()» 决定) */
   attacking?: boolean;
   /** 正在吟唱(敌人读条等) */
   casting?: boolean;
@@ -118,11 +118,11 @@ export interface ActorState {
 }
 
 /**
- * 普攻该播哪个动作:**远程职业走 `cast`**。
+ * 普攻该播哪个动作:**远程职业走 «cast»**。
  *
  * 这是**代码口径**不是美术口径 —— 挥剑与拉弓本来就是两套姿态,所以猎手/秘术师的
- * `cast` 序列就是它们的普攻序列(美术管线那边也是按这个排的批)。
- * 抽成函数是因为这条规则以前散在调用点里写成 `attacking && !shotKlass` / `casting && shotKlass`
+ * «cast» 序列就是它们的普攻序列(美术管线那边也是按这个排的批)。
+ * 抽成函数是因为这条规则以前散在调用点里写成 «attacking && !shotKlass» / «casting && shotKlass»
  * 一对双重否定,谁改谁错,而且漏一处就会「打起来了还在跑」。
  */
 export function attackAction(isShot: boolean): AnimAction {
@@ -131,7 +131,7 @@ export function attackAction(isShot: boolean): AnimAction {
 
 /**
  * 由状态推动作(纯函数)。
- * @param attack 普攻形态(见 `attackAction()`);默认近战 `atk`。敌人吟唱走 `casting` 这条路。
+ * @param attack 普攻形态(见 «attackAction()»);默认近战 «atk»。敌人吟唱走 «casting» 这条路。
  */
 export function actionOf(s: ActorState, attack: AnimAction = 'atk'): AnimAction {
   if (s.dead) return 'die';
@@ -143,7 +143,7 @@ export function actionOf(s: ActorState, attack: AnimAction = 'atk'): AnimAction 
   return 'idle';
 }
 
-/** 序列帧名:`knight_walk_1`(1 起,和美术管线一致) */
+/** 序列帧名:«knight_walk_1»(1 起,和美术管线一致) */
 export function frameName(base: string, action: AnimAction, i: number): string {
   return `${base}_${action}_${i}`;
 }
@@ -152,7 +152,7 @@ export function frameName(base: string, action: AnimAction, i: number): string {
  * 本帧该画的精灵名。
  *
  * @param t  动作开始以来的秒数(循环动作可直接传全局时间,结果只依赖取模)
- * @param has 资源存在判定(通常是 `sprites.get(name) !== null`)
+ * @param has 资源存在判定(通常是 «sprites.get(name) !== null»)
  */
 export function spriteFor(
   base: string,
@@ -219,17 +219,17 @@ export function cycleSec(action: AnimAction = 'walk'): number {
 }
 
 /**
- * 两帧资产的命名后缀。杂兵/中Boss 早期只有两张图(`{base}` + `{base}_f2`),
- * 和玩家/精英的 `{base}_{action}_{i}` 序列**并存**:序列齐全时走序列,
- * 只有两帧的走这条。两套命名不是历史遗留不清理 —— 图鉴里 22 只怪都是 `_f2`,重命名收益为零、风险不小。
+ * 两帧资产的命名后缀。杂兵/中Boss 早期只有两张图(«{base}» + «{base}_f2»),
+ * 和玩家/精英的 «{base}_{action}_{i}» 序列**并存**:序列齐全时走序列,
+ * 只有两帧的走这条。两套命名不是历史遗留不清理 —— 图鉴里 22 只怪都是 «_f2»,重命名收益为零、风险不小。
  */
 export const TWO_FRAME_SUFFIX = '_f2';
 
 /**
- * 两帧资产这一帧要不要翻到 `_f2`(纯函数)。
+ * 两帧资产这一帧要不要翻到 «_f2»(纯函数)。
  *
  * 交替速度**推导**自走路规格:走路一圈 = 4 帧 = 两个步幅,所以两帧资产正好**每半圈翻一次**。
- * 之前这里在 `GameScene.frame2` 里手写着 `floor(t * 8) % 2`,和 `balance.anim.walk` 是两个独立的数 ——
+ * 之前这里在 «GameScene.frame2» 里手写着 «floor(t * 8) % 2»,和 «balance.anim.walk» 是两个独立的数 ——
  * 改帧率时玩家的走路会变、杂兵不会(而且当时快了一倍:8 次/秒 vs 2 圈/秒)。现在只有一个来源。
  */
 export function twoFrameFlip(t: number, moving = true): boolean {
@@ -240,8 +240,8 @@ export function twoFrameFlip(t: number, moving = true): boolean {
 }
 
 /**
- * 杂兵两帧走路这帧该画哪个名字:**没有 `_f2` 资产就退回站立单帧**(降级而非消失)。
- * `moving=false`(站着不动/被定身)时也退回单帧:原地抖腿看着像卡了。
+ * 杂兵两帧走路这帧该画哪个名字:**没有 «_f2» 资产就退回站立单帧**(降级而非消失)。
+ * «moving=false»(站着不动/被定身)时也退回单帧:原地抖腿看着像卡了。
  */
 export function twoFrame(
   base: string,

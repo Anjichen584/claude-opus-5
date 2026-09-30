@@ -1,3 +1,4 @@
+import { t } from '@game/i18n';
 import type { World } from '@engine/ecs/World';
 import { Rng } from '@engine/core/Rng';
 import balance from '@data/balance.json';
@@ -53,8 +54,8 @@ export class RunManager {
   /** 当前章节(GameScene.startRun 设置) */
   chapter: 1 | 2 | 3 = 1;
   /**
-   * 无尽模式(轮 24):三章跑完不结算,接"下一循环"(章节按 1→2→3→1 循环,乘区随循环数增长)。
-   * 只有 `endless = true` 时 Boss 房清空才返回 'loop' 而不是 'victory'。
+   * 无尽模式(轮 24):三章跑完不结算,接“下一循环”(章节按 1→2→3→1 循环,乘区随循环数增长)。
+   * 只有 «endless = true» 时 Boss 房清空才返回 ‘loop’ 而不是 ‘victory’。
    */
   endless = false;
   /** 已完成的循环数(0 = 第一遍三章中的第一段) */
@@ -80,8 +81,8 @@ export class RunManager {
 
   /**
    * 进入下一循环(无尽模式):章节往下循环、房间序号归零、乘区按新循环重算。
-   * 刻意**不重置** 玩家身上的东西(装备/词缀/符文/星尘)—— 无尽是"带着整局的积累继续往上爬",
-   * 而不是重开一局;否则这个模式就只是"反复打三章",没有长线感。
+   * 刻意**不重置** 玩家身上的东西(装备/词缀/符文/星尘)—— 无尽是“带着整局的积累继续往上爬”,
+   * 而不是重开一局;否则这个模式就只是“反复打三章”,没有长线感。
    */
   nextLoop(world: World, playerE: number): void {
     this.loop++;
@@ -96,7 +97,7 @@ export class RunManager {
     this.startRoom(world, 'battle', playerE);
     const m = this.loopMults;
     world.emit(new ToastEvent(
-      `♾ ${loopLabel(this.loop)} —— 怪血 ×${m.hp.toFixed(1)} 攻击 ×${m.atk.toFixed(2)} 掉落 ×${m.loot.toFixed(2)}`,
+      t('run.endless.loop', { loop: loopLabel(this.loop), hp: m.hp.toFixed(1), atk: m.atk.toFixed(2), loot: m.loot.toFixed(2) }),
       '#ff9a6b'));
     world.emit(new SfxEvent('ult'));
   }
@@ -134,7 +135,7 @@ export class RunManager {
     ptr.prevX = ptr.x;
     ptr.prevY = ptr.y;
 
-    // 内容先落地:摊位/石碑/宝箱把位置登记成"净空区",摆件时自动绕开
+    // 内容先落地:摊位/石碑/宝箱把位置登记成“净空区”,摆件时自动绕开
     const reserved: Reserved[] = [];
     const hold = (xM: number, yM: number, rM: number): void => { reserved.push({ xM, yM, rM }); };
 
@@ -145,7 +146,7 @@ export class RunManager {
         this.waveTimer = 0.8;
         break;
       case 'elite':
-        // 深渊(轮 23)给精英房加波:难度档只加"这一间更长",不动房间序列
+        // 深渊(轮 23)给精英房加波:难度档只加“这一间更长”,不动房间序列
         this.pendingWaves = 1 + runMods.extraWaves + runMods.eliteWaves;
         this.waveTimer = 0.8;
         break;
@@ -163,7 +164,7 @@ export class RunManager {
           world.add(e, new Velocity());
           world.add(e, new Pickup('item', item));
         }
-        world.emit(new ToastEvent('宝藏室!', RARITY_COLORS.epic));
+        world.emit(new ToastEvent(t('run.treasure'), RARITY_COLORS.epic));
         break;
       }
       case 'shop': {
@@ -193,8 +194,8 @@ export class RunManager {
         const deals = stock.filter((g) => g.deal).length;
         const shelf = stock.filter((g) => g.wares === 'rune').length;
         world.emit(new ToastEvent(
-          `🛒 流浪商人:${stock.length} 个货位${deals > 0 ? ' · 有特惠' : ''}`
-          + `${shelf > 0 ? ` · 符文货架 ×${shelf}` : ''} · 找商人可议价`,
+          t('run.shop', { n: stock.length })
+          + `${deals > 0 ? t('run.shop.deal') : ''}${shelf > 0 ? t('run.shop.shelf', { n: shelf }) : ''}` + t('run.shop.haggle'),
           '#8fd4c8'));
         break;
       }
@@ -209,7 +210,7 @@ export class RunManager {
           world.add(e, new Transform((9.5 + i * 4) * M, cy));
           world.add(e, new EventTotem(k));
         });
-        world.emit(new ToastEvent(`❓ 秘境:「${kinds.map(totemName).join(' / ')}」—— 只能选一(按 F)`, '#e8c07a'));
+        world.emit(new ToastEvent(t('run.event', { names: kinds.map(totemName).join(' / ') }), '#e8c07a'));
         break;
       }
       case 'midboss': {
@@ -251,7 +252,7 @@ export class RunManager {
         world.add(e, new ElementMarks());
         world.add(e, new Buffs());
         world.emit(new ToastEvent(
-          isCh3 ? '🗡 沙暴刽子——黄沙里拖着一柄大过人的刀' : isCh2 ? '🏹 霜噬女猎——霜雾里弓弦已拉满' : '🦌 苔冠巨鹿——鹿角压低,苔雾漫起',
+          isCh3 ? t('run.midboss.ch3') : isCh2 ? t('run.midboss.ch2') : t('run.midboss.ch1'),
           isCh3 ? '#d4a45f' : isCh2 ? '#8fd4ff' : '#8fd45f',
         ));
         world.emit(new SfxEvent('ult'));
@@ -343,7 +344,7 @@ export class RunManager {
         }
       } else if (enemiesLeft === 0 && this.pendingWaves === 0) {
         this.cleared = true;
-        world.emit(new ToastEvent('房间清空!前往出口 →', '#5FD068'));
+        world.emit(new ToastEvent(t('run.cleared'), '#5FD068'));
         world.emit(new SfxEvent('skill'));
       }
     }
@@ -380,10 +381,12 @@ export class RunManager {
     const next = this.depth + 1;
     if (next >= R.count) return ['boss'];
     // 章节门控:二三章的中 Boss 还没做(10-FULL-PLAN 轮 13/21),到那里再开
-    if (next === R.midbossIndex) return ['midboss']; // 三章中 Boss 齐编(轮 5/13/16)
+    // 三章中 Boss 齐编(轮 5/13/16)
+    if (next === R.midbossIndex) return ['midboss'];
     if (next === this.eliteIndex) return ['elite'];
     const choiceIdx = (R.choiceAt as number[]).indexOf(next);
-    if (choiceIdx === 0) return ['treasure', 'event']; // 稳定收益 vs 三选一赌局
+    // 稳定收益 vs 三选一赌局
+    if (choiceIdx === 0) return ['treasure', 'event'];
     // 周常铁律「闭市」:商店关门,选路只剩硬打
     if (choiceIdx >= 1) return runMods.shopClosed ? ['battle', 'battle'] : ['battle', 'shop'];
     return ['battle'];
@@ -434,28 +437,38 @@ export class RunManager {
           ['cinderrat', 30, 1, 0],
           ['duststinger', 18, 2, 0],
           ['flamedancer', 16, 2, 1],
-          ['sparklizard', 12, 1, 1], // 荒漠雷蜥(雷,与火组成超载连锁)
+          // 荒漠雷蜥(雷,与火组成超载连锁)
+          ['sparklizard', 12, 1, 1],
           ['dunebeetle', 16, 2, 2],
-          ['mirageblossom', 12, 1, 1], // 沙蜃花(伏击,轮 11)
-          ['emberwhirl', 14, 2, 2],    // 烬旋灵(画线,轮 11)
-          ['frostslime', 10, 2, 3], // 绿洲史莱姆(冰,反差连锁)
+          // 沙蜃花(伏击,轮 11)
+          ['mirageblossom', 12, 1, 1],
+          // 烬旋灵(画线,轮 11)
+          ['emberwhirl', 14, 2, 2],
+          // 绿洲史莱姆(冰,反差连锁)
+          ['frostslime', 10, 2, 3],
         ]
       : this.chapter === 2
       ? [
           ['snowpuff', 30, 1, 0],
           ['blizzardhawk', 20, 1, 0],
           ['frostmage', 16, 2, 1],
-          ['sparklizard', 12, 1, 1], // 冰原也有蜥蜴(雷,与冰组成脆冰连锁)
+          // 冰原也有蜥蜴(雷,与冰组成脆冰连锁)
+          ['sparklizard', 12, 1, 1],
           ['iceturtle', 14, 2, 2],
-          ['icespike', 12, 1, 1],  // 冰锥笋(炮台,轮 11)
-          ['iceglider', 14, 1, 2], // 霜刃滑手(漂移,轮 11)
-          ['frostmoth', 12, 1, 1], // 霜尘蛾(漫游画雾,图鉴 30)
-          ['emberimp', 10, 2, 3], // 深处的余烬小鬼(火,融雪反差)
+          // 冰锥笋(炮台,轮 11)
+          ['icespike', 12, 1, 1],
+          // 霜刃滑手(漂移,轮 11)
+          ['iceglider', 14, 1, 2],
+          // 霜尘蛾(漫游画雾,图鉴 30)
+          ['frostmoth', 12, 1, 1],
+          // 深处的余烬小鬼(火,融雪反差)
+          ['emberimp', 10, 2, 3],
         ]
       : [
           ['shroomling', 30, 1, 0],
           ['windbee', 22, 1, 0],
-          ['leafwisp', 16, 1, 1], // 风叶精(乘风射手,轮 17)
+          // 风叶精(乘风射手,轮 17)
+          ['leafwisp', 16, 1, 1],
           ['frostslime', 16, 2, 1],
           ['sparklizard', 14, 1, 1],
           ['emberimp', 14, 2, 2],
@@ -483,7 +496,7 @@ export class RunManager {
     if (!this.spriteSpawned && this.rng.chance(R.spriteChance)) {
       this.spriteSpawned = true;
       this.spawn(world, 'stardustsprite', night);
-      world.emit(new ToastEvent('✨ 星尘精灵出现了!抓住它!', '#ffd94f'));
+      world.emit(new ToastEvent(t('run.sprite'), '#ffd94f'));
     }
   }
 

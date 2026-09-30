@@ -10,14 +10,14 @@ export interface ReactionDef {
 
 const R = (id: ReactionDef['id'], name: string, color: string): ReactionDef => ({ id, name, color });
 
-/** key: 两元素按字典序排列后 join('+') */
+/** key: 两元素按字典序排列后 join(‘+’) */
 const TABLE = new Map<string, ReactionDef>([
-  ['fire+ice', R('steam', '蒸爆', '#cfe8ff')],
-  ['bolt+fire', R('overload', '超载', '#ffd94f')],
-  ['fire+toxin', R('miasma', '燃瘴', '#b8e04f')],
-  ['bolt+ice', R('chain', '冻链', '#9fdcff')],
-  ['ice+toxin', R('brittle', '脆蚀', '#c9f27e')],
-  ['bolt+toxin', R('numb', '麻痹', '#e8f24f')],
+  ['fire+ice', R('steam', 'rx.steam', '#cfe8ff')],
+  ['bolt+fire', R('overload', 'rx.overload', '#ffd94f')],
+  ['fire+toxin', R('miasma', 'rx.miasma', '#b8e04f')],
+  ['bolt+ice', R('chain', 'rx.chain', '#9fdcff')],
+  ['ice+toxin', R('brittle', 'rx.brittle', '#c9f27e')],
+  ['bolt+toxin', R('numb', 'rx.numb', '#e8f24f')],
 ]);
 
 export function reactionOf(a: Element, b: Element): ReactionDef | null {
