@@ -15,12 +15,12 @@ namespace StarfallKnights.Skills
     }
 
     /// <summary>
-    /// 全 36 枚符文(12 技能 × 3 元素互斥),与 web 端逐字段对齐。
+    /// 全 48 枚符文(12 技能 × 四元素全配),与 web 端逐字段对齐。
     /// 一致性由 unity/Tests 的 parity 测试守卫(直接读 web/src/data/runes/pool.json 比对)。
     /// </summary>
     public static class RunePool
     {
-        /// <summary>Blade 9 枚(镜像 web data/runes/pool.json)。</summary>
+        /// <summary>Blade 12 枚(镜像 web data/runes/pool.json)。</summary>
         public static readonly List<RuneDef> Blade = new()
         {
             new RuneDef { Id = "rune_emberseed", Skill = "blade_q_cleave", Name = "焚风之种", Element = Element.Fire, GroundZone = new[] { 1.6f, 2f, 0.5f, 0.6f } },
@@ -32,9 +32,12 @@ namespace StarfallKnights.Skills
             new RuneDef { Id = "rune_stormstring", Skill = "blade_r_starfall", Name = "引雷矢", Element = Element.Bolt, GroundZone = null },
             new RuneDef { Id = "rune_frostfall", Skill = "blade_r_starfall", Name = "霜陨", Element = Element.Ice, GroundZone = new[] { 0.9f, 1.4f, 0.5f, 0.3f } },
             new RuneDef { Id = "rune_cinderrain", Skill = "blade_r_starfall", Name = "烬雨", Element = Element.Fire, GroundZone = new[] { 0.9f, 1.4f, 0.5f, 0.4f } },
+            new RuneDef { Id = "rune_stormfang", Skill = "blade_q_cleave", Name = "惊雷之牙", Element = Element.Bolt, GroundZone = null },
+            new RuneDef { Id = "rune_miasmatrail", Skill = "blade_e_tidestep", Name = "瘴影残迹", Element = Element.Toxin, GroundZone = null },
+            new RuneDef { Id = "rune_blightfall", Skill = "blade_r_starfall", Name = "腐星雨", Element = Element.Toxin, GroundZone = null },
         };
 
-        /// <summary>Ranger 9 枚(镜像 web data/runes/pool.json)。</summary>
+        /// <summary>Ranger 12 枚(镜像 web data/runes/pool.json)。</summary>
         public static readonly List<RuneDef> Ranger = new()
         {
             new RuneDef { Id = "rune_flamefeather", Skill = "ranger_q_fan", Name = "焰羽箭", Element = Element.Fire, GroundZone = null },
@@ -46,9 +49,12 @@ namespace StarfallKnights.Skills
             new RuneDef { Id = "rune_boltring", Skill = "ranger_e_nova", Name = "雷环", Element = Element.Bolt, GroundZone = null },
             new RuneDef { Id = "rune_pyrestorm", Skill = "ranger_r_storm", Name = "炎雨", Element = Element.Fire, GroundZone = null },
             new RuneDef { Id = "rune_rimestorm", Skill = "ranger_r_storm", Name = "凇雨", Element = Element.Ice, GroundZone = null },
+            new RuneDef { Id = "rune_stormfeather", Skill = "ranger_q_fan", Name = "雷羽箭", Element = Element.Bolt, GroundZone = null },
+            new RuneDef { Id = "rune_venomring", Skill = "ranger_e_nova", Name = "毒环", Element = Element.Toxin, GroundZone = null },
+            new RuneDef { Id = "rune_miasmastorm", Skill = "ranger_r_storm", Name = "瘴雨", Element = Element.Toxin, GroundZone = null },
         };
 
-        /// <summary>Arcanist 9 枚(镜像 web data/runes/pool.json)。</summary>
+        /// <summary>Arcanist 12 枚(镜像 web data/runes/pool.json)。</summary>
         public static readonly List<RuneDef> Arcanist = new()
         {
             new RuneDef { Id = "rune_pyreseeker", Skill = "arcanist_q_seeker", Name = "炽星追曳", Element = Element.Fire, GroundZone = null },
@@ -60,9 +66,12 @@ namespace StarfallKnights.Skills
             new RuneDef { Id = "rune_venomveil", Skill = "arcanist_e_blink", Name = "瘴幕", Element = Element.Toxin, GroundZone = new[] { 1.5f, 2f, 0.5f, 0.4f } },
             new RuneDef { Id = "rune_pyretempest", Skill = "arcanist_r_tempest", Name = "炽焰风暴", Element = Element.Fire, GroundZone = null },
             new RuneDef { Id = "rune_glacialtempest", Skill = "arcanist_r_tempest", Name = "凛冬风暴", Element = Element.Ice, GroundZone = null },
+            new RuneDef { Id = "rune_venomseeker", Skill = "arcanist_q_seeker", Name = "蚀星追曳", Element = Element.Toxin, GroundZone = null },
+            new RuneDef { Id = "rune_stormveil", Skill = "arcanist_e_blink", Name = "雷幕", Element = Element.Bolt, GroundZone = null },
+            new RuneDef { Id = "rune_stormtempest", Skill = "arcanist_r_tempest", Name = "雷霆风暴", Element = Element.Bolt, GroundZone = null },
         };
 
-        /// <summary>Warden 9 枚(镜像 web data/runes/pool.json)。</summary>
+        /// <summary>Warden 12 枚(镜像 web data/runes/pool.json)。</summary>
         public static readonly List<RuneDef> Warden = new()
         {
             new RuneDef { Id = "rune_thundershatter", Skill = "warden_q_quake", Name = "碎雷震", Element = Element.Bolt, GroundZone = null },
@@ -74,9 +83,12 @@ namespace StarfallKnights.Skills
             new RuneDef { Id = "rune_stormram", Skill = "warden_e_charge", Name = "雷霆冲角", Element = Element.Bolt, GroundZone = null },
             new RuneDef { Id = "rune_pyreroar", Skill = "warden_r_roar", Name = "燎原怒吼", Element = Element.Fire, GroundZone = null },
             new RuneDef { Id = "rune_venomroar", Skill = "warden_r_roar", Name = "沼泽怒吼", Element = Element.Toxin, GroundZone = null },
+            new RuneDef { Id = "rune_frostshatter", Skill = "warden_q_quake", Name = "冰霜震", Element = Element.Ice, GroundZone = null },
+            new RuneDef { Id = "rune_venomram", Skill = "warden_e_charge", Name = "腐沼冲角", Element = Element.Toxin, GroundZone = null },
+            new RuneDef { Id = "rune_stormroar", Skill = "warden_r_roar", Name = "雷霆怒吼", Element = Element.Bolt, GroundZone = null },
         };
 
-        /// <summary>按职业取 9 枚(klass: blade/ranger/arcanist/warden)。</summary>
+        /// <summary>按职业取 12 枚(klass: blade/ranger/arcanist/warden)。</summary>
         public static List<RuneDef> ForClass(string klass) => klass switch
         {
             "ranger" => Ranger,
@@ -85,7 +97,7 @@ namespace StarfallKnights.Skills
             _ => Blade,
         };
 
-        /// <summary>全部 36 枚(开局随机赠送/掉落池共用)。</summary>
+        /// <summary>全部 48 枚(开局随机赠送/掉落池共用)。</summary>
         public static List<RuneDef> All()
         {
             var all = new List<RuneDef>();

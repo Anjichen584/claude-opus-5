@@ -1021,9 +1021,9 @@ namespace StarfallKnights.Tests
 
         private static void TestRunePool()
         {
-            Suite("符文池(36 枚 / 每技能 3 枚互斥)");
+            Suite("符文池(48 枚 / 每技能四元素全配)");
             var all = RunePool.All();
-            Check(all.Count == 36, $"共 36 枚(实际 {all.Count})");
+            Check(all.Count == 48, $"共 48 枚(实际 {all.Count})");
             var ids = new HashSet<string>();
             bool dup = false;
             foreach (var r in all) if (!ids.Add(r.Id)) dup = true;
@@ -1039,7 +1039,7 @@ namespace StarfallKnights.Tests
             bool threeEach = true, exclusive = true, hasElement = true;
             foreach (var kv in bySkill)
             {
-                if (kv.Value.Count != 3) threeEach = false;
+                if (kv.Value.Count != 4) threeEach = false;
                 var els = new HashSet<Element>();
                 foreach (var r in kv.Value)
                 {
@@ -1047,11 +1047,11 @@ namespace StarfallKnights.Tests
                     if (!els.Add(r.Element.Value)) exclusive = false;
                 }
             }
-            Check(threeEach, "每个技能位恰好 3 枚");
+            Check(threeEach, "每个技能位恰好 4 枚");
             Check(hasElement, "每枚符文都有元素");
-            Check(exclusive, "同技能位的 3 枚元素互斥");
-            Check(RunePool.ForClass("ranger").Count == 9 && RunePool.ForClass("warden").Count == 9,
-                "按职业取用各 9 枚");
+            Check(exclusive, "同技能位的 4 枚元素互斥(即四元素全覆盖)");
+            Check(RunePool.ForClass("ranger").Count == 12 && RunePool.ForClass("warden").Count == 12,
+                "按职业取用各 12 枚");
         }
 
         // ---------------- 掉落 ----------------
@@ -1685,8 +1685,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 30 && Codex.RuneTotal == 36,
-                $"条目总数 30 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 30 && Codex.RuneTotal == 48,
+                $"条目总数 30 怪 + 48 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 

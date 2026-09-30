@@ -1459,8 +1459,8 @@ namespace StarfallKnights.Tests
             var cs = new Dictionary<string, RuneDef>();
             foreach (var r in RunePool.All()) cs[r.Id] = r;
 
-            check(json.Count == 36, $"web 侧 36 枚符文(实际 {json.Count})");
-            check(cs.Count == 36, $"C# 侧 36 枚符文(实际 {cs.Count})");
+            check(json.Count == 48, $"web 侧 48 枚符文(实际 {json.Count})");
+            check(cs.Count == 48, $"C# 侧 48 枚符文(实际 {cs.Count})");
 
             int bad = 0;
             var elemOf = new Dictionary<string, Element>
@@ -1515,9 +1515,9 @@ namespace StarfallKnights.Tests
                     }
                 }
             }
-            check(bad == 0, "36 枚符文的 id/技能/名称/元素/地带与 JSON 完全一致");
+            check(bad == 0, "48 枚符文的 id/技能/名称/元素/地带与 JSON 完全一致");
 
-            // 每技能位 3 枚 & 元素互斥(与 web 同规则,防止漏改一侧)
+            // 每技能位 4 枚 & 四元素全覆盖(与 web 同规则,防止漏改一侧)
             var bySkill = new Dictionary<string, HashSet<Element>>();
             foreach (var r in cs.Values)
             {
@@ -1525,8 +1525,8 @@ namespace StarfallKnights.Tests
                 bySkill[r.Skill].Add(r.Element.Value);
             }
             bool ok = bySkill.Count == 12;
-            foreach (var kv in bySkill) if (kv.Value.Count != 3) ok = false;
-            check(ok, "12 技能位 × 3 元素互斥");
+            foreach (var kv in bySkill) if (kv.Value.Count != 4) ok = false;
+            check(ok, "12 技能位 × 四元素全覆盖");
         }
     }
 }

@@ -12,22 +12,22 @@ const VALID_SKILLS = [...BLADE_SKILLS, ...OTHER_SKILLS];
 const VALID_ELEMENTS = ['fire', 'ice', 'bolt', 'toxin'];
 
 describe('符文池', () => {
-  it('共 36 枚,id 唯一', () => {
-    expect(pool.runes.length).toBe(36);
+  it('共 48 枚,id 唯一', () => {
+    expect(pool.runes.length).toBe(48);
     const ids = new Set(pool.runes.map((r) => r.id));
-    expect(ids.size).toBe(36);
+    expect(ids.size).toBe(48);
   });
 
-  it('全 12 技能每技能 3 枚(四职业满配)', () => {
+  it('全 12 技能每技能 4 枚(四职业满配)', () => {
     for (const skill of VALID_SKILLS) {
-      expect(pool.runes.filter((r) => r.skill === skill).length, skill).toBe(3);
+      expect(pool.runes.filter((r) => r.skill === skill).length, skill).toBe(4);
     }
   });
 
-  it('每技能 3 枚符文元素互不重复(流派差异)', () => {
+  it('每技能四元素全覆盖(火/冰/雷/毒各一,流派差异)', () => {
     for (const skill of VALID_SKILLS) {
       const els = pool.runes.filter((r) => r.skill === skill).map((r) => r.element);
-      expect(new Set(els).size, skill).toBe(3);
+      expect([...new Set(els)].sort(), skill).toEqual([...VALID_ELEMENTS].sort());
     }
   });
 

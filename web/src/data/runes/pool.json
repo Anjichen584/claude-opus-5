@@ -1,5 +1,5 @@
 {
-  "$doc": "符文池:掉落/商店获取,背包(Tab)点击镶嵌。原则:符文改变技能行为与元素,不加裸数值(docs/01-GDD.md §5)。skill 字段 = 目标技能 id。",
+  "$doc": "符文池(48 枚 = 12 技能 × 四元素全配):掉落/商店获取,背包(Tab)点击镶嵌。原则:符文改变技能行为与元素,不加裸数值(docs/01-GDD.md §5)。skill 字段 = 目标技能 id。",
   "runes": [
     {
       "id": "rune_emberseed",
@@ -324,6 +324,90 @@
       "name": "沼泽怒吼",
       "desc": "大地怒吼附毒印记",
       "element": "toxin"
+    },
+    {
+      "id": "rune_stormfang",
+      "skill": "blade_q_cleave",
+      "name": "惊雷之牙",
+      "desc": "裂空斩附雷印记(接毒刃触发麻痹)",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_miasmatrail",
+      "skill": "blade_e_tidestep",
+      "name": "瘴影残迹",
+      "desc": "潮涌步残影爆炸附毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_blightfall",
+      "skill": "blade_r_starfall",
+      "name": "腐星雨",
+      "desc": "万剑归宗坠剑附毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_stormfeather",
+      "skill": "ranger_q_fan",
+      "name": "雷羽箭",
+      "desc": "瞬影三连附雷印记",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_venomring",
+      "skill": "ranger_e_nova",
+      "name": "毒环",
+      "desc": "回旋环箭附毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_miasmastorm",
+      "skill": "ranger_r_storm",
+      "name": "瘴雨",
+      "desc": "星陨箭雨附毒印记(与火雨连携触发燃瘴)",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_venomseeker",
+      "skill": "arcanist_q_seeker",
+      "name": "蚀星追曳",
+      "desc": "追星法球附毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_stormveil",
+      "skill": "arcanist_e_blink",
+      "name": "雷幕",
+      "desc": "闪现起点爆裂附雷印记",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_stormtempest",
+      "skill": "arcanist_r_tempest",
+      "name": "雷霆风暴",
+      "desc": "元素风暴化为雷暴,持续叠雷印记",
+      "element": "bolt"
+    },
+    {
+      "id": "rune_frostshatter",
+      "skill": "warden_q_quake",
+      "name": "冰霜震",
+      "desc": "岩震击附冰印记,余波减速",
+      "element": "ice"
+    },
+    {
+      "id": "rune_venomram",
+      "skill": "warden_e_charge",
+      "name": "腐沼冲角",
+      "desc": "冲锋终点撞击附毒印记",
+      "element": "toxin"
+    },
+    {
+      "id": "rune_stormroar",
+      "skill": "warden_r_roar",
+      "name": "雷霆怒吼",
+      "desc": "大地怒吼附雷印记",
+      "element": "bolt"
     }
   ]
 }

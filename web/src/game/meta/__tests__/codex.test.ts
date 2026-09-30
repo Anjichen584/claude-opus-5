@@ -15,9 +15,9 @@ describe('图鉴条目表', () => {
     expect(ENEMY_TOTAL).toBe(30);
   });
 
-  it('符文条目 = pool.json 全量,共 36 条', () => {
+  it('符文条目 = pool.json 全量,共 48 条', () => {
     expect(RUNE_TOTAL).toBe(runePool.runes.length);
-    expect(RUNE_TOTAL).toBe(36);
+    expect(RUNE_TOTAL).toBe(48);
   });
 
   it('每条怪物都能取到条目,且名字与 balance 一致(三 Boss 也算)', () => {
@@ -61,7 +61,7 @@ describe('收录与进度', () => {
   it('空图鉴:一条都没收录,收录率 0', () => {
     const c = emptyCodex();
     const p = codexProgress(c);
-    expect(p).toEqual({ enemyFound: 0, enemyTotal: 30, runeFound: 0, runeTotal: 36 });
+    expect(p).toEqual({ enemyFound: 0, enemyTotal: 30, runeFound: 0, runeTotal: 48 });
     expect(codexPct(c)).toBe(0);
   });
 

@@ -142,7 +142,7 @@ const CLASS_NAME: Record<string, string> = {
 
 const SLOT_NAME: Record<string, string> = { q: 'Q', e: 'E', r: 'R' };
 
-/** 全部符文 id(36) */
+/** 全部符文 id(48 = 12 技能 × 四元素全配) */
 export const RUNE_KEYS: string[] = (runePoolData.runes as Array<{ id: string }>).map((r) => r.id);
 
 export function runeEntry(id: string): RuneEntry | null {

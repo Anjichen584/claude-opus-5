@@ -87,7 +87,7 @@ export const ACHIEVEMENTS: AchvDef[] = [
   { id: 'codex_boss', name: '猎王', desc: '三章 Boss 全部收录', icon: '👑', cat: '图鉴', progress: (d) => prog(bossFound(d.codex), 3) },
   { id: 'codex_all_enemy', name: '星陨博物志', desc: `收录全部 ${ENEMY_KEYS.length} 种怪物`, icon: '🦴', cat: '图鉴', progress: (d) => prog(codexEnemies(d), ENEMY_KEYS.length) },
   { id: 'rune18', name: '符文收藏家', desc: '收录 18 枚符文', icon: '◈', cat: '图鉴', progress: (d) => prog(codexRunes(d), 18) },
-  { id: 'rune_all', name: '符文大师', desc: '收录全部 36 枚符文', icon: '🔮', cat: '图鉴', progress: (d) => prog(codexRunes(d), 36) },
+  { id: 'rune_all', name: '符文大师', desc: '收录全部 48 枚符文', icon: '🔮', cat: '图鉴', progress: (d) => prog(codexRunes(d), 48) },
 
   // ---- 局外 ----
   { id: 'daily_clear', name: '混沌征服者', desc: '通关一次每日挑战', icon: '🗓', cat: '局外', progress: (d) => prog(d.stats.dailyClears, 1) },
@@ -103,7 +103,7 @@ export const ACHIEVEMENTS: AchvDef[] = [
   { id: 'speed5', name: '时之刃', desc: '5 分钟内通关', icon: '⏱', cat: '极速', progress: (d) => prog(d.stats.bestTimeS > 0 && d.stats.bestTimeS <= 300 ? 1 : 0, 1) },
   { id: 'codex_mid', name: '三猎全谱', desc: '三位中 Boss 全部收录(莽/溜/钓)', icon: '🗡', cat: '图鉴', progress: (d) => prog(midbossFound(d.codex), 3) },
   { id: 'codex25', name: '广袤见闻', desc: '图鉴收录 25 种怪物', icon: '🔍', cat: '图鉴', progress: (d) => prog(codexEnemies(d), 25) },
-  { id: 'rune_one_class', name: '一门精通', desc: '任一职业 9 枚符文全部收录', icon: '🈴', cat: '图鉴', progress: (d) => prog(bestClassRunes(d.codex), 9) },
+  { id: 'rune_one_class', name: '一门精通', desc: '任一职业 12 枚符文全部收录', icon: '🈴', cat: '图鉴', progress: (d) => prog(bestClassRunes(d.codex), 12) },
   { id: 'totem_all', name: '遍历秘境', desc: '8 座石碑各抉择过至少一次', icon: '🗿', cat: '局外', progress: (d) => prog(totemKinds(d), TOTEM_IDS.length) },
   { id: 'totem20', name: '抉择老手', desc: '秘境抉择累计 20 次', icon: '⚖', cat: '局外', progress: (d) => prog(totemTotal(d), 20) },
   { id: 'craft5', name: '铸星宗师', desc: '在星辉铸台铸造 5 次', icon: '🛠', cat: '局外', progress: (d) => prog(d.stats.crafts, 5) },
