@@ -22,6 +22,8 @@ namespace StarfallKnights.Dungeon
         public const float WaterBoltAmp = 1.25f;   // 水里雷伤乘区
         public const float WaterStunS = 0.5f;      // 水里雷击的麻痹时长
         public const float SplashNoticeS = 2.5f;   // "踏入浅滩"提示的冷却
+        public const float IceGripPerS = 3.0f;     // 冰面滑行:实际速度向意图速度的收敛速率(轮 12)
+        public const float IceNoticeS = 2.5f;      // "踏上冰面"提示的冷却
         public const float TreeHp = 80f;
         public const float RockHp = 120f;
 
@@ -32,6 +34,8 @@ namespace StarfallKnights.Dungeon
             { "layouts.terrain.waterBoltAmp", WaterBoltAmp },
             { "layouts.terrain.waterStunS", WaterStunS },
             { "layouts.terrain.splashNoticeS", SplashNoticeS },
+            { "layouts.terrain.iceGripPerS", IceGripPerS },
+            { "layouts.terrain.iceNoticeS", IceNoticeS },
             { "props.tree.hp", TreeHp },
             { "props.rock.hp", RockHp },
         };
@@ -46,16 +50,39 @@ namespace StarfallKnights.Dungeon
             /// <summary>水带高度(米)</summary>
             public float BandH;
 
-            /// <summary>按布局模板初始化:浅滩房才有水带</summary>
-            public static TerrainState ForLayout(string layoutId, float heightM)
+            /// <summary>是否有冰面(冰湖裂面;椭圆 blob,轮 12 机制化)</summary>
+            public bool HasIce;
+            public float IceCx, IceCy, IceRx, IceRy;
+
+            /// <summary>按布局模板初始化:浅滩房有水带;冰湖房有冰面椭圆</summary>
+            public static TerrainState ForLayout(string layoutId, float heightM, float widthM = 26f)
             {
-                if (layoutId != "shore") return new TerrainState();
-                return new TerrainState
-                {
-                    HasWater = true,
-                    CenterY = heightM * 0.62f,               // 与 web floorOf('shore') 一致
-                    BandH = Math.Max(2.2f, heightM * 0.16f),
-                };
+                if (layoutId == "shore")
+                    return new TerrainState
+                    {
+                        HasWater = true,
+                        CenterY = heightM * 0.62f,               // 与 web floorOf('shore') 一致
+                        BandH = Math.Max(2.2f, heightM * 0.16f),
+                    };
+                if (layoutId == "icefield")
+                    return new TerrainState
+                    {
+                        HasIce = true,                            // 与 web floorOf('icefield') 一致
+                        IceCx = widthM * 0.52f,
+                        IceCy = heightM * 0.5f,
+                        IceRx = Math.Min(widthM * 0.56f, 16f) / 2f,
+                        IceRy = Math.Min(heightM * 0.7f, 10.5f) / 2f,
+                    };
+                return new TerrainState();
+            }
+
+            /// <summary>该点是否在冰面上(椭圆判定,镜像 web insideIce)</summary>
+            public bool IsIce(float xM, float yM)
+            {
+                if (!HasIce || IceRx <= 0f || IceRy <= 0f) return false;
+                float dx = (xM - IceCx) / IceRx;
+                float dy = (yM - IceCy) / IceRy;
+                return dx * dx + dy * dy <= 1f;
             }
 
             public bool IsWater(float xM, float yM)
@@ -126,5 +153,22 @@ namespace StarfallKnights.Dungeon
 
         /// <summary>窄道墙由岩柱砌成:一排要砍几下才开得了口(给策划看的手感数字)</summary>
         public static int WallOpenSwings(float perHit) => HitsToBreak("rock", perHit);
+
+        // ---- 冰面滑行(轮 12;镜像 web PhysicsSystem 的滑行积分)----
+        //
+        // 只作用于玩家(怪的 AI 按"意图即位移"推演,冰上打滑会让追击/风筝数学失真);
+        // 翻滚(dashing)不打滑 —— 这是冰面的反制:滑不动?滚。
+
+        /// <summary>
+        /// 冰面滑行一步:返回本帧用于位移的"实际速度"。
+        /// onIce 且非翻滚 → 实际速度向意图速度按 IceGripPerS 收敛;否则直接听意图的。
+        /// </summary>
+        public static (float vx, float vy) SlideStep(
+            float slideVx, float slideVy, float wantVx, float wantVy, bool onIce, bool dashing, float dt)
+        {
+            if (!onIce || dashing) return (wantVx, wantVy);
+            float k = Math.Min(1f, IceGripPerS * dt);
+            return (slideVx + (wantVx - slideVx) * k, slideVy + (wantVy - slideVy) * k);
+        }
     }
 }

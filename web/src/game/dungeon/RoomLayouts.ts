@@ -127,6 +127,17 @@ export function propRadius(pk: PropKind): number {
 }
 export const isSolid = (pk: PropKind): boolean => propRadius(pk) > 0;
 
+/** 该点是否落在"冰面"里(blob = 椭圆;冰湖裂面的玩法舞台,轮 12 机制化) */
+export function insideIce(floor: FloorFeature, xM: number, yM: number): boolean {
+  if (floor.kind !== 'ice' || floor.shape !== 'blob') return false;
+  const rx = floor.wM / 2;
+  const ry = floor.hM / 2;
+  if (rx <= 0 || ry <= 0) return false;
+  const dx = (xM - floor.xM) / rx;
+  const dy = (yM - floor.yM) / ry;
+  return dx * dx + dy * dy <= 1;
+}
+
 /** 该点是否落在"浅滩"水面里(水面不立树/石) */
 export function insideWater(floor: FloorFeature, xM: number, yM: number, padM = 0): boolean {
   if (floor.kind !== 'water' || floor.shape !== 'band') return false;

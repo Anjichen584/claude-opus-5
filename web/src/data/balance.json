@@ -648,7 +648,9 @@
       "waterMoveMult": 0.72,
       "waterBoltAmp": 1.25,
       "waterStunS": 0.5,
-      "splashNoticeS": 2.5
+      "splashNoticeS": 2.5,
+      "iceGripPerS": 3.0,
+      "iceNoticeS": 2.5
     },
     "byKind": {
       "battle": [

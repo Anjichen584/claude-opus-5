@@ -231,3 +231,118 @@ describe('可打穿的障碍', () => {
     expect(spawn(true).x).toBe(0);             // 碎了就是个贴图,不挡路
   });
 });
+
+/* ================= 冰面滑行(轮 12) ================= */
+
+import { Player } from '@game/components';
+import { insideIce } from '@game/dungeon/RoomLayouts';
+
+const ICE_FLOOR = { kind: 'ice', shape: 'blob', xM: 13, yM: 8, wM: 16, hM: 10 } as const;
+const iceLayout = { id: 'icefield', label: '冰湖裂面', props: [], floor: ICE_FLOOR } as never;
+
+function mkSkater(x: number, y: number, withPlayer = true) {
+  const w = new World();
+  const e = w.create();
+  w.add(e, new Transform(x, y));
+  w.add(e, new Velocity());
+  w.add(e, new Body(0.3));
+  if (withPlayer) w.add(e, new Player());
+  return { w, e };
+}
+
+describe('冰面滑行 · 数据与几何', () => {
+  it('balance 有滑行参数(iceGripPerS/iceNoticeS)', () => {
+    expect(balance.layouts.terrain.iceGripPerS).toBeGreaterThan(0);
+    expect(balance.layouts.terrain.iceNoticeS).toBeGreaterThan(0);
+  });
+
+  it('insideIce 是椭圆判定:圆心真,长轴端点内,包围盒角落假', () => {
+    expect(insideIce(ICE_FLOOR, 13, 8)).toBe(true);
+    expect(insideIce(ICE_FLOOR, 13 + 7.9, 8)).toBe(true);
+    expect(insideIce(ICE_FLOOR, 13 + 8, 8 + 5), '椭圆的包围盒角落不算冰').toBe(false);
+    expect(insideIce({ ...ICE_FLOOR, kind: 'water' } as never, 13, 8), '不是冰的地板不算').toBe(false);
+  });
+
+  it('terrain 状态:冰湖布局 → hasIce/floorKind=ice(环境声接口早已备好);水房不受影响', () => {
+    terrain.setFromLayout(iceLayout);
+    expect(terrain.hasIce).toBe(true);
+    expect(terrain.hasWater).toBe(false);
+    expect(terrain.floorKind).toBe('ice');
+    expect(terrain.isIce(13 * M, 8 * M)).toBe(true);
+    expect(terrain.moveMult(13 * M, 8 * M), '冰面不减速(它改手感不改上限)').toBe(1);
+    terrain.clear();
+  });
+});
+
+describe('冰面滑行 · 惯性(单测钉住手感边界)', () => {
+  it('松手继续滑:冰上速度归零后仍向前漂,平地立刻停', () => {
+    terrain.setFromLayout(iceLayout);
+    const { w, e } = mkSkater(13 * M, 8 * M);
+    const phys = new PhysicsSystem();
+    const vel = w.mustGet(e, Velocity);
+    vel.vx = 4 * M;   // 向右滑 0.6s(冰很大,不会滑出去)
+    for (let i = 0; i < 36; i++) phys.update(w, 1 / 60);
+    vel.vx = 0;       // 松手
+    const x0 = w.mustGet(e, Transform).x;
+    for (let i = 0; i < 12; i++) phys.update(w, 1 / 60);
+    const glide = w.mustGet(e, Transform).x - x0;
+    expect(glide, '松手后 0.2s 还在往前漂').toBeGreaterThan(0.25 * M);
+
+    terrain.clear();  // 平地对照
+    const { w: w2, e: e2 } = mkSkater(13 * M, 8 * M);
+    const phys2 = new PhysicsSystem();
+    const vel2 = w2.mustGet(e2, Velocity);
+    vel2.vx = 4 * M;
+    for (let i = 0; i < 36; i++) phys2.update(w2, 1 / 60);
+    vel2.vx = 0;
+    const x1 = w2.mustGet(e2, Transform).x;
+    phys2.update(w2, 1 / 60);
+    expect(w2.mustGet(e2, Transform).x, '平地松手立刻停').toBeCloseTo(x1, 5);
+  });
+
+  it('急转会漂:180° 反打后短时间内仍在原方向前进', () => {
+    terrain.setFromLayout(iceLayout);
+    const { w, e } = mkSkater(13 * M, 8 * M);
+    const phys = new PhysicsSystem();
+    const vel = w.mustGet(e, Velocity);
+    vel.vx = 4 * M;
+    for (let i = 0; i < 36; i++) phys.update(w, 1 / 60);
+    vel.vx = -4 * M;   // 反打
+    const x0 = w.mustGet(e, Transform).x;
+    for (let i = 0; i < 6; i++) phys.update(w, 1 / 60);   // 0.1s
+    expect(w.mustGet(e, Transform).x, '反打后 0.1s 还在向右漂(惯性)').toBeGreaterThan(x0);
+    for (let i = 0; i < 60; i++) phys.update(w, 1 / 60);  // 1s 后才真的回头
+    expect(w.mustGet(e, Transform).x).toBeLessThan(x0);
+    terrain.clear();
+  });
+
+  it('翻滚不打滑(反制):dashT>0 时位移立刻听翻滚的', () => {
+    terrain.setFromLayout(iceLayout);
+    const { w, e } = mkSkater(13 * M, 8 * M);
+    const phys = new PhysicsSystem();
+    const vel = w.mustGet(e, Velocity);
+    vel.vx = 4 * M;
+    for (let i = 0; i < 36; i++) phys.update(w, 1 / 60);   // 先滑出惯性
+    const p = w.mustGet(e, Player);
+    p.dashT = 0.3;                                          // 翻滚:向左
+    vel.vx = -8 * M;
+    const x0 = w.mustGet(e, Transform).x;
+    phys.update(w, 1 / 60);
+    expect(w.mustGet(e, Transform).x, '翻滚第一帧就向左(不吃惯性)').toBeLessThan(x0);
+    terrain.clear();
+  });
+
+  it('怪不打滑:冰只考验玩家的手,不让怪变笨', () => {
+    terrain.setFromLayout(iceLayout);
+    const { w, e } = mkSkater(13 * M, 8 * M, false);   // 无 Player 组件 = 怪
+    const phys = new PhysicsSystem();
+    const vel = w.mustGet(e, Velocity);
+    vel.vx = 4 * M;
+    for (let i = 0; i < 36; i++) phys.update(w, 1 / 60);
+    vel.vx = -4 * M;
+    const x0 = w.mustGet(e, Transform).x;
+    phys.update(w, 1 / 60);
+    expect(w.mustGet(e, Transform).x, '怪反打第一帧就回头').toBeLessThan(x0);
+    terrain.clear();
+  });
+});

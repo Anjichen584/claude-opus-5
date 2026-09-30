@@ -17,7 +17,7 @@
 
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
-import { insideWater, type FloorFeature, type LayoutResult } from '@game/dungeon/RoomLayouts';
+import { insideIce, insideWater, type FloorFeature, type LayoutResult } from '@game/dungeon/RoomLayouts';
 
 const T = balance.layouts.terrain;
 
@@ -25,20 +25,25 @@ class TerrainState {
   private floor: FloorFeature | null = null;
   /** 本房是否有机制地形(渲染/提示用) */
   hasWater = false;
+  /** 本房是否有冰面(轮 12「冰面滑行」:冰湖裂面的 blob 冰是机制地形,不再只是贴图) */
+  hasIce = false;
   /** 当前地板种类(null = 没有地形,如营地)。环境声(轮 26)与 UI 都读它 —— 不再把 floor 本身暴露出去 */
   get floorKind(): string | null {
     return this.floor === null ? null : this.floor.kind;
   }
 
   setFromLayout(layout: LayoutResult | null): void {
-    this.floor = layout?.floor ?? null;
-    this.floor = this.floor !== null && this.floor.kind === 'water' ? this.floor : null;
-    this.hasWater = this.floor !== null;
+    const f = layout?.floor ?? null;
+    // 机制地形只认水与冰;其余(苔/沙/土路)仍是纯观感,不进状态
+    this.floor = f !== null && (f.kind === 'water' || f.kind === 'ice') ? f : null;
+    this.hasWater = this.floor !== null && this.floor.kind === 'water';
+    this.hasIce = this.floor !== null && this.floor.kind === 'ice';
   }
 
   clear(): void {
     this.floor = null;
     this.hasWater = false;
+    this.hasIce = false;
   }
 
   /** 像素坐标是否在水里(浅滩是可趟过的:这里只影响手感与元素,不影响通行) */
@@ -62,6 +67,12 @@ class TerrainState {
   stunOnBolt(element: string | null | undefined, xPx: number, yPx: number): number {
     if (element !== 'bolt') return 0;
     return this.isWater(xPx, yPx) ? T.waterStunS : 0;
+  }
+
+  /** 像素坐标是否在冰面上(轮 12:冰面只改"手感",不改速度上限与元素) */
+  isIce(xPx: number, yPx: number): boolean {
+    if (this.floor === null) return false;
+    return insideIce(this.floor, xPx / M, yPx / M);
   }
 }
 

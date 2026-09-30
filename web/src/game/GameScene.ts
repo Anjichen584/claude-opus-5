@@ -152,6 +152,7 @@ export class GameScene {
   private bgLayoutKey = '';
   /** 上帧玩家是否站在浅滩里(只提示一次,不刷屏) */
   private wasInWater = false;
+  private wasOnIce = false;
 
   constructor(
     private readonly renderer: Renderer,
@@ -980,6 +981,17 @@ export class GameScene {
       this.wasInWater = inWater;
     } else {
       this.wasInWater = false;
+    }
+    // 冰面提示:第一次踏冰时教一次(轮 12:滑行是手感机制,不提示会被当成运气差)
+    if (terrain.hasIce) {
+      const ptr = this.world.mustGet(this.playerE, Transform);
+      const onIce = terrain.isIce(ptr.x, ptr.y);
+      if (onIce && !this.wasOnIce) {
+        this.world.emit(new ToastEvent('🧊 冰面:滑行惯性 —— 急转会漂,翻滚不打滑', '#9fd8f0'));
+      }
+      this.wasOnIce = onIce;
+    } else {
+      this.wasOnIce = false;
     }
 
     const outcome = this.run.update(this.world, dt, this.playerE);

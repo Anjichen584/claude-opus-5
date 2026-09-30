@@ -1530,6 +1530,29 @@ namespace StarfallKnights.Tests
             Check(EnemyKinds.ChapterOf(EnemyKind.MidBossSandreaper) == 3, "沙暴刽子归第三章");
             Check(Bestiary.MidBossSandreaperCleaveMissStunS > Bestiary.MidBossSandreaperCleaveHitStunS * 2f,
                 "劈空硬直显著长于命中(博弈才成立)");
+
+            Suite("冰面滑行(轮 12:惯性可测 / 翻滚反制 / 只考验玩家)");
+            {
+                var ice = TerrainRules.TerrainState.ForLayout("icefield", 16f, 26f);
+                Check(ice.HasIce && ice.IsIce(26f * 0.52f, 8f), "冰湖房中心是冰");
+                Check(!ice.IsIce(1f, 1f), "房角不是冰");
+                Check(!TerrainRules.TerrainState.ForLayout("shore", 16f).IsIce(13f, 9.9f), "浅滩房没有冰");
+
+                // 惯性:意图速度归零后,实际速度衰减但不清零(松手继续滑)
+                float sx = 4f, sy = 0f;
+                for (int i = 0; i < 12; i++)
+                    (sx, sy) = TerrainRules.SlideStep(sx, sy, 0f, 0f, true, false, 1f / 60f);
+                Check(sx > 1.5f, $"松手 0.2s 后仍在滑(残速 {sx:0.0} m/s)");
+
+                // 急转会漂:180° 反打后短时间内实际速度仍是原方向
+                float rx = 4f;
+                (rx, _) = TerrainRules.SlideStep(rx, 0f, -4f, 0f, true, false, 1f / 60f);
+                Check(rx > 0f, $"反打第一帧仍向原方向漂({rx:0.0} m/s)");
+
+                // 反制:翻滚不打滑 / 平地不打滑
+                Check(TerrainRules.SlideStep(4f, 0f, -8f, 0f, true, true, 1f / 60f).vx == -8f, "翻滚期间位移立刻听翻滚的");
+                Check(TerrainRules.SlideStep(4f, 0f, -4f, 0f, false, false, 1f / 60f).vx == -4f, "平地没有惯性");
+            }
         }
 
 
