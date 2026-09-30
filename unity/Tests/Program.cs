@@ -622,6 +622,7 @@ namespace StarfallKnights.Tests
             TestBasicAttack();
             TestShotAttack();
             TestPlayerAnim();
+            TestAchievements();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -2607,6 +2608,57 @@ namespace StarfallKnights.Tests
             w2.Enemies.Clear();
             run2.Tick(w2);
             Check(won2, "Boss 房清空 → OnVictory");
+        }
+
+        // ---------------- 成就(轮 41:U2 面板前置,判定纯函数) ----------------
+
+        private static void TestAchievements()
+        {
+            Suite("成就判定(Achievements 镜像)");
+
+            Check(Meta.Achievements.Total == 32, "共 32 条成就");
+
+            // 进度夹取:超额夹到 goal、负数夹到 0
+            var s0 = new Meta.Achievements.AchvState { TotalKills = 999999 };
+            var kills100 = System.Array.Find(Meta.Achievements.All, a => a.Id == "kills100");
+            var p = Meta.Achievements.Progress(kills100, s0);
+            Check(p.cur == 100 && p.goal == 100, "进度夹到 [0, goal](999999 击杀 → 100/100)");
+
+            // 速度成就:0 秒(没打过)不算;边界值恰好达标
+            var speed8 = System.Array.Find(Meta.Achievements.All, a => a.Id == "speed8");
+            Check(!Meta.Achievements.Achieved(speed8, new Meta.Achievements.AchvState { BestTimeS = 0f }),
+                "没打过(bestTimeS=0)不解锁速度成就");
+            Check(Meta.Achievements.Achieved(speed8, new Meta.Achievements.AchvState { BestTimeS = 480f }),
+                "恰好 480s 达标 speed8");
+            Check(!Meta.Achievements.Achieved(speed8, new Meta.Achievements.AchvState { BestTimeS = 480.5f }),
+                "480.5s 不达标 speed8");
+
+            // 解锁幂等:第二次不重复、时间戳不覆盖
+            var unlocked = new System.Collections.Generic.Dictionary<string, long>();
+            var st = new Meta.Achievements.AchvState { Runs = 3, Clears = 1 };
+            var fresh1 = Meta.Achievements.Unlock(unlocked, st, 1000);
+            Check(fresh1.Contains("first_run") && fresh1.Contains("first_clear"), "首局+首通一起解锁");
+            var fresh2 = Meta.Achievements.Unlock(unlocked, st, 2000);
+            Check(fresh2.Count == 0, "重复判定不再报新解锁(幂等)");
+            Check(unlocked["first_run"] == 1000, "已有时间戳不被覆盖");
+
+            // 清洗:未知 id / 非正时间戳丢弃
+            var dirty = new System.Collections.Generic.Dictionary<string, long>
+            {
+                { "first_clear", 1700000000000L }, { "hack_all", 1 }, { "first_run", -5 },
+            };
+            var clean = Meta.Achievements.Sanitize(dirty);
+            Check(clean.Count == 1 && clean.ContainsKey("first_clear"), "脏档清洗:未知 id 与负时间戳丢弃");
+            Check(Meta.Achievements.UnlockedCount(clean) == 1, "解锁计数只认有效记录");
+
+            // MetaSave 起底:祭坛最高分支/合计口径
+            var m = new Meta.MetaSave { altarHp = 5, altarAtk = 3, altarLuck = 7, stardust = 1200 };
+            var fromSave = Meta.Achievements.AchvState.From(m);
+            Check(fromSave.AltarBest == 7 && fromSave.AltarLevels == 15, "AltarBest=max / AltarLevels=sum");
+            var altar15 = System.Array.Find(Meta.Achievements.All, a => a.Id == "altar15");
+            var rich = System.Array.Find(Meta.Achievements.All, a => a.Id == "rich");
+            Check(Meta.Achievements.Achieved(altar15, fromSave), "15 级合计解锁 altar15");
+            Check(Meta.Achievements.Achieved(rich, fromSave), "1200 星尘解锁 rich");
         }
     }
 }

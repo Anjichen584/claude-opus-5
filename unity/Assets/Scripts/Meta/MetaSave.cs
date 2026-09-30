@@ -30,6 +30,11 @@ namespace StarfallKnights.Meta
         public int clears;
         public int totalKills;
         public float bestTimeS;
+        // ---- 成就埋点(轮 41,镜像 web SaveData.stats 的四个补录字段)----
+        public int noHitClears;
+        public int dailyClears;
+        public int weeklyClears;
+        public int crafts;
 
         /// <summary>祭坛升级价:50×1.6^lvl(镜像 web altarCost)。</summary>
         public static int AltarCost(int lvl) => (int)Math.Round(50 * Math.Pow(1.6, lvl));

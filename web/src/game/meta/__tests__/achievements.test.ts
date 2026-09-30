@@ -187,3 +187,31 @@ describe('存档兼容', () => {
     expect(line).toContain('最快 —');
   });
 });
+
+describe('成就权威表(data/achievements.json,轮 41 与 Unity 共用)', () => {
+  it('派生 goal 与数据表同步:扩怪/扩碑/扩符文忘改 JSON → 这里红', async () => {
+    const { default: achvData } = await import('@data/achievements.json');
+    const { ENEMY_KEYS } = await import('@game/meta/Codex');
+    const { TOTEM_IDS } = await import('@game/loot/EventRules');
+    const { BOARD_IDS } = await import('@game/meta/Leaderboard');
+    const { default: runePool } = await import('@data/runes/pool.json');
+    const byId = new Map(achvData.achievements.map((a) => [a.id, a]));
+    expect(byId.get('codex_all_enemy')?.goal).toBe(ENEMY_KEYS.length);
+    expect(byId.get('totem_all')?.goal).toBe(TOTEM_IDS.length);
+    expect(byId.get('boards_filled')?.goal).toBe(BOARD_IDS.length);
+    expect(byId.get('rune_all')?.goal).toBe(runePool.runes.length);
+    expect(byId.get('rune_one_class')?.goal).toBe(runePool.runes.length / 4);
+  });
+
+  it('表形状:32 条、id 唯一、goal>0、timeS 只跟 bestTimeUnder 走', async () => {
+    const { default: achvData } = await import('@data/achievements.json');
+    const rows = achvData.achievements as Array<{ id: string; metric: string; goal: number; timeS?: number }>;
+    expect(rows.length).toBe(ACHV_TOTAL);
+    expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length);
+    for (const r of rows) {
+      expect(r.goal, r.id).toBeGreaterThan(0);
+      if (r.metric === 'bestTimeUnder') expect(r.timeS, r.id).toBeGreaterThan(0);
+      else expect(r.timeS, r.id).toBeUndefined();
+    }
+  });
+});

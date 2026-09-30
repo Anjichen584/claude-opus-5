@@ -46,6 +46,7 @@ namespace StarfallKnights.Tests
             CheckAbyss(check, root);
             CheckEndless(check, root);
             CheckAnimFrames(check, root);
+            CheckAchievements(check, root);
         }
 
         /// <summary>
@@ -1527,6 +1528,66 @@ namespace StarfallKnights.Tests
             bool ok = bySkill.Count == 12;
             foreach (var kv in bySkill) if (kv.Value.Count != 4) ok = false;
             check(ok, "12 技能位 × 四元素全覆盖");
+        }
+
+        /// <summary>
+        /// 成就 parity(轮 41):权威表 = web/src/data/achievements.json,32 条逐 id 比对
+        /// cat/icon/metric/goal/timeS + 顺序 + 双向数量。web 侧守卫钉派生 goal
+        /// (怪物总数/碑种数/榜数/符文口径),所以这里只要和 JSON 咬合,三方就闭环。
+        /// </summary>
+        private static void CheckAchievements(Action<bool, string> check, string root)
+        {
+            string path = Path.Combine(root, "web/src/data/achievements.json");
+            if (!File.Exists(path)) { check(false, "存在 achievements.json"); return; }
+            var doc = MiniJson.Obj(MiniJson.Parse(File.ReadAllText(path)));
+            var rows = MiniJson.Arr(doc["achievements"]);
+
+            var cs = Meta.Achievements.All;
+            check(rows.Count == 32, $"web 侧 32 条成就(实际 {rows.Count})");
+            check(cs.Length == rows.Count, $"C# 侧条数一致(JSON={rows.Count} vs C#={cs.Length})");
+
+            var catOf = new Dictionary<string, Meta.Achievements.Cat>
+            {
+                { "progress", Meta.Achievements.Cat.Progress }, { "combat", Meta.Achievements.Cat.Combat },
+                { "speed", Meta.Achievements.Cat.Speed }, { "codex", Meta.Achievements.Cat.Codex },
+                { "meta", Meta.Achievements.Cat.Meta },
+            };
+            var metricOf = new Dictionary<string, Meta.Achievements.Metric>
+            {
+                { "runs", Meta.Achievements.Metric.Runs }, { "clears", Meta.Achievements.Metric.Clears },
+                { "totalKills", Meta.Achievements.Metric.TotalKills }, { "noHitClears", Meta.Achievements.Metric.NoHitClears },
+                { "dailyClears", Meta.Achievements.Metric.DailyClears }, { "weeklyClears", Meta.Achievements.Metric.WeeklyClears },
+                { "crafts", Meta.Achievements.Metric.Crafts }, { "stardust", Meta.Achievements.Metric.Stardust },
+                { "codexEnemies", Meta.Achievements.Metric.CodexEnemies }, { "codexRunes", Meta.Achievements.Metric.CodexRunes },
+                { "bossFound", Meta.Achievements.Metric.BossFound }, { "midbossFound", Meta.Achievements.Metric.MidbossFound },
+                { "bestClassRunes", Meta.Achievements.Metric.BestClassRunes }, { "boardsFilled", Meta.Achievements.Metric.BoardsFilled },
+                { "altarBest", Meta.Achievements.Metric.AltarBest }, { "altarLevels", Meta.Achievements.Metric.AltarLevels },
+                { "totemKinds", Meta.Achievements.Metric.TotemKinds }, { "totemTotal", Meta.Achievements.Metric.TotemTotal },
+                { "bestTimeUnder", Meta.Achievements.Metric.BestTimeUnder },
+            };
+
+            int bad = 0;
+            int n = Math.Min(rows.Count, cs.Length);
+            for (int i = 0; i < n; i++)
+            {
+                var r = MiniJson.Obj(rows[i]);
+                var a = cs[i];
+                string id = MiniJson.Str(r, "id");
+                if (id != a.Id) { bad++; check(false, $"第 {i} 条 id 顺序一致(JSON={id} vs C#={a.Id})"); continue; }
+                string cat = MiniJson.Str(r, "cat");
+                if (!catOf.TryGetValue(cat, out var wantCat)) { bad++; check(false, $"{id}: 已知分类 {cat}"); }
+                else if (wantCat != a.Category) { bad++; check(false, $"{id}: 分类一致(JSON={cat} vs C#={a.Category})"); }
+                string icon = MiniJson.Str(r, "icon");
+                if (icon != a.Icon) { bad++; check(false, $"{id}: 图标一致(JSON={icon} vs C#={a.Icon})"); }
+                string metric = MiniJson.Str(r, "metric");
+                if (!metricOf.TryGetValue(metric, out var wantMetric)) { bad++; check(false, $"{id}: 已知 metric {metric}"); }
+                else if (wantMetric != a.Kind) { bad++; check(false, $"{id}: metric 一致(JSON={metric} vs C#={a.Kind})"); }
+                double goal = MiniJson.Num(r, "goal");
+                if (Math.Abs(goal - a.Goal) > Tol) { bad++; check(false, $"{id}: goal 一致(JSON={goal} vs C#={a.Goal})"); }
+                double timeS = MiniJson.Num(r, "timeS", 0);
+                if (Math.Abs(timeS - a.TimeS) > Tol) { bad++; check(false, $"{id}: timeS 一致(JSON={timeS} vs C#={a.TimeS})"); }
+            }
+            check(bad == 0, $"achievements.json ↔ Achievements.cs 逐条一致({n} 条 × 6 字段)");
         }
     }
 }
