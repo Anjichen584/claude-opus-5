@@ -17,6 +17,7 @@ namespace StarfallKnights.Core
         // 中 Boss(每章 1 只,推图第 6 房)
         MidBossMossstag,
         MidBossFrosthuntress,
+        MidBossSandreaper,
         // Boss
         BossNanmir, BossVelsha, BossKazra,
     }
@@ -30,7 +31,7 @@ namespace StarfallKnights.Core
             EnemyKind.SnowPuff or EnemyKind.IceTurtle or EnemyKind.BlizzardHawk
                 or EnemyKind.FrostMage or EnemyKind.BossVelsha or EnemyKind.MidBossFrosthuntress => 2,
             EnemyKind.CinderRat or EnemyKind.DuneBeetle or EnemyKind.FlameDancer
-                or EnemyKind.DustStinger or EnemyKind.BossKazra => 3,
+                or EnemyKind.DustStinger or EnemyKind.BossKazra or EnemyKind.MidBossSandreaper => 3,
             _ => 1,
         };
 
@@ -38,7 +39,8 @@ namespace StarfallKnights.Core
             => k == EnemyKind.BossNanmir || k == EnemyKind.BossVelsha || k == EnemyKind.BossKazra;
 
         /// <summary>中 Boss(推图中段的"半个 Boss")。</summary>
-        public static bool IsMidBoss(EnemyKind k) => k == EnemyKind.MidBossMossstag || k == EnemyKind.MidBossFrosthuntress;
+        public static bool IsMidBoss(EnemyKind k)
+            => k == EnemyKind.MidBossMossstag || k == EnemyKind.MidBossFrosthuntress || k == EnemyKind.MidBossSandreaper;
 
         /// <summary>Boss 级(中 Boss + 章 Boss):图鉴带 ★、掉落保底符文。</summary>
         public static bool IsBossTier(EnemyKind k) => IsBoss(k) || IsMidBoss(k);

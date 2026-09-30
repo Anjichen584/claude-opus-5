@@ -27,6 +27,7 @@ KIND = {
     'boss_nanmir': 'BossNanmir', 'boss_velsha': 'BossVelsha', 'boss_kazra': 'BossKazra',
     'midboss_mossstag': 'MidBossMossstag',
     'midboss_frosthuntress': 'MidBossFrosthuntress',
+    'midboss_sandreaper': 'MidBossSandreaper',
 }
 
 

@@ -628,3 +628,220 @@ describe('中 Boss 霜噬女猎 · 行为(真跑 AI)', () => {
     expect(w.count(TelegraphStrike)).toBe(0);
   });
 });
+
+/* ================= 三章中 Boss 沙暴刽子(轮 16) ================= */
+
+import { MidBossReaper } from '@game/components';
+import { MidBossReaperSystem } from '@game/systems/MidBossReaperSystem';
+
+const R3 = balance.enemies.midboss_sandreaper;
+
+function makeReaperWorld(rx: number, ry: number, px: number, py: number) {
+  const w = new World();
+  const pe = w.create();
+  w.add(pe, new Transform(px, py));
+  w.add(pe, new Velocity());
+  w.add(pe, new Body(0.3));
+  w.add(pe, new Health(300));
+  w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+  w.add(pe, new Faction('player'));
+  w.add(pe, new Player());
+
+  const re = w.create();
+  w.add(re, new Transform(rx, ry));
+  w.add(re, new Velocity());
+  w.add(re, new Body(R3.bodyRadius));
+  w.add(re, new Health(Math.round(R3.hp)));
+  w.add(re, new Stats(R3.atk, R3.speed, 0, 1, R3.def));
+  w.add(re, new Faction('enemy'));
+  w.add(re, new Buffs());
+  const rp = new MidBossReaper();
+  rp.spawnX = rx;
+  rp.spawnY = ry;
+  w.add(re, rp);
+  return { w, pe, re, rp };
+}
+
+function runR(sys: MidBossReaperSystem, w: World, seconds: number): void {
+  const dt = 1 / 60;
+  const phys = new PhysicsSystem();
+  for (let i = 0; i < Math.round(seconds * 60); i++) {
+    sys.update(w, dt);
+    phys.update(w, dt);
+  }
+}
+
+describe('中 Boss 沙暴刽子 · 数据契约', () => {
+  it('balance 条目齐全', () => {
+    for (const key of ['hp', 'atk', 'def', 'speed', 'bodyRadius', 'stalkM', 'phase2At', 'runeDrop'] as const) {
+      expect(R3[key], `缺 ${key}`).toBeTypeOf('number');
+    }
+    expect(R3.hook.pullV).toBeGreaterThan(0);
+    expect(R3.cleave.missStunS, '劈空硬直必须显著长于命中(否则博弈不成立)').toBeGreaterThan(R3.cleave.hitStunS * 2);
+    expect(R3.storm.count).toBeGreaterThanOrEqual(2);
+  });
+
+  it('定位:比精英肉、比章 Boss 轻;三位中 Boss 血量随章递增', () => {
+    expect(R3.hp).toBeGreaterThan(balance.enemies.oakgolem.hp * 1.5);
+    expect(R3.hp).toBeLessThan(balance.enemies.boss_kazra.hp * 0.6);
+    expect(R3.hp).toBeGreaterThanOrEqual(balance.enemies.midboss_frosthuntress.hp);
+    expect(balance.enemies.midboss_frosthuntress.hp).toBeGreaterThanOrEqual(balance.enemies.midboss_mossstag.hp);
+  });
+
+  it('可读性:钩/斩预警给够反应时间;狂怒是更凶', () => {
+    expect(R3.hook.telegraphS).toBeGreaterThanOrEqual(0.4);
+    expect(R3.cleave.telegraphS).toBeGreaterThanOrEqual(0.6);
+    expect(R3.enrageHookSpeedMul).toBeGreaterThan(1);
+    expect(R3.enrageStormAdd).toBeGreaterThanOrEqual(1);
+    expect(R3.enrageCdMul).toBeLessThan(1);
+  });
+
+  it('图鉴:独立条目带 ★;三位中 Boss 各归各章', () => {
+    expect(ENEMY_KEYS).toContain('midboss_sandreaper');
+    expect(isMidBossKey('midboss_sandreaper')).toBe(true);
+    expect(ENEMY_HINT.midboss_sandreaper).toBeTruthy();
+    expect(enemyEntry('midboss_sandreaper')?.name).toBe('沙暴刽子');
+  });
+});
+
+describe('中 Boss 沙暴刽子 · 房间接线(三章门控全开)', () => {
+  const mkWorldWithPlayer = () => {
+    const w = new World();
+    const pe = w.create();
+    w.add(pe, new Transform(200, 200));
+    w.add(pe, new Velocity());
+    w.add(pe, new Body(0.3));
+    w.add(pe, new Health(200));
+    w.add(pe, new Stats(10, 4.2, 0.05, 1.8, 0));
+    w.add(pe, new Faction('player'));
+    w.add(pe, new Player());
+    return { w, pe };
+  };
+
+  it('三章 midboss 房刷的是刽子(且不带前两位)', () => {
+    const run = new RunManager(new ItemFactory(new Rng(7)));
+    run.chapter = 3;
+    const { w, pe } = mkWorldWithPlayer();
+    run.startRoom(w, 'midboss', pe);
+    expect(w.count(MidBossReaper)).toBe(1);
+    expect(w.count(MidBossStag) + w.count(MidBossHuntress)).toBe(0);
+  });
+
+  it('打掉他才算清房', () => {
+    const run = new RunManager(new ItemFactory(new Rng(7)));
+    run.chapter = 3;
+    const { w, pe } = mkWorldWithPlayer();
+    run.startRoom(w, 'midboss', pe);
+    run.update(w, 1 / 60, pe);
+    expect(run.cleared).toBe(false);
+    for (const e of w.query(MidBossReaper)) w.destroy(e);
+    w.flushDestroyed();
+    run.update(w, 1 / 60, pe);
+    expect(run.cleared).toBe(true);
+  });
+
+  it('击杀掉落:必掉紫装 + 保底符文(按 kind 读表)', () => {
+    const w = new World();
+    const pe = w.create();
+    w.add(pe, new Transform(200, 200));
+    w.add(pe, new Velocity());
+    w.add(pe, new Inventory());
+    w.add(pe, new Player());
+    w.emit(new KillEvent(200, 200, 'midboss_sandreaper'));
+    new LootSystem().update(w, 1 / 60);
+    const picks = w.query(Pickup).map((e) => w.mustGet(e, Pickup));
+    expect(picks.filter((p) => p.kind === 'item').some((p) => p.item?.rarity === 'epic')).toBe(true);
+    expect(picks.filter((p) => p.kind === 'rune').length).toBeGreaterThanOrEqual(R3.runeDrop);
+  });
+});
+
+describe('中 Boss 沙暴刽子 · 行为(真跑 AI)', () => {
+  it('沙缚镰钩:直线预警 → 钩命中把玩家拉近(位移是这招的全部意义)', () => {
+    const { w, pe, re, rp } = makeReaperWorld(200, 400, 480, 400);
+    const sys = new MidBossReaperSystem();
+    rp.hookCd = 0.02; rp.cleaveCd = 99; rp.stormCd = 99;
+    const d0 = Math.hypot(
+      w.mustGet(pe, Transform).x - w.mustGet(re, Transform).x,
+      w.mustGet(pe, Transform).y - w.mustGet(re, Transform).y,
+    );
+    const hp0 = w.mustGet(pe, Health).hp;
+    runR(sys, w, 2.5);
+    const d1 = Math.hypot(
+      w.mustGet(pe, Transform).x - w.mustGet(re, Transform).x,
+      w.mustGet(pe, Transform).y - w.mustGet(re, Transform).y,
+    );
+    expect(w.mustGet(pe, Health).hp, '被钩中要掉血').toBeLessThan(hp0);
+    expect(d1, `钩中后距离要显著变近(${(d0 / M).toFixed(1)}m → ${(d1 / M).toFixed(1)}m)`).toBeLessThan(d0 * 0.7);
+  });
+
+  it('处刑斩:锁落点亮大圆 → 跳劈过去;玩家躲开 = 刀卡沙满硬直(核心博弈)', () => {
+    const { w, pe, rp } = makeReaperWorld(300, 400, 500, 400);
+    const sys = new MidBossReaperSystem();
+    rp.hookCd = 99; rp.cleaveCd = 0.02; rp.stormCd = 99;
+    const phys = new PhysicsSystem();
+    const pTr = w.mustGet(pe, Transform);
+    let staggeredAt = -1;
+    let dodged = false;
+    for (let i = 0; i < 60 * 4; i++) {
+      // 预警一亮就横向滚开(离开处刑圈)
+      if (rp.state === 'cleaveWind' && !dodged) {
+        pTr.y = 400 + 3.5 * M;
+        dodged = true;
+      }
+      sys.update(w, 1 / 60);
+      phys.update(w, 1 / 60);
+      if (rp.state === 'stagger' && staggeredAt < 0) staggeredAt = rp.t;
+    }
+    expect(dodged, '处刑斩必须真的来过').toBe(true);
+    expect(staggeredAt, '劈空 = 满硬直(missStunS)').toBeGreaterThan(R3.cleave.missStunS - 0.2);
+  });
+
+  it('处刑斩命中只给半硬直(躲不掉就没奖励窗)', () => {
+    const { w, rp } = makeReaperWorld(300, 400, 460, 400);
+    const sys = new MidBossReaperSystem();
+    rp.hookCd = 99; rp.cleaveCd = 0.02; rp.stormCd = 99;
+    let staggeredAt = -1;
+    const phys = new PhysicsSystem();
+    for (let i = 0; i < 60 * 4; i++) {
+      sys.update(w, 1 / 60);   // 玩家站桩挨劈
+      phys.update(w, 1 / 60);
+      if (rp.state === 'stagger' && staggeredAt < 0) staggeredAt = rp.t;
+    }
+    expect(staggeredAt).toBeGreaterThan(0);
+    expect(staggeredAt, '命中 = 半硬直,不能白给满窗').toBeLessThan(R3.cleave.missStunS - 0.5);
+  });
+
+  it('沙暴漩涡:以自己为中心铺 ≥count 片沙暴区(领域封锁)', () => {
+    const { w, rp } = makeReaperWorld(300, 400, 700, 400);
+    const sys = new MidBossReaperSystem();
+    rp.hookCd = 99; rp.cleaveCd = 99; rp.stormCd = 0.02;
+    runR(sys, w, 1.2);
+    expect(w.count(Zone)).toBeGreaterThanOrEqual(R3.storm.count);
+  });
+
+  it('轮换回归:35 秒内三招各 ≥2 次', () => {
+    const { w, rp } = makeReaperWorld(300, 300, 620, 330);
+    const sys = new MidBossReaperSystem();
+    const used = { hook: 0, cleave: 0, storm: 0 };
+    let prev = rp.state;
+    const phys = new PhysicsSystem();
+    for (let i = 0; i < 60 * 35; i++) {
+      sys.update(w, 1 / 60);
+      phys.update(w, 1 / 60);
+      if (prev === 'stalk' && rp.state !== 'stalk' && rp.state !== 'stagger') used[rp.lastMove] += 1;
+      prev = rp.state;
+    }
+    expect(used.hook, JSON.stringify(used)).toBeGreaterThanOrEqual(2);
+    expect(used.cleave, JSON.stringify(used)).toBeGreaterThanOrEqual(2);
+    expect(used.storm, JSON.stringify(used)).toBeGreaterThanOrEqual(2);
+  });
+
+  it('被打晕立刻硬直,钩不再推进(控制 = 输出窗口)', () => {
+    const { w, re, rp } = makeReaperWorld(200, 200, 600, 200);
+    const sys = new MidBossReaperSystem();
+    rp.hookCd = 99; rp.cleaveCd = 99; rp.stormCd = 99;
+    w.mustGet(re, Buffs).stunT = 1.2;
+    runR(sys, w, 0.1);
+    expect(rp.state).toBe('stagger');
+  });
+});

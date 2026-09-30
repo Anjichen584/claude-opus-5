@@ -33,6 +33,13 @@ namespace StarfallKnights.Dungeon
         public float HpAtChannel;
         /// <summary>猎杀凝视的待结算冰枪(打断时连预警一起撤,不能只停动作)</summary>
         public readonly List<Telegraph> Lanes = new();
+        // 中 Boss 三号(沙暴刽子):三招独立冷却 / 钩的飞行 / 处刑斩落点
+        public float HookCd = 2.6f, CleaveCd = 4.2f, StormCd = 6.5f;
+        /// <summary>上一招:0=镰钩 1=处刑斩 2=沙暴漩涡</summary>
+        public int ReaperMove;
+        public Vector2 HookPos, HookDir, CleaveTarget;
+        public float HookDist;
+        public bool HookFlying;
     }
 
     /// <summary>
@@ -118,6 +125,7 @@ namespace StarfallKnights.Dungeon
                         Element.Ice, 1); break;
                     case EnemyKind.MidBossMossstag: MossStag(w, e, st, dt, slow); break;
                     case EnemyKind.MidBossFrosthuntress: FrostHuntress(w, e, st, dt, slow); break;
+                    case EnemyKind.MidBossSandreaper: SandReaper(w, e, st, dt, slow); break;
                     case EnemyKind.CinderRat: CinderRat(w, e, st, dt, slow); break;
                     case EnemyKind.DuneBeetle: DuneBeetle(w, e, st, dt, slow); break;
                     case EnemyKind.FlameDancer: FlameDancer(w, e, st, dt, slow); break;
@@ -947,6 +955,196 @@ namespace StarfallKnights.Dungeon
                     st.Phase = MobPhase.Chase;
                     break;
             }
+        }
+
+        // ---------- 第三章中 Boss:沙暴刽子(镜像 web MidBossReaperSystem.ts) ----------
+        //
+        // 中 Boss 三性格收官:巨鹿=莽(骗撞墙)、女猎=溜(赌打断)、刽子=钓(骗劈空)。
+        // 三招 = 沙缚镰钩(直线掷钩,命中把玩家拉到脸前)、处刑斩(锁落点跳劈:
+        // 劈空 missStunS 满硬直 = 奖励窗口 / 命中只 hitStunS)、沙暴漩涡(以自己为中心铺沙暴区)。
+        // 拉人镜像说明:web 是 420px/s 的速度冲量(带阻尼),逻辑层无玩家物理 → 等效位移一步到位
+        // (pullV / PxPerM × 0.15s ≈ 1.3m,与 web 实测净位移同量级)。数值全走 Bestiary。
+        private static void SandReaper(LogicWorld w, Actor e, MobState st, float dt, float slow)
+        {
+            var (dx, dy, dist, nx, ny) = ToPlayer(w, e);
+            bool enraged = e.Unit.Hp <= e.Unit.HpMax * Bestiary.MidBossSandreaperPhase2At;
+            float cdMul = enraged ? Bestiary.MidBossSandreaperEnrageCdMul : 1f;
+            st.HookCd -= dt;
+            st.CleaveCd -= dt;
+            st.StormCd -= dt;
+            float keepMin = Bestiary.MidBossSandreaperStalkM * 0.8f;
+            float keepMax = Bestiary.MidBossSandreaperStalkM * 1.6f;
+
+            switch (st.Phase)
+            {
+                case MobPhase.Chase:   // stalk:中距离压迫
+                {
+                    Vector2 mv;
+                    if (dist < keepMin) mv = new Vector2(-nx, -ny);
+                    else if (dist > keepMax) mv = new Vector2(nx, ny);
+                    else mv = new Vector2(-ny, nx) * st.CircleDir;
+                    mv += SteerToArena(e.Pos);
+                    if (mv.LengthSquared() > 0.0001f) mv = Vector2.Normalize(mv);
+                    e.Vel = mv * Bestiary.MidBossSandreaperSpeed
+                        * (enraged ? Bestiary.MidBossSandreaperEnrageSpeedMul : 1f) * slow;
+                    e.Face = MathF.Atan2(dy, dx);
+
+                    int move = -1;
+                    float most = float.MaxValue;
+                    if (st.HookCd <= 0f && st.HookCd < most) { move = 0; most = st.HookCd; }
+                    if (st.CleaveCd <= 0f && st.CleaveCd < most) { move = 1; most = st.CleaveCd; }
+                    if (st.StormCd <= 0f && st.StormCd < most) { move = 2; most = st.StormCd; }
+                    if (move >= 0)
+                    {
+                        st.ReaperMove = move;
+                        e.Vel = Vector2.Zero;
+                        if (move == 0)
+                        {
+                            st.Phase = MobPhase.Telegraph;   // hookWind
+                            st.T = Bestiary.MidBossSandreaperHookTelegraphS;
+                            st.HookDir = new Vector2(nx, ny);
+                            for (int i = 0; i < 4; i++)      // 直线细预警 4 点(镜像 web hookDots)
+                            {
+                                float d = Bestiary.MidBossSandreaperHookRangeM * (i + 1) / 4f;
+                                TelegraphSystem.Add(w, e.Pos + st.HookDir * d, 0.35f,
+                                    Bestiary.MidBossSandreaperHookTelegraphS + i * 0.04f,
+                                    e.Unit.Atk, 0.05f, null, true);
+                            }
+                        }
+                        else if (move == 1)
+                        {
+                            st.Phase = MobPhase.Windup;      // cleaveWind:锁玩家落点
+                            st.T = Bestiary.MidBossSandreaperCleaveTelegraphS;
+                            st.CleaveTarget = w.Player.Pos;
+                            TelegraphSystem.Add(w, st.CleaveTarget,
+                                Bestiary.MidBossSandreaperCleaveRadiusM,
+                                Bestiary.MidBossSandreaperCleaveTelegraphS + Bestiary.MidBossSandreaperCleaveLeapS,
+                                e.Unit.Atk, Bestiary.MidBossSandreaperCleaveMult, null, true);
+                        }
+                        else
+                        {
+                            st.Phase = MobPhase.Aim;         // stormCast
+                            st.T = 0.5f;
+                        }
+                    }
+                    break;
+                }
+                case MobPhase.Telegraph:   // hookWind → 掷钩
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.HookFlying = true;
+                        st.HookPos = e.Pos;
+                        st.HookDist = 0f;
+                        st.Phase = MobPhase.Dash;   // hookOut
+                    }
+                    break;
+                }
+                case MobPhase.Dash:   // hookOut:钩在飞(命中拉人)
+                {
+                    e.Vel = Vector2.Zero;
+                    float hookSpd = Bestiary.MidBossSandreaperHookSpeedM
+                        * (enraged ? Bestiary.MidBossSandreaperEnrageHookSpeedMul : 1f);
+                    float step = hookSpd * dt;
+                    st.HookPos += st.HookDir * step;
+                    st.HookDist += step;
+                    float hd = Vector2.Distance(w.Player.Pos, st.HookPos);
+                    if (hd < Bestiary.MidBossSandreaperHookRadiusM + PlayerRadiusM)
+                    {
+                        HurtPlayer(w, e.Unit.Atk * Bestiary.MidBossSandreaperHookMult);
+                        var pull = e.Pos - w.Player.Pos;
+                        if (pull.LengthSquared() > 0.0001f)
+                            w.Player.Pos += Vector2.Normalize(pull)
+                                * (Bestiary.MidBossSandreaperHookPullV / Balance.PxPerM * 0.15f);
+                        st.HookFlying = false;
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.45f;
+                    }
+                    else if (st.HookDist >= Bestiary.MidBossSandreaperHookRangeM)
+                    {
+                        st.HookFlying = false;
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.4f;
+                    }
+                    break;
+                }
+                case MobPhase.Windup:   // cleaveWind → 腾空
+                {
+                    e.Vel = Vector2.Zero;
+                    e.Face = MathF.Atan2(st.CleaveTarget.Y - e.Pos.Y, st.CleaveTarget.X - e.Pos.X);
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.Phase = MobPhase.Pounce;   // cleaveLeap
+                        st.T = Bestiary.MidBossSandreaperCleaveLeapS;
+                    }
+                    break;
+                }
+                case MobPhase.Pounce:   // cleaveLeap:扑向锁定落点
+                {
+                    float remain = MathF.Max(st.T, 1f / 60f);
+                    e.Vel = (st.CleaveTarget - e.Pos) / remain;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        e.Vel = Vector2.Zero;
+                        e.Pos = st.CleaveTarget;
+                        float pd = Vector2.Distance(w.Player.Pos, e.Pos);
+                        float hitR = Bestiary.MidBossSandreaperCleaveRadiusM * 1.1f
+                            + Bestiary.MidBossSandreaperBodyRadius * 0.3f;   // 镜像 web hitPad
+                        st.Phase = MobPhase.Recover;
+                        st.T = pd <= hitR
+                            ? Bestiary.MidBossSandreaperCleaveHitStunS
+                            : Bestiary.MidBossSandreaperCleaveMissStunS;   // 劈空 = 刀卡沙满硬直
+                    }
+                    break;
+                }
+                case MobPhase.Aim:   // stormCast:以自己为中心铺沙暴区
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        int count = (int)Bestiary.MidBossSandreaperStormCount
+                            + (enraged ? (int)Bestiary.MidBossSandreaperEnrageStormAdd : 0);
+                        for (int i = 0; i < count; i++)
+                        {
+                            float ang = (i / (float)count) * MathF.PI * 2f + st.AnimT;
+                            var off = i == 0 ? Vector2.Zero
+                                : new Vector2(MathF.Cos(ang), MathF.Sin(ang)) * Bestiary.MidBossSandreaperStormRingM;
+                            w.Zones.Add(new Zone
+                            {
+                                Pos = e.Pos + off, RadiusM = Bestiary.MidBossSandreaperStormRadiusM,
+                                LifeS = Bestiary.MidBossSandreaperStormLifeS, TickS = Bestiary.MidBossSandreaperStormIntervalS,
+                                Atk = e.Unit.Atk, Mult = Bestiary.MidBossSandreaperStormMult,
+                                Element = null, PlayerTeam = false,
+                            });
+                        }
+                        st.Phase = MobPhase.Recover;
+                        st.T = 0.5f;
+                    }
+                    break;
+                }
+                case MobPhase.Recover:
+                {
+                    e.Vel = Vector2.Zero;
+                    st.T -= dt;
+                    if (st.T <= 0f)
+                    {
+                        st.Phase = MobPhase.Chase;
+                        if (st.ReaperMove == 0) st.HookCd = Bestiary.MidBossSandreaperHookCdS * cdMul;
+                        else if (st.ReaperMove == 1) st.CleaveCd = Bestiary.MidBossSandreaperCleaveCdS * cdMul;
+                        else st.StormCd = Bestiary.MidBossSandreaperStormCdS * cdMul;
+                    }
+                    break;
+                }
+                default:
+                    st.Phase = MobPhase.Chase;
+                    break;
+            }
+            st.AnimT += dt;
         }
 
         /// <summary>冲出竞技场边界 = 撞墙(中 Boss 拿硬边界当地形用)。</summary>

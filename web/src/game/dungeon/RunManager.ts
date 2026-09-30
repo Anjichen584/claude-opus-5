@@ -5,7 +5,7 @@ import { M, RARITY_COLORS } from '@game/constants';
 import {
   BlightWolf, BlizzardHawk, Body, BossKazra, BossNanmir, BossVelsha, Buffs, CinderRat,
   DuneBeetle, DustStinger, ElementMarks, EmberImp, EventTotem, Faction, FlameDancer,
-  FrostMage, FrostSlime, Health, IceTurtle, MidBossHuntress, MidBossStag, SnowPuff,
+  FrostMage, FrostSlime, Health, IceTurtle, MidBossHuntress, MidBossReaper, MidBossStag, SnowPuff,
   OakGolem, Merchant, Pickup, Player, Portal, Projectile, PropObstacle, SfxEvent, ShopStand, Shroomling,
   SparkLizard, StardustSprite, Stats, TelegraphStrike, ThornVine, ToastEvent, ToxinToad,
   Transform, Velocity, WindBee, Zone,
@@ -27,7 +27,7 @@ import { propHp, terrain } from './Terrain';
 export type RoomKind = 'battle' | 'treasure' | 'elite' | 'midboss' | 'boss' | 'shop' | 'event';
 
 type SpawnKind =
-  | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem' | 'midboss_mossstag' | 'midboss_frosthuntress'
+  | 'shroomling' | 'windbee' | 'blightwolf' | 'thornvine' | 'oakgolem' | 'midboss_mossstag' | 'midboss_frosthuntress' | 'midboss_sandreaper'
   | 'emberimp' | 'frostslime' | 'sparklizard' | 'toxintoad' | 'stardustsprite'
   | 'snowpuff' | 'iceturtle' | 'blizzardhawk' | 'frostmage'
   | 'cinderrat' | 'dunebeetle' | 'flamedancer' | 'duststinger';
@@ -215,7 +215,9 @@ export class RunManager {
         this.pendingWaves = 0;
         const night = clock.isNight();
         const isCh2 = this.chapter === 2;
-        const cfg = isCh2 ? balance.enemies.midboss_frosthuntress : balance.enemies.midboss_mossstag;
+        const isCh3 = this.chapter === 3;
+        const cfg = isCh3 ? balance.enemies.midboss_sandreaper
+          : isCh2 ? balance.enemies.midboss_frosthuntress : balance.enemies.midboss_mossstag;
         hold(balance.arena.widthM - 6, balance.arena.heightM / 2, 2.0);
         const e = world.create();
         world.add(e, new Transform((balance.arena.widthM - 6) * M, (balance.arena.heightM / 2) * M));
@@ -228,7 +230,12 @@ export class RunManager {
         world.add(e, new Health(Math.round(mhp)));
         world.add(e, new Stats(Math.round(matk), cfg.speed, 0, 1, cfg.def));
         world.add(e, new Faction('enemy'));
-        if (isCh2) {
+        if (isCh3) {
+          const rpr = new MidBossReaper();
+          rpr.spawnX = (balance.arena.widthM - 6) * M;
+          rpr.spawnY = (balance.arena.heightM / 2) * M;
+          world.add(e, rpr);
+        } else if (isCh2) {
           const hnt = new MidBossHuntress();
           hnt.spawnX = (balance.arena.widthM - 6) * M;
           hnt.spawnY = (balance.arena.heightM / 2) * M;
@@ -242,8 +249,8 @@ export class RunManager {
         world.add(e, new ElementMarks());
         world.add(e, new Buffs());
         world.emit(new ToastEvent(
-          isCh2 ? '🏹 霜噬女猎——霜雾里弓弦已拉满' : '🦌 苔冠巨鹿——鹿角压低,苔雾漫起',
-          isCh2 ? '#8fd4ff' : '#8fd45f',
+          isCh3 ? '🗡 沙暴刽子——黄沙里拖着一柄大过人的刀' : isCh2 ? '🏹 霜噬女猎——霜雾里弓弦已拉满' : '🦌 苔冠巨鹿——鹿角压低,苔雾漫起',
+          isCh3 ? '#d4a45f' : isCh2 ? '#8fd4ff' : '#8fd45f',
         ));
         world.emit(new SfxEvent('ult'));
         break;
@@ -323,7 +330,7 @@ export class RunManager {
         world.count(BlizzardHawk) + world.count(FrostMage) + world.count(BossVelsha) +
         world.count(CinderRat) + world.count(DuneBeetle) + world.count(FlameDancer) +
         world.count(DustStinger) + world.count(BossKazra) +
-        world.count(MidBossStag) + world.count(MidBossHuntress);
+        world.count(MidBossStag) + world.count(MidBossHuntress) + world.count(MidBossReaper);
       if (this.roomKind === 'boss') {
         if (this.bossSpawned && world.count(BossNanmir) + world.count(BossVelsha) + world.count(BossKazra) === 0) {
           // 无尽模式:Boss 倒了不结算,接下一循环(章节循环 + 乘区递增)
@@ -368,7 +375,7 @@ export class RunManager {
     const next = this.depth + 1;
     if (next >= R.count) return ['boss'];
     // 章节门控:二三章的中 Boss 还没做(10-FULL-PLAN 轮 13/21),到那里再开
-    if (next === R.midbossIndex && this.chapter <= 2) return ['midboss'];
+    if (next === R.midbossIndex) return ['midboss']; // 三章中 Boss 齐编(轮 5/13/16)
     if (next === this.eliteIndex) return ['elite'];
     const choiceIdx = (R.choiceAt as number[]).indexOf(next);
     if (choiceIdx === 0) return ['treasure', 'event']; // 稳定收益 vs 三选一赌局
@@ -550,6 +557,13 @@ export class RunManager {
         hnt.spawnX = x;
         hnt.spawnY = y;
         world.add(e, hnt);
+        break;
+      }
+      case 'midboss_sandreaper': {
+        const rpr = new MidBossReaper();
+        rpr.spawnX = x;
+        rpr.spawnY = y;
+        world.add(e, rpr);
         break;
       }
     }

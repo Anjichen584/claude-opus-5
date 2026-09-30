@@ -533,6 +533,39 @@ export class MidBossHuntress {
   spawnY = 0;
 }
 
+/** 第三章中 Boss:沙暴刽子(领地型重刀处刑者,轮 16) */
+export class MidBossReaper {
+  phase: 1 | 2 = 1;
+  /**
+   * stalk      中距离压迫游走(3~5m:比女猎近、比巨鹿远)
+   * hookWind   掷钩预警(直线细预警,0.5s)
+   * hookOut    钩在飞(系统自推;命中把玩家拉到脸前)
+   * cleaveWind 处刑斩预警(锁玩家落点,大圆 0.85s)
+   * cleaveLeap 跳劈腾空(0.3s 扑向落点)
+   * stagger    硬直(落空刀卡沙 = 满;命中 = 半;被控同门)
+   * stormCast  沙暴漩涡起手
+   * recover    招式后摇
+   */
+  state: 'stalk' | 'hookWind' | 'hookOut' | 'cleaveWind' | 'cleaveLeap' | 'stagger' | 'stormCast' | 'recover' = 'stalk';
+  t = 0;
+  hookCd = 2.6;    // 首招节奏:先教钩,再教斩,漩涡最后
+  cleaveCd = 4.2;
+  stormCd = 6.5;
+  lastMove: 'hook' | 'cleave' | 'storm' = 'hook';
+  /** 钩的飞行状态(系统自推,GameScene 画链条) */
+  hookX = 0;
+  hookY = 0;
+  hookDirX = 0;
+  hookDirY = 0;
+  hookDist = 0;
+  /** 处刑斩锁定的落点(预警圈中心 = 跳劈终点) */
+  targetX = 0;
+  targetY = 0;
+  animT = 0;
+  spawnX = 0;
+  spawnY = 0;
+}
+
 /** ===== 第三章「烬语荒漠」怪物 ===== */
 
 /** 烬鼠:高速 Z 字贴脸群怪 */

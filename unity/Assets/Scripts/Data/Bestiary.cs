@@ -47,6 +47,7 @@ namespace StarfallKnights.Data
             { EnemyKind.BossKazra, new Stat("熔核蝎皇·卡兹拉", 6400f, 18f, 4f, 2.2f, 0.6f, 0.8f) },
             { EnemyKind.MidBossMossstag, new Stat("苔冠巨鹿", 1500f, 12f, 4f, 1.5f, 0.55f, 0.8f) },
             { EnemyKind.MidBossFrosthuntress, new Stat("霜噬女猎", 1550f, 13f, 3f, 2.9f, 0.42f, 0.8f) },
+            { EnemyKind.MidBossSandreaper, new Stat("沙暴刽子", 1650f, 14f, 5f, 2.2f, 0.5f, 0.8f) },
             { EnemyKind.BossNanmir, new Stat("腐木巨像·南弥尔", 4200f, 18f, 8f, 1.2f, 0.7f, 0.8f) },
         };
 
@@ -727,6 +728,72 @@ namespace StarfallKnights.Data
         public const float MidBossFrosthuntressEnrageCdMul = 0.85f;
         /// <summary>midboss_frosthuntress.runeDrop</summary>
         public const float MidBossFrosthuntressRuneDrop = 1f;
+        /// <summary>midboss_sandreaper.hp</summary>
+        public const float MidBossSandreaperHp = 1650f;
+        /// <summary>midboss_sandreaper.atk</summary>
+        public const float MidBossSandreaperAtk = 14f;
+        /// <summary>midboss_sandreaper.def</summary>
+        public const float MidBossSandreaperDef = 5f;
+        /// <summary>midboss_sandreaper.speed</summary>
+        public const float MidBossSandreaperSpeed = 2.2f;
+        /// <summary>midboss_sandreaper.bodyRadius</summary>
+        public const float MidBossSandreaperBodyRadius = 0.5f;
+        /// <summary>midboss_sandreaper.stalkM</summary>
+        public const float MidBossSandreaperStalkM = 3.4f;
+        /// <summary>midboss_sandreaper.hook.telegraphS</summary>
+        public const float MidBossSandreaperHookTelegraphS = 0.5f;
+        /// <summary>midboss_sandreaper.hook.speedM</summary>
+        public const float MidBossSandreaperHookSpeedM = 10f;
+        /// <summary>midboss_sandreaper.hook.rangeM</summary>
+        public const float MidBossSandreaperHookRangeM = 7f;
+        /// <summary>midboss_sandreaper.hook.radiusM</summary>
+        public const float MidBossSandreaperHookRadiusM = 0.4f;
+        /// <summary>midboss_sandreaper.hook.mult</summary>
+        public const float MidBossSandreaperHookMult = 0.6f;
+        /// <summary>midboss_sandreaper.hook.pullV</summary>
+        public const float MidBossSandreaperHookPullV = 420f;
+        /// <summary>midboss_sandreaper.hook.cdS</summary>
+        public const float MidBossSandreaperHookCdS = 5.4f;
+        /// <summary>midboss_sandreaper.cleave.telegraphS</summary>
+        public const float MidBossSandreaperCleaveTelegraphS = 0.85f;
+        /// <summary>midboss_sandreaper.cleave.leapS</summary>
+        public const float MidBossSandreaperCleaveLeapS = 0.3f;
+        /// <summary>midboss_sandreaper.cleave.radiusM</summary>
+        public const float MidBossSandreaperCleaveRadiusM = 1.5f;
+        /// <summary>midboss_sandreaper.cleave.mult</summary>
+        public const float MidBossSandreaperCleaveMult = 1.6f;
+        /// <summary>midboss_sandreaper.cleave.missStunS</summary>
+        public const float MidBossSandreaperCleaveMissStunS = 2f;
+        /// <summary>midboss_sandreaper.cleave.hitStunS</summary>
+        public const float MidBossSandreaperCleaveHitStunS = 0.7f;
+        /// <summary>midboss_sandreaper.cleave.cdS</summary>
+        public const float MidBossSandreaperCleaveCdS = 6.2f;
+        /// <summary>midboss_sandreaper.storm.count</summary>
+        public const float MidBossSandreaperStormCount = 3f;
+        /// <summary>midboss_sandreaper.storm.ringM</summary>
+        public const float MidBossSandreaperStormRingM = 2.6f;
+        /// <summary>midboss_sandreaper.storm.radiusM</summary>
+        public const float MidBossSandreaperStormRadiusM = 1.1f;
+        /// <summary>midboss_sandreaper.storm.lifeS</summary>
+        public const float MidBossSandreaperStormLifeS = 5f;
+        /// <summary>midboss_sandreaper.storm.intervalS</summary>
+        public const float MidBossSandreaperStormIntervalS = 0.5f;
+        /// <summary>midboss_sandreaper.storm.mult</summary>
+        public const float MidBossSandreaperStormMult = 0.35f;
+        /// <summary>midboss_sandreaper.storm.cdS</summary>
+        public const float MidBossSandreaperStormCdS = 9f;
+        /// <summary>midboss_sandreaper.phase2At</summary>
+        public const float MidBossSandreaperPhase2At = 0.5f;
+        /// <summary>midboss_sandreaper.enrageHookSpeedMul</summary>
+        public const float MidBossSandreaperEnrageHookSpeedMul = 1.25f;
+        /// <summary>midboss_sandreaper.enrageStormAdd</summary>
+        public const float MidBossSandreaperEnrageStormAdd = 1f;
+        /// <summary>midboss_sandreaper.enrageSpeedMul</summary>
+        public const float MidBossSandreaperEnrageSpeedMul = 1.15f;
+        /// <summary>midboss_sandreaper.enrageCdMul</summary>
+        public const float MidBossSandreaperEnrageCdMul = 0.85f;
+        /// <summary>midboss_sandreaper.runeDrop</summary>
+        public const float MidBossSandreaperRuneDrop = 1f;
         /// <summary>boss_nanmir.hp</summary>
         public const float BossNanmirHp = 4200f;
         /// <summary>boss_nanmir.atk</summary>
@@ -1526,6 +1593,39 @@ namespace StarfallKnights.Data
             { "midboss_frosthuntress.enrageSpeedMul", MidBossFrosthuntressEnrageSpeedMul },
             { "midboss_frosthuntress.enrageCdMul", MidBossFrosthuntressEnrageCdMul },
             { "midboss_frosthuntress.runeDrop", MidBossFrosthuntressRuneDrop },
+            { "midboss_sandreaper.hp", MidBossSandreaperHp },
+            { "midboss_sandreaper.atk", MidBossSandreaperAtk },
+            { "midboss_sandreaper.def", MidBossSandreaperDef },
+            { "midboss_sandreaper.speed", MidBossSandreaperSpeed },
+            { "midboss_sandreaper.bodyRadius", MidBossSandreaperBodyRadius },
+            { "midboss_sandreaper.stalkM", MidBossSandreaperStalkM },
+            { "midboss_sandreaper.hook.telegraphS", MidBossSandreaperHookTelegraphS },
+            { "midboss_sandreaper.hook.speedM", MidBossSandreaperHookSpeedM },
+            { "midboss_sandreaper.hook.rangeM", MidBossSandreaperHookRangeM },
+            { "midboss_sandreaper.hook.radiusM", MidBossSandreaperHookRadiusM },
+            { "midboss_sandreaper.hook.mult", MidBossSandreaperHookMult },
+            { "midboss_sandreaper.hook.pullV", MidBossSandreaperHookPullV },
+            { "midboss_sandreaper.hook.cdS", MidBossSandreaperHookCdS },
+            { "midboss_sandreaper.cleave.telegraphS", MidBossSandreaperCleaveTelegraphS },
+            { "midboss_sandreaper.cleave.leapS", MidBossSandreaperCleaveLeapS },
+            { "midboss_sandreaper.cleave.radiusM", MidBossSandreaperCleaveRadiusM },
+            { "midboss_sandreaper.cleave.mult", MidBossSandreaperCleaveMult },
+            { "midboss_sandreaper.cleave.missStunS", MidBossSandreaperCleaveMissStunS },
+            { "midboss_sandreaper.cleave.hitStunS", MidBossSandreaperCleaveHitStunS },
+            { "midboss_sandreaper.cleave.cdS", MidBossSandreaperCleaveCdS },
+            { "midboss_sandreaper.storm.count", MidBossSandreaperStormCount },
+            { "midboss_sandreaper.storm.ringM", MidBossSandreaperStormRingM },
+            { "midboss_sandreaper.storm.radiusM", MidBossSandreaperStormRadiusM },
+            { "midboss_sandreaper.storm.lifeS", MidBossSandreaperStormLifeS },
+            { "midboss_sandreaper.storm.intervalS", MidBossSandreaperStormIntervalS },
+            { "midboss_sandreaper.storm.mult", MidBossSandreaperStormMult },
+            { "midboss_sandreaper.storm.cdS", MidBossSandreaperStormCdS },
+            { "midboss_sandreaper.phase2At", MidBossSandreaperPhase2At },
+            { "midboss_sandreaper.enrageHookSpeedMul", MidBossSandreaperEnrageHookSpeedMul },
+            { "midboss_sandreaper.enrageStormAdd", MidBossSandreaperEnrageStormAdd },
+            { "midboss_sandreaper.enrageSpeedMul", MidBossSandreaperEnrageSpeedMul },
+            { "midboss_sandreaper.enrageCdMul", MidBossSandreaperEnrageCdMul },
+            { "midboss_sandreaper.runeDrop", MidBossSandreaperRuneDrop },
             { "boss_nanmir.hp", BossNanmirHp },
             { "boss_nanmir.atk", BossNanmirAtk },
             { "boss_nanmir.def", BossNanmirDef },

@@ -21,6 +21,7 @@ TARGETS = {
     "warden": 48,
     "npc_merchant": 44,  # 流浪商人(轮 29:微驼背设定,比英雄矮 2px)
     "midboss_frosthuntress": 56,  # 二章中 Boss(轮 13:人形猎手,比英雄高一头、比巨鹿(80)轻盈)
+    "midboss_sandreaper": 62,  # 三章中 Boss(轮 16:魁梧刽子,介于女猎(56)与巨鹿(80)之间)
     "shroomling": 30,
     "windbee": 24,
     "blightwolf": 36,
@@ -196,6 +197,7 @@ PAIRS = [
     "iceturtle", "blizzardhawk", "frostmage", "dunebeetle", "flamedancer", "duststinger",
     "midboss_mossstag",  # 中 Boss 也走帧对(站立/冲锋同画布对齐,否则两帧会"跳")
     "midboss_frosthuntress",  # 二章中 Boss 帧对(站立/引弓)
+    "midboss_sandreaper",  # 三章中 Boss 帧对(站立/举刀)
 ]
 MIN_ALPHA = 40
 

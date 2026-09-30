@@ -185,7 +185,7 @@ namespace StarfallKnights.Dungeon
             RoomsEntered++;
             if (Depth >= RoomCount) return false;
             Room = Depth == RoomCount - 1 ? RoomKind.Boss
-                : Depth == MidBossIndex && Chapter <= 2 ? RoomKind.MidBoss   // 一二章中 Boss 已编(三章随轮 21;镜像 web 门控)
+                : Depth == MidBossIndex ? RoomKind.MidBoss   // 三章中 Boss 齐编(轮 5/13/16;镜像 web)
                 : Depth == EliteIndex ? RoomKind.Elite
                 : Depth == 2 || Depth == 5 ? RoomKind.Treasure
                 : RoomKind.Battle;
@@ -228,7 +228,7 @@ namespace StarfallKnights.Dungeon
                     return;
                 case RoomKind.MidBoss:
                     // 中 Boss 房:只刷一只(它自己就是这场战斗的压力)
-                    Spawn(Chapter == 2 ? EnemyKind.MidBossFrosthuntress : EnemyKind.MidBossMossstag);
+                    Spawn(Chapter == 3 ? EnemyKind.MidBossSandreaper : Chapter == 2 ? EnemyKind.MidBossFrosthuntress : EnemyKind.MidBossMossstag);
                     return;
                 case RoomKind.Elite:
                 {

@@ -8,11 +8,13 @@ import { Rng } from '@engine/core/Rng';
 import { Input } from '@engine/input/Input';
 import { Renderer } from '@engine/render/Renderer';
 import balance from '@data/balance.json';
+const S_REAPER = balance.enemies.midboss_sandreaper;
 import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
   MidBossHuntress,
+  MidBossReaper,
   MidBossStag,
   FlameDancer, FrostMage, IceTurtle, SnowPuff,
   EventTotem, FrostSlime, Health, Inventory, OakGolem, Pickup, Player, Portal, Projectile, PropObstacle,
@@ -25,6 +27,7 @@ import {
   drawPortal, drawShadow, drawShroomling, drawThornVine, drawWindBee,
 } from '@game/gfx/draw';
 import { MidBossHuntressSystem } from '@game/systems/MidBossHuntressSystem';
+import { MidBossReaperSystem } from '@game/systems/MidBossReaperSystem';
 import { PlayerSystem } from '@game/systems/PlayerSystem';
 import { SkillSystem, RUNE_POOL } from '@game/skills/SkillSystem';
 import { ShopSystem } from '@game/systems/ShopSystem';
@@ -221,6 +224,7 @@ export class GameScene {
       new EliteSystem(),
       new MidBossSystem(),
       new MidBossHuntressSystem(),
+      new MidBossReaperSystem(),
       new CritterSystem(),
       new TundraSystem(),
       new DesertSystem(),
@@ -1532,6 +1536,65 @@ export class GameScene {
         } });
       }
 
+      // ---- 第三章中 Boss:沙暴刽子(站立/举刀双帧 + 镰钩链条) ----
+      for (const e of w.query(MidBossReaper, Transform, Health)) {
+        const tr = w.mustGet(e, Transform);
+        const rp = w.mustGet(e, MidBossReaper);
+        const h = w.mustGet(e, Health);
+        const [ix, iy] = lerp(tr);
+        list.push({ y: iy, draw: () => {
+          drawShadow(ctx, ix, iy, 22);
+          // 钩链:钩在飞时画链条 + 钩头(它是这招的可读性本体)
+          if (rp.state === 'hookOut') {
+            ctx.save();
+            ctx.strokeStyle = '#b0a08a';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(ix, iy - 14);
+            ctx.lineTo(rp.hookX, rp.hookY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#e8d4a0';
+            ctx.beginPath();
+            ctx.arc(rp.hookX, rp.hookY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          const raising = rp.state === 'cleaveWind' || rp.state === 'cleaveLeap' || rp.state === 'hookWind';
+          const frame = raising ? 'midboss_sandreaper_f2' : this.frame2('midboss_sandreaper', e, rp.state === 'stalk');
+          const leapUp = rp.state === 'cleaveLeap' ? -10 : 0;   // 腾空:抬高一点
+          if (!drawSprite(ctx, frame, ix, iy + leapUp, {
+            flash: h.flash, faceLeft: Math.cos(tr.face) < 0,
+            rot: rp.state === 'stagger' ? 0.24 : 0,
+          })) {
+            blob(ix, iy + leapUp, 20, '#d4a45f');
+            ctx.fillStyle = '#8a6a3f';
+            ctx.fillRect(ix + (Math.cos(tr.face) < 0 ? -22 : 12), iy - 34 + leapUp, 10, 30);
+          }
+          // 刀卡沙的输出窗:插地的刀 + 金环提示
+          if (rp.state === 'stagger' && rp.t > S_REAPER.cleave.hitStunS + 0.1) {
+            ctx.save();
+            ctx.globalAlpha = 0.5 + Math.sin(rp.animT * 9) * 0.3;
+            ctx.strokeStyle = '#e8c07a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ix, iy - 16, 22, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+          if (rp.phase === 2) {
+            ctx.save();
+            ctx.globalAlpha = 0.14 + Math.sin(rp.animT * 5) * 0.05;
+            ctx.fillStyle = '#d4a45f';
+            ctx.beginPath();
+            ctx.ellipse(ix, iy - 20, 38, 24, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        } });
+      }
+
       // ---- 第三章:荒漠怪 ----
       for (const e of w.query(CinderRat, Transform, Health)) {
         const tr = w.mustGet(e, Transform);
@@ -2142,6 +2205,10 @@ export class GameScene {
     for (const e of this.world.query(MidBossHuntress, Health)) {
       const hs = this.world.mustGet(e, MidBossHuntress);
       drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_frosthuntress.name, hs.phase, false, '#8fd4ff');
+    }
+    for (const e of this.world.query(MidBossReaper, Health)) {
+      const rp = this.world.mustGet(e, MidBossReaper);
+      drawBossBar(this.world.mustGet(e, Health), balance.enemies.midboss_sandreaper.name, rp.phase, false, '#d4a45f');
     }
     for (const e of this.world.query(BossNanmir, Health)) {
       const boss = this.world.mustGet(e, BossNanmir);

@@ -101,6 +101,7 @@ export const SPRITE_NAMES = [
   'fx_slash', 'fx_burst', 'fx_ring', 'fx_beam',
   'shroomling_f2', 'windbee_f2', 'blightwolf_f2', 'cinderrat_f2', 'midboss_mossstag_f2',
   'midboss_frosthuntress', 'midboss_frosthuntress_f2',
+  'midboss_sandreaper', 'midboss_sandreaper_f2',
   // 第三批:拾取物 / 传送门 / 元素图标
   'pickup_chest', 'pickup_stardust', 'pickup_potion', 'pickup_rune', 'portal_gate',
   'elem_fire', 'elem_ice', 'elem_lightning', 'elem_poison',

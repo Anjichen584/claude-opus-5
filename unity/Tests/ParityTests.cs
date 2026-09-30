@@ -1282,6 +1282,7 @@ namespace StarfallKnights.Tests
                 case "duststinger": return Core.EnemyKind.DustStinger;
                 case "midboss_mossstag": return Core.EnemyKind.MidBossMossstag;
                 case "midboss_frosthuntress": return Core.EnemyKind.MidBossFrosthuntress;
+                case "midboss_sandreaper": return Core.EnemyKind.MidBossSandreaper;
                 case "boss_velsha": return Core.EnemyKind.BossVelsha;
                 case "boss_kazra": return Core.EnemyKind.BossKazra;
                 default: return null;

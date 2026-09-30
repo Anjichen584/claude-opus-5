@@ -513,6 +513,49 @@
       "enrageCdMul": 0.85,
       "runeDrop": 1,
       "$doc": "中 Boss 第二章「霜噬女猎」:与巨鹿完全反向的风筝型猎手。三招 = 瞬影冰矢(瞬步拉开 → 三连追踪冰矢)/ 冰牙陷阵(玩家脚下+环绕三处延时冰爆,逼即刻走位)/ 猎杀凝视(1.5s 蓄力直线 6 段冰枪 —— 蓄力期间受伤加深且**任何命中都会打断**,打断=interruptStunS 硬直,这是本场的核心博弈:冲脸赌打断 vs 拉开躲直线)。P2(<phase2At)狂怒:冰矢+enrageArrowAdd、陷阱+enrageTrapAdd、移速×enrageSpeedMul、冷却×enrageCdMul。掉落:必掉紫装+保底 runeDrop 枚符文(与巨鹿同口径)。"
+    },
+    "midboss_sandreaper": {
+      "name": "沙暴刽子",
+      "hp": 1650,
+      "atk": 14,
+      "def": 5,
+      "speed": 2.2,
+      "bodyRadius": 0.5,
+      "stalkM": 3.4,
+      "hook": {
+        "telegraphS": 0.5,
+        "speedM": 10.0,
+        "rangeM": 7.0,
+        "radiusM": 0.4,
+        "mult": 0.6,
+        "pullV": 420,
+        "cdS": 5.4
+      },
+      "cleave": {
+        "telegraphS": 0.85,
+        "leapS": 0.3,
+        "radiusM": 1.5,
+        "mult": 1.6,
+        "missStunS": 2.0,
+        "hitStunS": 0.7,
+        "cdS": 6.2
+      },
+      "storm": {
+        "count": 3,
+        "ringM": 2.6,
+        "radiusM": 1.1,
+        "lifeS": 5.0,
+        "intervalS": 0.5,
+        "mult": 0.35,
+        "cdS": 9.0
+      },
+      "phase2At": 0.5,
+      "enrageHookSpeedMul": 1.25,
+      "enrageStormAdd": 1,
+      "enrageSpeedMul": 1.15,
+      "enrageCdMul": 0.85,
+      "runeDrop": 1,
+      "$doc": "中 Boss 第三章「沙暴刽子」:领地型重刀处刑者,补完中 Boss 三性格(巨鹿=莽/女猎=溜/刽子=钓)。三招 = 沙缚镰钩(直线掷钩,命中把玩家**拉到脸前**小伤 —— 躲的是一条细线)/ 处刑斩(锁玩家落点跳劈大圆:**落空刀卡进沙里 missStunS 满硬直**=本场核心博弈,命中只 hitStunS 半硬直 —— 巨鹿撞墙的'点'版,且常与镰钩连成组合技)/ 沙暴漩涡(以**自己**为中心环形铺沙暴区,领域封锁逼玩家不许贴)。P2(<phase2At)狂怒:钩速×enrageHookSpeedMul、漩涡+enrageStormAdd、移速×enrageSpeedMul、冷却×enrageCdMul。掉落与两位前辈同口径(必掉紫装+保底 runeDrop 符文,按 kind 读表)。"
     }
   },
   "boss": {

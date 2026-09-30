@@ -1219,10 +1219,15 @@ namespace StarfallKnights.Tests
                 Check(ch2Stag == 0, "第二章不能再把巨鹿抬出来");
                 var run3 = new RunManagerLite();
                 run3.SetChapter(3);
-                int ch3Mid = 0;
-                run3.OnSpawn = (k, hp, atk, spd) => { if (EnemyKinds.IsMidBoss(k)) ch3Mid++; };
+                int ch3Rpr = 0, ch3Other = 0;
+                run3.OnSpawn = (k, hp, atk, spd) =>
+                {
+                    if (k == EnemyKind.MidBossSandreaper) ch3Rpr++;
+                    else if (EnemyKinds.IsMidBoss(k)) ch3Other++;
+                };
                 for (int d = 0; d < 8; d++) run3.NextRoom(w);
-                Check(ch3Mid == 0, "第三章中 Boss 未做,仍门控(轮 21)");
+                Check(ch3Rpr == 1, $"第三章中 Boss = 沙暴刽子 ×1(实际 {ch3Rpr})");
+                Check(ch3Other == 0, "第三章不带前两位中 Boss");
             }
 
             // 注意:测试里的站位要离墙远一点(撞墙判定读的是 0.6m 边界余量,
@@ -1452,6 +1457,79 @@ namespace StarfallKnights.Tests
             Check(EnemyKinds.IsBossTier(EnemyKind.MidBossFrosthuntress) && !EnemyKinds.IsBoss(EnemyKind.MidBossFrosthuntress),
                 "女猎属 Boss 级但不是章 Boss");
             Check(EnemyKinds.ChapterOf(EnemyKind.MidBossFrosthuntress) == 2, "霜噬女猎归第二章");
+
+            Suite("中 Boss 沙暴刽子(镰钩拉人 / 处刑斩劈空卡沙 / 沙暴漩涡)");
+
+            // 镰钩:钩中把玩家拉近 + 掉血
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid + new Vector2(5f, 0f));
+                var rpr = MakeEnemy(w, mid, Bestiary.MidBossSandreaperHp);
+                rpr.Kind = EnemyKind.MidBossSandreaper;
+                var ai = new CreatureAI();
+                float d0 = Vector2.Distance(w.Player.Pos, rpr.Pos);
+                float hp0 = w.Player.Unit.Hp;
+                for (int i = 0; i < 60 * 6; i++) { ai.Update(w, 1f / 60f); TelegraphSystem.Tick(w, 1f / 60f); }
+                float d1 = Vector2.Distance(w.Player.Pos, rpr.Pos);
+                Check(w.Player.Unit.Hp < hp0, "被钩中掉血");
+                Check(d1 < d0, $"钩中被拉近({d0:0.0}m → {d1:0.0}m)");
+            }
+
+            // 处刑斩:锁落点亮大圆;玩家滚开 → 劈空满硬直(核心博弈)
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid + new Vector2(4f, 0f));
+                var rpr = MakeEnemy(w, mid, Bestiary.MidBossSandreaperHp);
+                rpr.Kind = EnemyKind.MidBossSandreaper;
+                var ai = new CreatureAI();
+                // 把钩和漩涡的冷却看作不干扰:直接跑,遇到大圆预警就横移(圆半径 1.5m,移 3.5m 必出圈)
+                bool sawBigRing = false;
+                int still = 0, bestStill = 0;
+                for (int i = 0; i < 60 * 20; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    foreach (var tg in w.Telegraphs)
+                        if (tg.RadiusM >= Bestiary.MidBossSandreaperCleaveRadiusM - 0.01f && !sawBigRing)
+                        {
+                            sawBigRing = true;
+                            w.Player.Pos += new Vector2(0f, 3.5f);   // 滚出处刑圈
+                        }
+                    TelegraphSystem.Tick(w, 1f / 60f);
+                    if (sawBigRing)
+                    {
+                        if (rpr.Vel.Length() < 0.01f) { still++; bestStill = Math.Max(bestStill, still); }
+                        else still = 0;
+                    }
+                }
+                Check(sawBigRing, "处刑斩真的锁落点亮了大圆");
+                Check(bestStill / 60f >= Bestiary.MidBossSandreaperCleaveMissStunS * 0.8f,
+                    $"劈空 = 刀卡沙满硬直(静止 {bestStill / 60f:0.0}s / 表 {Bestiary.MidBossSandreaperCleaveMissStunS:0.0}s)");
+            }
+
+            // 沙暴漩涡:以自己为中心铺 ≥count 片沙暴区
+            {
+                var w = new LogicWorld();
+                MakePlayer(w, mid + new Vector2(7f, 0f));
+                var rpr = MakeEnemy(w, mid, Bestiary.MidBossSandreaperHp);
+                rpr.Kind = EnemyKind.MidBossSandreaper;
+                var ai = new CreatureAI();
+                int maxZones = 0;
+                for (int i = 0; i < 60 * 16; i++)
+                {
+                    ai.Update(w, 1f / 60f);
+                    TelegraphSystem.Tick(w, 1f / 60f);
+                    maxZones = Math.Max(maxZones, w.Zones.Count);
+                    if (w.Zones.Count > 0) w.Zones.Clear();   // 只数一轮铺了几片
+                }
+                Check(maxZones >= (int)Bestiary.MidBossSandreaperStormCount,
+                    $"沙暴一轮 ≥{Bestiary.MidBossSandreaperStormCount:0} 片(实测 {maxZones})");
+            }
+
+            // 分类助手 + 三性格数值对比
+            Check(EnemyKinds.IsMidBoss(EnemyKind.MidBossSandreaper), "IsMidBoss 认得沙暴刽子");
+            Check(EnemyKinds.ChapterOf(EnemyKind.MidBossSandreaper) == 3, "沙暴刽子归第三章");
+            Check(Bestiary.MidBossSandreaperCleaveMissStunS > Bestiary.MidBossSandreaperCleaveHitStunS * 2f,
+                "劈空硬直显著长于命中(博弈才成立)");
         }
 
 
@@ -1503,8 +1581,8 @@ namespace StarfallKnights.Tests
         {
             Suite("图鉴(收录 / 进度 / 存档清洗)");
             var codex = new Codex();
-            Check(Codex.EnemyTotal == 23 && Codex.RuneTotal == 36,
-                $"条目总数 23 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
+            Check(Codex.EnemyTotal == 24 && Codex.RuneTotal == 36,
+                $"条目总数 24 怪 + 36 符文(实际 {Codex.EnemyTotal} + {Codex.RuneTotal})");
             Check(codex.EnemyFound == 0 && codex.RuneFound == 0 && !codex.Complete, "空图鉴:一条都没收录");
             Near(codex.Pct, 0f, 1e-6f, "收录率 0");
 
@@ -1568,7 +1646,7 @@ namespace StarfallKnights.Tests
             Near(Bestiary.ChapterOf(3).StatMult, 1.70f, 1e-3f, "章 3 杂兵乘区 1.7");
             Check(EnemyKinds.BossOf(1) == EnemyKind.BossNanmir && EnemyKinds.BossOf(2) == EnemyKind.BossVelsha
                   && EnemyKinds.BossOf(3) == EnemyKind.BossKazra, "章节 Boss 对应正确");
-            Check(Bestiary.Stats.Count == 23, $"图鉴覆盖 23 种敌人(实际 {Bestiary.Stats.Count})");
+            Check(Bestiary.Stats.Count == 24, $"图鉴覆盖 24 种敌人(实际 {Bestiary.Stats.Count})");
 
             for (int chapter = 1; chapter <= 3; chapter++)
             {
