@@ -28,6 +28,15 @@ namespace StarfallKnights.UnityLayer
         public readonly StarfallKnights.Dungeon.BossAI Bosses = new();
         public ItemFactory Factory { get; private set; }
         public MetaSave Meta { get; private set; }
+        // ---- 局外状态(轮 42:U2 面板数据源;持久化时机归宿主,面板只读)----
+        public readonly Codex Codex = new();
+        public readonly Leaderboard.Boards4 Boards = new();
+        public readonly Dictionary<string, long> AchvUnlocked = new();
+        /// <summary>职业中文名(排行榜行用;权威在 balance.json classes 段,这里是宿主注入位)</summary>
+        public Leaderboard.BalanceKlassNames KlassNames = new()
+        { Blade = "狂澜剑士", Ranger = "星弓猎手", Arcanist = "元素秘术师", Warden = "岩铠守卫" };
+        private float _runTimeS;
+        private int _runKills;
         public PlayerController Player { get; private set; }
 
         private readonly Dictionary<Actor, GameObject> _views = new();
@@ -69,15 +78,26 @@ namespace StarfallKnights.UnityLayer
             Run.OnVictory = () =>
             {
                 Meta.clears++;
+                if (Meta.bestTimeS <= 0 || _runTimeS < Meta.bestTimeS) Meta.bestTimeS = _runTimeS;
+                Leaderboard.Submit(Boards, new Leaderboard.RunScore
+                {
+                    Cleared = true, TimeS = _runTimeS, Kills = _runKills, MaxHit = 0,
+                    Klass = "blade", Chapter = Chapter,
+                    At = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                });
+                CheckAchievements();
                 Debug.Log("★ 章节通关!");
                 ShowPortal();
             };
+            Meta.runs++;
+            CheckAchievements();
             Run.NextRoom(World);
         }
 
         private void Update()
         {
             float dt = Time.deltaTime;
+            _runTimeS += dt;
             // 无敌帧交给逻辑层(敌人伤害/地带/预警都尊重它)
             World.PlayerInvulnerable = Player != null && Player.Invulnerable;
             Mobs.Update(World, dt);
@@ -146,10 +166,29 @@ namespace StarfallKnights.UnityLayer
             _views[actor] = go;
         }
 
+        /// <summary>聚合快照 → 幂等解锁;新解锁打日志(真 UI 弹条归后续渲染轮)。</summary>
+        private void CheckAchievements()
+        {
+            var st = Achievements.AchvState.From(Meta);
+            st.CodexEnemies = Codex.EnemyFound;
+            st.CodexRunes = Codex.RuneFound;
+            st.BoardsFilled = Boards.Filled();
+            var fresh = Achievements.Unlock(AchvUnlocked, st,
+                System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            foreach (var id in fresh)
+            {
+                var text = PanelModels.AchvText.TryGetValue(id, out var tx) ? tx.name : id;
+                Debug.Log($"[Achv] 🏆 成就解锁「{text}」");
+            }
+        }
+
         private void OnEnemyDied(Actor a)
         {
             Meta.totalKills++;
+            _runKills++;
             Meta.stardust += 3 + (int)(a.Unit.HpMax / 30);
+            if (Codex.MarkKill(a.Kind)) Debug.Log($"[Codex] 新条目:{a.Kind}");
+            CheckAchievements();
             if (_views.TryGetValue(a, out var go))
             {
                 _views.Remove(a);

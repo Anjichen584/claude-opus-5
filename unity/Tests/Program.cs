@@ -623,6 +623,7 @@ namespace StarfallKnights.Tests
             TestShotAttack();
             TestPlayerAnim();
             TestAchievements();
+            TestPanelModels();
             ParityTests.Run(Check, Near, Suite);
 
             Console.WriteLine("\n" + new string('-', 44));
@@ -2659,6 +2660,90 @@ namespace StarfallKnights.Tests
             var rich = System.Array.Find(Meta.Achievements.All, a => a.Id == "rich");
             Check(Meta.Achievements.Achieved(altar15, fromSave), "15 级合计解锁 altar15");
             Check(Meta.Achievements.Achieved(rich, fromSave), "1200 星尘解锁 rich");
+        }
+
+        // ---------------- 面板 ViewModel(轮 42:U2,行格式化纯函数) ----------------
+
+        private static void TestPanelModels()
+        {
+            Suite("面板 ViewModel(图鉴/成就/排行榜)");
+
+            // ---- 成就:文案表 32 条全覆盖(缺一条名字就露 id,这里直接钉死) ----
+            int missing = 0;
+            foreach (var a in Meta.Achievements.All)
+                if (!Meta.PanelModels.AchvText.ContainsKey(a.Id)) missing++;
+            Check(missing == 0, $"32 条成就都有名称/描述文案(缺 {missing})");
+            Check(Meta.PanelModels.AchvText.Count == Meta.Achievements.Total,
+                "文案表没有多余条目(删成就要连文案一起删)");
+
+            // ---- 成就:分组行、进度文本、已达成口径 ----
+            var st = new Meta.Achievements.AchvState { Clears = 5, Runs = 20 };
+            var unlocked = new System.Collections.Generic.Dictionary<string, long>();
+            var rows = Meta.PanelModels.AchvRows(Meta.Achievements.Cat.Progress, st, unlocked);
+            Check(rows.Count == 5, $"progress 分类 5 条(first_run/first_clear/clear5/15/30,实际 {rows.Count})");
+            var clear5 = rows.Find(r => r.Id == "clear5");
+            Check(clear5.Done && clear5.ProgressText == "已达成", "达标行显示「已达成」");
+            var clear15 = rows.Find(r => r.Id == "clear15");
+            Check(!clear15.Done && clear15.ProgressText == "5/15", "未达标行显示 cur/goal");
+            // 解锁记录也算 Done(哪怕当前进度掉下去了——解锁只增不减)
+            unlocked["clear15"] = 123;
+            rows = Meta.PanelModels.AchvRows(Meta.Achievements.Cat.Progress, st, unlocked);
+            Check(rows.Find(r => r.Id == "clear15").Done, "历史解锁记录优先于当前进度(只增不减)");
+
+            // 五个分类合计 = 32(分组不丢行)
+            int sum = 0;
+            foreach (Meta.Achievements.Cat c in System.Enum.GetValues(typeof(Meta.Achievements.Cat)))
+                sum += Meta.PanelModels.AchvRows(c, st, unlocked).Count;
+            Check(sum == Meta.Achievements.Total, $"五分类行数合计 = 32(实际 {sum})");
+
+            Check(Meta.PanelModels.AchvHeader(3, 32) == "成就 3/32 · 9%", "总进度行:成就 3/32 · 9%");
+            Check(Meta.PanelModels.AchvHeader(32, 32) == "★ 全成就达成 32/32", "满贯换全达成文案");
+
+            // ---- 图鉴:格子/详情/符文行 ----
+            var codex = new Meta.Codex();
+            codex.MarkKill(EnemyKind.Shroomling);
+            codex.MarkKill(EnemyKind.Shroomling);
+            codex.MarkKill(EnemyKind.BossNanmir);
+            var cells = Meta.PanelModels.EnemyCells(codex);
+            Check(cells.Count == Meta.Codex.EnemyTotal, $"怪物格子数 = 图鉴总数({cells.Count})");
+            var shroom = cells.Find(c => c.Kind == EnemyKind.Shroomling);
+            Check(shroom.Found && shroom.Kills == 2 && !shroom.Label.StartsWith("★"), "已收录杂兵:名字无星标,击杀 2");
+            var nanmir = cells.Find(c => c.Kind == EnemyKind.BossNanmir);
+            Check(nanmir.Boss && nanmir.Label.StartsWith("★ "), "Boss 格子带 ★ 前缀");
+            int unknown = 0;
+            foreach (var c in cells) if (!c.Found && c.Label != "?") unknown++;
+            Check(unknown == 0, "未收录格子一律显示 ?(不剧透名字)");
+
+            var detail = Meta.PanelModels.EnemyDetail(codex, EnemyKind.Shroomling);
+            Check(detail.Count == 4 && detail[0] == "击杀:2", "详情四行,首行击杀数");
+            Check(Meta.PanelModels.EnemyDetail(codex, EnemyKind.WindBee).Count == 0, "未收录怪不给详情(壳画 ?)");
+
+            var header = Meta.PanelModels.CodexHeader(codex);
+            Check(header.StartsWith($"怪物 2/{Meta.Codex.EnemyTotal}") && !header.Contains("全收录"),
+                $"图鉴进度行:{header}");
+
+            var runeRows = Meta.PanelModels.RuneRows(codex);
+            Check(runeRows.Count == Meta.Codex.RuneTotal, $"符文行数 = 符文总数({runeRows.Count})");
+            Check(runeRows.TrueForAll(r => r == "?"), "一枚没收时全是 ?");
+
+            // ---- 排行榜:行格式/空榜/徽标 ----
+            var lb = new Meta.Leaderboard.Boards4();
+            var names = new Meta.Leaderboard.BalanceKlassNames
+            { Blade = "狂澜剑士", Ranger = "星弓猎手", Arcanist = "元素秘术师", Warden = "岩铠守卫" };
+            Check(Meta.PanelModels.BoardLines(lb, Meta.Leaderboard.Board.Speed, names).Count == 0,
+                "空榜返回空行集(壳画占位文案)");
+            Check(Meta.PanelModels.BoardSubtitle(lb).Contains("0/4"), "副标题:已开榜 0/4");
+
+            Meta.Leaderboard.Submit(lb, new Meta.Leaderboard.RunScore
+            { Cleared = true, TimeS = 272, Kills = 40, MaxHit = 300, Klass = "blade", Chapter = 1, At = 1000 });
+            Meta.Leaderboard.Submit(lb, new Meta.Leaderboard.RunScore
+            { Cleared = true, TimeS = 250, Kills = 55, MaxHit = 200, Klass = "ranger", Chapter = 2, At = 2000, Tag = "daily:2026-09-30" });
+            var lines = Meta.PanelModels.BoardLines(lb, Meta.Leaderboard.Board.Speed, names);
+            Check(lines.Count == 2, "速度榜两条");
+            Check(lines[0] == "1. 4:10  星弓猎手 · 第2章  🗓 2026-09-30",
+                $"更快的在前 + mm:ss + 职业中文 + 挑战徽标(实际:{lines[0]})");
+            Check(lines[1] == "2. 4:32  狂澜剑士 · 第1章", $"普通局无徽标(实际:{lines[1]})");
+            Check(Meta.PanelModels.BoardSubtitle(lb).Contains("3/4"), "速度/击杀/单伤三榜已开(无伤未开)");
         }
     }
 }
