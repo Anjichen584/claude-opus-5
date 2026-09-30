@@ -3,6 +3,7 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
+  BossPhaseEvent,
   Body, Buffs, Faction, Health, MidBossHuntress, Player, Projectile,
   SfxEvent, Stats, TelegraphStrike, ToastEvent, Transform, Velocity,
 } from '@game/components';
@@ -64,6 +65,7 @@ export class MidBossHuntressSystem implements System {
         hs.blinkCd = Math.min(hs.blinkCd, 0.5);
         hs.trapCd = Math.min(hs.trapCd, 1.0);
         world.emit(new ToastEvent('❄ 霜噬女猎狂怒:霜雾凝弓,箭上生牙!', '#8fd4ff'));
+        world.emit(new BossPhaseEvent('霜噬女猎', 2, '「狂怒」', '#8fd4ff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = hs.phase === 2;

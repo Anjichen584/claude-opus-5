@@ -3,6 +3,7 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
+  BossPhaseEvent,
   Body, BossKazra, Buffs, CinderRat, ElementMarks, Faction, Health, Player, Projectile,
   SfxEvent, Stats, TelegraphStrike, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
@@ -41,10 +42,12 @@ export class KazraSystem implements System {
       if (boss.phase === 1 && ratio <= B.phase2At) {
         boss.phase = 2;
         world.emit(new ToastEvent('🔥 卡兹拉钻入流沙……小心脚下!', '#ff9a6b'));
+        world.emit(new BossPhaseEvent('烬语暴君 · 卡兹拉', 2, '「流沙突袭」', '#ff9a6b', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       } else if (boss.phase === 2 && ratio <= B.phase3At) {
         boss.phase = 3;
         world.emit(new ToastEvent('🔥🔥 卡兹拉熔核暴走:大地在燃烧!', '#ff9a6b'));
+        world.emit(new BossPhaseEvent('烬语暴君 · 卡兹拉', 3, '「熔核暴走」', '#ff5f3f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const haste = boss.phase === 3 ? 0.7 : 1;

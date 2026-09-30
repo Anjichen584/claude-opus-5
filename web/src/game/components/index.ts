@@ -732,6 +732,18 @@ export class BeamFxEvent {
 }
 
 /** 扩散环特效(爆炸/残影引爆) */
+/** Boss 转阶段演出事件(轮 34):FeedbackSystem 吃震屏/顿帧,GameScene 吃横幅+冲击环 */
+export class BossPhaseEvent {
+  constructor(
+    public name: string,      // Boss 名(横幅第一行)
+    public phase: number,     // 进入的阶段
+    public title: string,     // 阶段名(横幅第二行,如「暴风雪」)
+    public color: string,
+    public x: number,
+    public y: number,
+  ) {}
+}
+
 export class RingFxEvent {
   constructor(
     public x: number, public y: number, public radiusPx: number, public color: string,

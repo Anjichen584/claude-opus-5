@@ -1,5 +1,5 @@
 import balance from '@data/balance.json';
-import { ENEMY_KEYS, codexProgress, type CodexData } from './Codex';
+import { ENEMY_KEYS, codexProgress, isMidBossKey, type CodexData } from './Codex';
 import type { SaveData } from './migrations';
 import { BOARD_IDS, boardsFilled } from './Leaderboard';
 
@@ -38,6 +38,30 @@ const bossFound = (codex: CodexData): number => {
 
 const altarLevels = (d: SaveData): number => d.altar.hp + d.altar.atk + d.altar.luck;
 const altarBest = (d: SaveData): number => Math.max(d.altar.hp, d.altar.atk, d.altar.luck);
+import runePool from '@data/runes/pool.json';
+import { TOTEM_IDS } from '@game/loot/EventRules';
+
+/** 中 Boss 收录数(midboss_* 前缀;三位 = 莽/溜/钓三性格) */
+const midbossFound = (codex: CodexData): number => {
+  let n = 0;
+  for (const k of ENEMY_KEYS) if (isMidBossKey(k) && codex.enemies[k]) n++;
+  return n;
+};
+
+/** 任一职业的符文是否已"一门全收"(返回最高的单职业收集数;每职业 9 枚) */
+const bestClassRunes = (codex: CodexData): number => {
+  const byClass: Record<string, number> = {};
+  for (const r of runePool.runes) {
+    const cls = r.skill.split('_')[0];
+    if (codex.runes[r.id]) byClass[cls] = (byClass[cls] ?? 0) + 1;
+  }
+  return Math.max(0, ...Object.values(byClass));
+};
+
+/** 秘境:选过的碑种数 / 抉择总次数 */
+const totemKinds = (d: SaveData): number => TOTEM_IDS.filter((id) => (d.totemCounts[id] ?? 0) > 0).length;
+const totemTotal = (d: SaveData): number => Object.values(d.totemCounts).reduce((s, n) => s + n, 0);
+
 const codexEnemies = (d: SaveData): number => codexProgress(d.codex).enemyFound;
 const codexRunes = (d: SaveData): number => codexProgress(d.codex).runeFound;
 
@@ -61,7 +85,7 @@ export const ACHIEVEMENTS: AchvDef[] = [
   // ---- 图鉴 ----
   { id: 'codex10', name: '初见集录', desc: '图鉴收录 10 种怪物', icon: '📖', cat: '图鉴', progress: (d) => prog(codexEnemies(d), 10) },
   { id: 'codex_boss', name: '猎王', desc: '三章 Boss 全部收录', icon: '👑', cat: '图鉴', progress: (d) => prog(bossFound(d.codex), 3) },
-  { id: 'codex_all_enemy', name: '星陨博物志', desc: '收录全部 21 种怪物', icon: '🦴', cat: '图鉴', progress: (d) => prog(codexEnemies(d), ENEMY_KEYS.length) },
+  { id: 'codex_all_enemy', name: '星陨博物志', desc: `收录全部 ${ENEMY_KEYS.length} 种怪物`, icon: '🦴', cat: '图鉴', progress: (d) => prog(codexEnemies(d), ENEMY_KEYS.length) },
   { id: 'rune18', name: '符文收藏家', desc: '收录 18 枚符文', icon: '◈', cat: '图鉴', progress: (d) => prog(codexRunes(d), 18) },
   { id: 'rune_all', name: '符文大师', desc: '收录全部 36 枚符文', icon: '🔮', cat: '图鉴', progress: (d) => prog(codexRunes(d), 36) },
 
@@ -73,6 +97,17 @@ export const ACHIEVEMENTS: AchvDef[] = [
   { id: 'altar15', name: '星陨祭坛·大成', desc: '三系祭坛合计 15 级', icon: '✨', cat: '局外', progress: (d) => prog(altarLevels(d), 15) },
   { id: 'craft1', name: '铸星者', desc: '在星辉铸台铸造 1 次开局橙装', icon: '📜', cat: '局外', progress: (d) => prog(d.stats.crafts, 1) },
   { id: 'rich', name: '星尘富翁', desc: '持有 1000 星尘', icon: '💰', cat: '局外', progress: (d) => prog(d.stardust, 1000) },
+  // ---- 扩建批(轮 36:22 → 32)----
+  { id: 'clear30', name: '传奇挽歌', desc: '通关 30 次', icon: '🎖', cat: '进度', progress: (d) => prog(d.stats.clears, 30) },
+  { id: 'kills5000', name: '星陨屠戮', desc: '累计击杀 5000', icon: '🌋', cat: '战斗', progress: (d) => prog(d.stats.totalKills, 5000) },
+  { id: 'speed5', name: '时之刃', desc: '5 分钟内通关', icon: '⏱', cat: '极速', progress: (d) => prog(d.stats.bestTimeS > 0 && d.stats.bestTimeS <= 300 ? 1 : 0, 1) },
+  { id: 'codex_mid', name: '三猎全谱', desc: '三位中 Boss 全部收录(莽/溜/钓)', icon: '🗡', cat: '图鉴', progress: (d) => prog(midbossFound(d.codex), 3) },
+  { id: 'codex25', name: '广袤见闻', desc: '图鉴收录 25 种怪物', icon: '🔍', cat: '图鉴', progress: (d) => prog(codexEnemies(d), 25) },
+  { id: 'rune_one_class', name: '一门精通', desc: '任一职业 9 枚符文全部收录', icon: '🈴', cat: '图鉴', progress: (d) => prog(bestClassRunes(d.codex), 9) },
+  { id: 'totem_all', name: '遍历秘境', desc: '8 座石碑各抉择过至少一次', icon: '🗿', cat: '局外', progress: (d) => prog(totemKinds(d), TOTEM_IDS.length) },
+  { id: 'totem20', name: '抉择老手', desc: '秘境抉择累计 20 次', icon: '⚖', cat: '局外', progress: (d) => prog(totemTotal(d), 20) },
+  { id: 'craft5', name: '铸星宗师', desc: '在星辉铸台铸造 5 次', icon: '🛠', cat: '局外', progress: (d) => prog(d.stats.crafts, 5) },
+  { id: 'rich5k', name: '星尘之海', desc: '持有 5000 星尘', icon: '💎', cat: '局外', progress: (d) => prog(d.stardust, 5000) },
 ];
 
 export const ACHV_TOTAL = ACHIEVEMENTS.length;

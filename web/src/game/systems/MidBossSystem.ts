@@ -3,6 +3,7 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
+  BossPhaseEvent,
   Body, Buffs, ElementMarks, Faction, Health, MidBossStag, Player, Projectile,
   SfxEvent, Stats, TelegraphStrike, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
@@ -67,6 +68,7 @@ export class MidBossSystem implements System {
         stag.chargeCd = Math.min(stag.chargeCd, 0.4);
         stag.volleyCd = Math.min(stag.volleyCd, 0.7);
         world.emit(new ToastEvent('🌿 苔冠巨鹿狂怒:苔雾暴涨,鹿角低垂!', '#8fd45f'));
+        world.emit(new BossPhaseEvent('苔冠巨鹿', 2, '「狂怒」', '#8fd45f', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = stag.phase === 2;

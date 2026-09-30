@@ -17,7 +17,9 @@ function perfectSave(): SaveData {
   d.stats.noHitClears = 3;
   d.stats.dailyClears = 4;
   d.stats.weeklyClears = 2;
-  d.stats.crafts = 2;
+  d.stats.crafts = 5;
+  // 秘境:8 座碑各选过(扩建批「遍历秘境/抉择老手」)
+  for (const id of ['blood', 'blessing', 'fountain', 'gamble', 'sacrifice', 'relic', 'echo', 'mend']) d.totemCounts[id] = 3;
   d.stardust = 5000;
   d.altar = { hp: 6, atk: 6, luck: 6 };
   // 四条榜各留一条记录(成就「榜上有名」的解锁条件)
@@ -42,7 +44,7 @@ describe('成就定义', () => {
       expect(ACHV_CATS).toContain(a.cat);
     }
     expect(ACHV_TOTAL).toBe(ACHIEVEMENTS.length);
-    expect(ACHV_TOTAL).toBeGreaterThanOrEqual(18);
+    expect(ACHV_TOTAL).toBe(32); // 轮 36 扩建:22 → 32
   });
 
   it('每条成就的 goal 都 > 0,且 progress 返回夹在 [0, goal] 内的当前值', () => {

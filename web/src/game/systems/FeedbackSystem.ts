@@ -7,6 +7,7 @@ import { drawFloatText } from '@game/gfx/floatText';
 import { UI } from '@game/constants';
 import { meta } from '@game/meta/Save';
 import {
+  BossPhaseEvent,
   BeamFxEvent, DashGhostEvent, HitEvent, KillEvent, PlayerHurtEvent, ReactionEvent,
   RingFxEvent, SfxEvent, SlashFxEvent, ToastEvent,
 } from '@game/components';
@@ -158,6 +159,12 @@ export class FeedbackSystem implements System {
       }
     }
 
+    // Boss 转阶段(轮 34):全屏级反馈 —— 大震 + 长顿帧(数值走 settings 缩放,晕屏玩家可关)
+    for (const bp of world.read(BossPhaseEvent)) {
+      this.shake(7, 0.5);
+      this.stop(140);
+      void bp;
+    }
     for (const r of world.read(RingFxEvent)) {
       this.rings.push({ x: r.x, y: r.y, radius: r.radiusPx, color: r.color, t: 0, life: 0.35, sprite: r.sprite });
     }

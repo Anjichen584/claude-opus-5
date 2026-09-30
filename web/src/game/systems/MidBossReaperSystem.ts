@@ -2,6 +2,7 @@ import type { System, World } from '@engine/ecs/World';
 import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import {
+  BossPhaseEvent,
   Body, Buffs, Health, MidBossReaper, Player, SfxEvent, Stats,
   TelegraphStrike, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
@@ -68,6 +69,7 @@ export class MidBossReaperSystem implements System {
         rp.hookCd = Math.min(rp.hookCd, 0.5);
         rp.cleaveCd = Math.min(rp.cleaveCd, 1.0);
         world.emit(new ToastEvent('🌪 沙暴刽子狂怒:黄沙漫卷,刀更快了!', REAPER_TUNING.sandColor));
+        world.emit(new BossPhaseEvent('沙暴刽子', 2, '「狂怒」', REAPER_TUNING.sandColor, tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const enraged = rp.phase === 2;

@@ -13,6 +13,8 @@ import { FOREST, M, RARITY_COLORS, UI } from '@game/constants';
 import {
   BlightWolf, Body, BossNanmir, Buffs, Element, ElementMarks, EmberImp, Equipment, Faction,
   BlizzardHawk, BossKazra, BossVelsha, CampStation, CinderRat, Dummy, DuneBeetle, DustStinger,
+  BossPhaseEvent,
+  RingFxEvent,
   EmberWhirl,
   IceGlider,
 
@@ -160,6 +162,8 @@ export class GameScene {
   private wasInWater = false;
   private wasOnIce = false;
   private wasInStorm = false;
+  /** Boss 转阶段横幅(轮 34):大字居中,2.2s 淡入淡出 */
+  private banner: { name: string; title: string; color: string; t: number } | null = null;
 
   constructor(
     private readonly renderer: Renderer,
@@ -989,6 +993,16 @@ export class GameScene {
     } else {
       this.wasInWater = false;
     }
+    // Boss 转阶段演出(轮 34):横幅 + 冲击环(震屏/顿帧由 FeedbackSystem 吃同一事件)
+    for (const bp of this.world.read(BossPhaseEvent)) {
+      this.banner = { name: bp.name, title: bp.title, color: bp.color, t: 2.2 };
+      this.world.emit(new RingFxEvent(bp.x, bp.y, 120, bp.color, 'fx_shockwave'));
+    }
+    if (this.banner !== null) {
+      this.banner.t -= dt;
+      if (this.banner.t <= 0) this.banner = null;
+    }
+
     // 沙暴循环(轮 15):推进计时;起暴那一刻提示一次
     terrain.tick(dt);
     if (terrain.hasStorm) {
@@ -2261,6 +2275,29 @@ export class GameScene {
         ctx.lineTo(x - 26 - (i % 4) * 8, y + 3);
         ctx.stroke();
       }
+      ctx.restore();
+    }
+
+    // Boss 转阶段横幅(轮 34):居中大字,淡入淡出 + 轻微上浮
+    if (this.banner !== null && this.state === 'run') {
+      const { ctx, width, height } = r;
+      const b = this.banner;
+      const a2 = Math.min(1, (2.2 - b.t) / 0.3, b.t / 0.5);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, a2);
+      ctx.textAlign = 'center';
+      const y = height * 0.30 - (2.2 - b.t) * 6;
+      ctx.font = 'bold 30px monospace';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#0d0f1a';
+      ctx.strokeText(b.name, width / 2, y);
+      ctx.fillStyle = b.color;
+      ctx.fillText(b.name, width / 2, y);
+      ctx.font = 'bold 17px monospace';
+      ctx.lineWidth = 4;
+      ctx.strokeText(b.title, width / 2, y + 28);
+      ctx.fillStyle = '#f2ead8';
+      ctx.fillText(b.title, width / 2, y + 28);
       ctx.restore();
     }
   }

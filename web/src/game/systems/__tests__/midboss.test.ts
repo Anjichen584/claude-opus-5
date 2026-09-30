@@ -845,3 +845,32 @@ describe('中 Boss 沙暴刽子 · 行为(真跑 AI)', () => {
     expect(rp.state).toBe('stagger');
   });
 });
+
+/* ================= Boss 转阶段演出(轮 34) ================= */
+
+import { BossPhaseEvent } from '@game/components';
+
+describe('Boss 转阶段演出(轮 34)', () => {
+  it('中 Boss 狂怒时发 BossPhaseEvent(横幅/震屏/顿帧都吃它,只发一次)', () => {
+    const { w, he, hnt } = makeHuntressWorld(200, 200, 500, 200);
+    const sys = new MidBossHuntressSystem();
+    hnt.blinkCd = 99; hnt.trapCd = 99; hnt.markCd = 99;
+    w.mustGet(he, Health).hp = Math.round(H.hp * 0.4); // 压到半血下
+    sys.update(w, 1 / 60);
+    const evs = w.read(BossPhaseEvent);
+    expect(evs.length, '狂怒必须广播演出事件').toBe(1);
+    expect(evs[0].name).toBe('霜噬女猎');
+    expect(evs[0].phase).toBe(2);
+    w.clearEvents();
+    sys.update(w, 1 / 60);
+    expect(w.read(BossPhaseEvent).length, '只发一次(不能每帧刷横幅)').toBe(0);
+  });
+
+  it('三章 Boss/三中 Boss 全部接了演出事件(源码扫描:改招式忘接演出会红)', async () => {
+    const fs = await import('node:fs');
+    for (const f of ['BossSystem', 'VelshaSystem', 'KazraSystem', 'MidBossSystem', 'MidBossHuntressSystem', 'MidBossReaperSystem']) {
+      const src = fs.readFileSync(`src/game/systems/${f}.ts`, 'utf8');
+      expect(src.includes('new BossPhaseEvent('), `${f} 没接演出事件`).toBe(true);
+    }
+  });
+});

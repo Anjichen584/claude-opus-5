@@ -3,6 +3,7 @@ import balance from '@data/balance.json';
 import { M } from '@game/constants';
 import { elementColor } from '@game/combat/Elements';
 import {
+  BossPhaseEvent,
   Body, BossVelsha, Buffs, ElementMarks, Faction, Health, Player, Projectile, SfxEvent,
   SnowPuff, Stats, TelegraphStrike, ToastEvent, Transform, Velocity, Zone,
 } from '@game/components';
@@ -40,10 +41,12 @@ export class VelshaSystem implements System {
       if (boss.phase === 1 && ratio <= B.phase2At) {
         boss.phase = 2;
         world.emit(new ToastEvent('❄ 薇尔莎:「让暴风雪…吞没你」', '#8fdcff'));
+        world.emit(new BossPhaseEvent('冰语女王 · 薇尔莎', 2, '「暴风雪」', '#8fdcff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       } else if (boss.phase === 2 && ratio <= B.phase3At) {
         boss.phase = 3;
         world.emit(new ToastEvent('❄❄ 薇尔莎狂怒:寒风呼啸!', '#8fdcff'));
+        world.emit(new BossPhaseEvent('冰语女王 · 薇尔莎', 3, '「寒风冲锋」', '#bfe8ff', tr.x, tr.y));
         world.emit(new SfxEvent('ult'));
       }
       const haste = boss.phase === 3 ? 0.65 : 1; // P3 全冷却×0.65
